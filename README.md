@@ -54,6 +54,12 @@ Diferente de sistemas web comuns que travam sem internet ou vendem seus dados, o
 - Mostra aporte do mês, média recente, cobertura em meses, previsão para completar e sugere quanto do superávit separar.
 - Fechamento navegável mês a mês, com comparação de cada categoria contra a sua média dos 3 meses anteriores.
 
+### 🏆 Jornada (Gamificação)
+- **XP e níveis** com títulos (Porquinho Curioso → Lenda do Pigo), calculados a partir dos seus dados: extratos importados, lançamentos categorizados, meses no azul, aportes na reserva, orçamentos cumpridos e faturas em dia.
+- **Retroativo e igual em todos os PCs**: o XP é derivado dos dados que já sincronizam, então seu histórico pontua desde o primeiro extrato.
+- **3 missões semanais** geradas pela inteligência local a partir dos seus padrões (ex.: "Gaste até R$ 380 com Custos com a Casa").
+- **23 conquistas** com raridade (comum, rara, épica, lendária), sequências de semanas importando e de meses no azul, e comemoração ao subir de nível.
+
 ### 🏦 Gestão de Contas Bancárias e Carteiras
 - Controle completo de contas correntes, poupança, carteiras digitais, investimentos e dinheiro vivo.
 - Transferências financeiras entre contas com atualização simultânea e validação de saldo.

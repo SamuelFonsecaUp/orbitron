@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Minus, Square, Copy, X, RefreshCw, Bell, Printer, FileSpreadsheet, Sun, Moon } from 'lucide-react';
 import { useFinancial } from '../context/FinancialContext';
 import { SyncStatusBadge } from './SyncStatusBadge';
+import { XpPill } from './GameWidgets';
 
 export const Navbar: React.FC = () => {
   const {
@@ -52,6 +53,7 @@ export const Navbar: React.FC = () => {
     categories: 'Categorias',
     goals: 'Metas Financeiras',
     reserve: 'Reserva Financeira',
+    journey: 'Jornada & Conquistas',
     reports: 'Relatórios & Gráficos',
     settings: 'Configurações do Sistema',
     import: 'Importar Extrato Bancário (OFX / CSV)',
@@ -78,6 +80,8 @@ export const Navbar: React.FC = () => {
             <span>Continuar Importação</span>
           </button>
         )}
+
+        <XpPill />
 
         <SyncStatusBadge />
 

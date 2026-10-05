@@ -373,6 +373,10 @@ app.whenReady().then(() => {
   handleIpc('intelligence:getGoals', () => service.getGoalsIntelligence());
   handleIpc('intelligence:getMonthlyCloseout', (yearMonth) => service.getMonthlyCloseout(yearMonth));
 
+  // Gamificação (Jornada)
+  handleIpc('game:getOverview', () => service.getGameOverview());
+  handleIpc('game:getUnlocks', () => service.getGameUnlocks());
+
   // Reserva Financeira
   handleIpc('reserve:get', (monthKey) => service.getReserveOverview(monthKey));
   handleIpc('reserve:setExcluded', (transactionId, excluded) => service.setReserveTransactionExcluded(transactionId, excluded));

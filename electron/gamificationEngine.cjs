@@ -1,0 +1,639 @@
+/**
+ * Gamification Engine (Pigo RPG Financeiro) — 100% local
+ *
+ * O XP é DERIVADO dos dados financeiros (extratos, lançamentos, reserva, faturas),
+ * que já sincronizam entre computadores. Assim todos os PCs chegam ao mesmo nível,
+ * o histórico antigo pontua retroativamente e não existe XP duplicado.
+ * Apenas o que é inerentemente local fica em tabelas próprias:
+ * missões semanais geradas e o controle de "já comemorado".
+ */
+
+const XP = {
+  statementImport: 50,
+  categorizedTransaction: 2,
+  positiveMonth: 200,
+  reserveAporteBase: 50,
+  reserveAporteMaxBonus: 250,
+  budgetKept: 50,
+  invoiceOnTime: 80,
+};
+
+const RARITY_XP = { comum: 100, raro: 250, epico: 500, lendario: 1000 };
+
+const LEVEL_TITLES = [
+  { from: 1, title: 'Porquinho Curioso' },
+  { from: 3, title: 'Poupador Aprendiz' },
+  { from: 6, title: 'Guardião do Cofre' },
+  { from: 10, title: 'Estrategista Financeiro' },
+  { from: 15, title: 'Investidor Disciplinado' },
+  { from: 20, title: 'Mestre das Finanças' },
+  { from: 30, title: 'Lenda do Pigo' },
+];
+
+// --- Date helpers (local time, YYYY-MM-DD strings) ---
+function parseDate(dateStr) {
+  const [y, m, d] = dateStr.slice(0, 10).split('-').map(Number);
+  return new Date(y, m - 1, d);
+}
+
+function formatDate(date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
+function addDays(dateStr, days) {
+  const d = parseDate(dateStr);
+  d.setDate(d.getDate() + days);
+  return formatDate(d);
+}
+
+function addMonthsToKey(monthKey, delta) {
+  const [y, m] = monthKey.split('-').map(Number);
+  const d = new Date(y, m - 1 + delta, 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+
+function monthEnd(monthKey) {
+  const [y, m] = monthKey.split('-').map(Number);
+  return formatDate(new Date(y, m, 0));
+}
+
+// Semana começa na segunda-feira; a chave é a data dessa segunda
+function weekStart(dateStr) {
+  const d = parseDate(dateStr);
+  const offset = (d.getDay() + 6) % 7;
+  d.setDate(d.getDate() - offset);
+  return formatDate(d);
+}
+
+function monthLabel(monthKey) {
+  const [y, m] = monthKey.split('-').map(Number);
+  return new Date(y, m - 1, 1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+}
+
+function formatBRL(cents) {
+  return (cents / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+}
+
+// --- Level curve: subir do nível n para n+1 custa 100 + 50·(n-1) XP ---
+function xpToNext(level) {
+  return 100 + 50 * (level - 1);
+}
+
+function levelFromXp(totalXp) {
+  let level = 1;
+  let remaining = totalXp;
+  while (remaining >= xpToNext(level)) {
+    remaining -= xpToNext(level);
+    level++;
+  }
+  return { level, xpIntoLevel: remaining, xpForNext: xpToNext(level) };
+}
+
+function titleForLevel(level) {
+  let title = LEVEL_TITLES[0].title;
+  for (const t of LEVEL_TITLES) {
+    if (level >= t.from) title = t.title;
+  }
+  return title;
+}
+
+function longestRun(sortedKeys, nextKey) {
+  let best = 0;
+  let current = 0;
+  let prev = null;
+  for (const key of sortedKeys) {
+    current = prev && nextKey(prev) === key ? current + 1 : 1;
+    best = Math.max(best, current);
+    prev = key;
+  }
+  return best;
+}
+
+class GamificationEngine {
+  constructor(db, intelligence) {
+    this.db = db;
+    this.intelligence = intelligence;
+    this.ensureTables();
+  }
+
+  ensureTables() {
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS game_weekly_missions (
+        week_key TEXT NOT NULL,
+        mission_id TEXT NOT NULL,
+        definition TEXT NOT NULL,
+        completed_at TEXT,
+        created_at TEXT NOT NULL,
+        PRIMARY KEY (week_key, mission_id)
+      );
+      CREATE TABLE IF NOT EXISTS game_seen (
+        key TEXT PRIMARY KEY,
+        seen_at TEXT NOT NULL
+      );
+    `);
+  }
+
+  today() {
+    return new Date().toISOString().slice(0, 10);
+  }
+
+  // ==========================================
+  // Fatos derivados dos dados financeiros
+  // ==========================================
+  collectFacts() {
+    const today = this.today();
+    const currentMonth = today.slice(0, 7);
+
+    const statements = this.db.prepare(`
+      SELECT id, original_name, imported_at FROM imported_statements ORDER BY imported_at ASC
+    `).all();
+
+    const categorizedByMonth = this.db.prepare(`
+      SELECT strftime('%Y-%m', transaction_date) as month_key, COUNT(*) as c
+      FROM transactions
+      WHERE category_id IS NOT NULL AND type IN ('income', 'expense') AND status != 'cancelled'
+      GROUP BY month_key
+      ORDER BY month_key ASC
+    `).all();
+
+    const totals = this.db.prepare(`
+      SELECT
+        COUNT(*) as total,
+        SUM(CASE WHEN category_id IS NULL AND type IN ('income', 'expense') AND status != 'cancelled' THEN 1 ELSE 0 END) as uncategorized,
+        MIN(transaction_date) as first_date,
+        MAX(transaction_date) as last_date
+      FROM transactions
+    `).get();
+
+    // Movimentos da reserva (aportes)
+    let reserveMovements = [];
+    let reserveStatus = null;
+    try {
+      reserveMovements = this.intelligence.getReserveMovements().filter(m => m.countsInBalance || m.source === 'transfer');
+      reserveStatus = this.intelligence.getReserveStatus(currentMonth, 0, 1);
+    } catch (e) {
+      reserveMovements = [];
+    }
+
+    // Meses fechados no azul (resultado do dia a dia, sem contar aportes/resgates)
+    const positiveMonths = [];
+    if (totals.first_date) {
+      let key = totals.first_date.slice(0, 7);
+      while (key < currentMonth) {
+        const income = this.intelligence.getMonthIncomeTotal(key).total;
+        const expense = this.intelligence.getMonthExpenseTotal(key).total;
+        const inMonth = reserveMovements.filter(m => m.date.slice(0, 7) === key && m.source !== 'transfer');
+        const aportes = inMonth.filter(m => m.kind === 'aporte').reduce((s, m) => s + Math.abs(m.amount), 0);
+        const resgates = inMonth.filter(m => m.kind === 'resgate').reduce((s, m) => s + Math.abs(m.amount), 0);
+        const result = income - resgates - (expense - aportes);
+        if (income > 0 && result >= 0) positiveMonths.push({ monthKey: key, result });
+        key = addMonthsToKey(key, 1);
+      }
+    }
+
+    // Tetos de orçamento cumpridos em meses fechados
+    const budgetsKept = [];
+    const budgets = this.db.prepare(`
+      SELECT b.id, b.category_id, b.amount_limit, b.created_at, c.name as category_name
+      FROM category_budgets b LEFT JOIN categories c ON c.id = b.category_id
+    `).all();
+    for (const b of budgets) {
+      let key = (b.created_at || today).slice(0, 7);
+      while (key < currentMonth) {
+        const spent = this.db.prepare(`
+          SELECT COALESCE(SUM(amount), 0) as total FROM transactions
+          WHERE category_id = ? AND type = 'expense' AND status != 'cancelled'
+            AND (
+              (credit_card_id IS NULL AND transaction_date >= ? AND transaction_date <= ?)
+              OR (credit_card_id IS NOT NULL AND invoice_month = ?)
+            )
+        `).get(b.category_id, `${key}-01`, `${key}-31`, key).total;
+        const hadActivity = this.db.prepare(`
+          SELECT 1 FROM transactions WHERE transaction_date >= ? AND transaction_date <= ? LIMIT 1
+        `).get(`${key}-01`, `${key}-31`);
+        if (hadActivity && spent <= b.amount_limit) {
+          budgetsKept.push({ budgetId: b.id, monthKey: key, categoryName: b.category_name || 'Categoria' });
+        }
+        key = addMonthsToKey(key, 1);
+      }
+    }
+
+    // Faturas pagas até o vencimento
+    const invoicesOnTime = this.db.prepare(`
+      SELECT t.id, t.transaction_date, t.invoice_month, c.due_day, c.name as card_name
+      FROM transactions t
+      JOIN credit_cards c ON c.id = t.credit_card_id
+      WHERE t.type = 'card_payment' AND t.status = 'completed' AND t.invoice_month IS NOT NULL
+    `).all().filter(p => {
+      const [y, m] = p.invoice_month.split('-').map(Number);
+      const maxDay = new Date(y, m, 0).getDate();
+      const due = `${p.invoice_month}-${String(Math.min(p.due_day, maxDay)).padStart(2, '0')}`;
+      return p.transaction_date <= due;
+    });
+
+    let recurringCount = 0;
+    try {
+      recurringCount = this.intelligence.detectRecurringPatterns('expense').length;
+    } catch (e) {
+      recurringCount = 0;
+    }
+
+    return {
+      today,
+      currentMonth,
+      statements,
+      categorizedByMonth,
+      categorizedCount: categorizedByMonth.reduce((s, r) => s + r.c, 0),
+      transactionCount: totals.total || 0,
+      uncategorizedCount: totals.uncategorized || 0,
+      lastTransactionDate: totals.last_date,
+      firstTransactionDate: totals.first_date,
+      reserveAportes: reserveMovements.filter(m => m.kind === 'aporte'),
+      reserveStatus,
+      positiveMonths,
+      budgetsKept,
+      invoicesOnTime,
+      recurringCount,
+    };
+  }
+
+  // ==========================================
+  // Sequências
+  // ==========================================
+  computeStreaks(facts) {
+    const thisWeek = weekStart(facts.today);
+    const lastWeek = addDays(thisWeek, -7);
+    const importWeeks = [...new Set(facts.statements.map(s => weekStart(s.imported_at.slice(0, 10))))].sort();
+    const weekSet = new Set(importWeeks);
+
+    let importCurrent = 0;
+    let cursor = weekSet.has(thisWeek) ? thisWeek : lastWeek;
+    while (weekSet.has(cursor)) {
+      importCurrent++;
+      cursor = addDays(cursor, -7);
+    }
+
+    const positiveKeys = facts.positiveMonths.map(m => m.monthKey).sort();
+    const positiveSet = new Set(positiveKeys);
+    let positiveCurrent = 0;
+    let monthCursor = addMonthsToKey(facts.currentMonth, -1);
+    while (positiveSet.has(monthCursor)) {
+      positiveCurrent++;
+      monthCursor = addMonthsToKey(monthCursor, -1);
+    }
+
+    return {
+      importWeeks: {
+        current: importCurrent,
+        best: Math.max(importCurrent, longestRun(importWeeks, k => addDays(k, 7))),
+        atRisk: importCurrent > 0 && !weekSet.has(thisWeek),
+      },
+      positiveMonths: {
+        current: positiveCurrent,
+        best: Math.max(positiveCurrent, longestRun(positiveKeys, k => addMonthsToKey(k, 1))),
+        atRisk: false,
+      },
+    };
+  }
+
+  // ==========================================
+  // Missões semanais
+  // ==========================================
+  generateMissions(weekKey, facts) {
+    const missions = [];
+    const before = weekKey;
+    const windowStart = addDays(weekKey, -56);
+
+    // 1. Teto de gasto na categoria variável que mais pesa nas últimas 8 semanas
+    const reserveCategoryIds = new Set((facts.reserveStatus?.categories || []).filter(c => c.isReserve).map(c => c.id));
+    const candidates = this.db.prepare(`
+      SELECT t.category_id as id, c.name, SUM(t.amount) as total
+      FROM transactions t JOIN categories c ON c.id = t.category_id
+      WHERE t.type = 'expense' AND t.status != 'cancelled'
+        AND t.transaction_date >= ? AND t.transaction_date < ?
+      GROUP BY t.category_id
+      ORDER BY total DESC
+    `).all(windowStart, before).filter(c => !reserveCategoryIds.has(c.id));
+    const weeksWithData = Math.max(1, Math.min(8, Math.ceil(
+      (parseDate(before) - parseDate(facts.firstTransactionDate && facts.firstTransactionDate > windowStart ? facts.firstTransactionDate : windowStart)) / (7 * 86400000)
+    )));
+    const top = candidates.find(c => c.total / weeksWithData >= 3000);
+    if (top) {
+      const avgWeekly = top.total / weeksWithData;
+      const target = Math.max(1000, Math.round((avgWeekly * 0.9) / 500) * 500);
+      missions.push({
+        id: 'spend_cap',
+        title: `Gaste até ${formatBRL(target)} com ${top.name}`,
+        description: `10% abaixo da sua média semanal (${formatBRL(Math.round(avgWeekly))}).`,
+        xp: 150,
+        categoryId: top.id,
+        target,
+      });
+    }
+
+    // 2. Organização: zerar lançamentos sem categoria ou importar extrato
+    if (facts.uncategorizedCount > 0) {
+      missions.push({
+        id: 'categorize_all',
+        title: 'Zere os lançamentos sem categoria',
+        description: `${facts.uncategorizedCount} aguardando categoria. Cada um ensina a inteligência do Pigo.`,
+        xp: 100,
+        target: 0,
+      });
+    } else {
+      missions.push({
+        id: 'import_statement',
+        title: 'Importe um extrato nesta semana',
+        description: 'Manter os dados em dia deixa previsões e missões mais precisas.',
+        xp: 100,
+        target: 1,
+      });
+    }
+
+    // 3. Reserva ou dias sem gastos
+    if (facts.reserveStatus && facts.reserveStatus.status !== 'complete') {
+      missions.push({
+        id: 'reserve_aporte',
+        title: 'Faça um aporte na reserva',
+        description: facts.reserveStatus.suggestedContribution > 0
+          ? `Sugestão do fechamento: ${formatBRL(facts.reserveStatus.suggestedContribution)}.`
+          : 'Qualquer valor conta: o importante é o hábito.',
+        xp: 150,
+        target: 1,
+      });
+    } else {
+      missions.push({
+        id: 'zero_spend_days',
+        title: 'Tenha 2 dias sem nenhum gasto',
+        description: 'Dias "no-spend" ajudam a quebrar o consumo automático.',
+        xp: 120,
+        target: 2,
+      });
+    }
+
+    return missions;
+  }
+
+  getWeeklyMissions(weekKey, facts, { create = true } = {}) {
+    const rows = this.db.prepare(`SELECT * FROM game_weekly_missions WHERE week_key = ?`).all(weekKey);
+    if (rows.length > 0 || !create) {
+      return rows
+        .map(r => ({ ...JSON.parse(r.definition), completedAt: r.completed_at }))
+        .sort((x, y) => (x.position ?? 0) - (y.position ?? 0));
+    }
+    const generated = this.generateMissions(weekKey, facts).map((m, position) => ({ ...m, position }));
+    const insert = this.db.prepare(`
+      INSERT OR IGNORE INTO game_weekly_missions (week_key, mission_id, definition, created_at) VALUES (?, ?, ?, ?)
+    `);
+    const now = new Date().toISOString();
+    for (const m of generated) insert.run(weekKey, m.id, JSON.stringify(m), now);
+    return generated.map(m => ({ ...m, completedAt: null }));
+  }
+
+  // Avalia o progresso de uma missão; persiste a conclusão quando acontece
+  evaluateMission(weekKey, mission, facts) {
+    const weekEnd = addDays(weekKey, 6);
+    const weekOver = facts.today > weekEnd;
+    const dataCoversWeek = Boolean(facts.lastTransactionDate && facts.lastTransactionDate >= weekEnd);
+    let progress = 0;
+    let status = 'in_progress';
+    let progressLabel = '';
+
+    if (mission.completedAt) {
+      return { ...mission, weekKey, status: 'completed', progress: 100, progressLabel: 'Concluída' };
+    }
+
+    if (mission.id === 'spend_cap') {
+      const spent = this.db.prepare(`
+        SELECT COALESCE(SUM(amount), 0) as total FROM transactions
+        WHERE category_id = ? AND type = 'expense' AND status != 'cancelled'
+          AND transaction_date >= ? AND transaction_date <= ?
+      `).get(mission.categoryId, weekKey, weekEnd).total;
+      progress = Math.min(100, Math.round((spent / mission.target) * 100));
+      progressLabel = `${formatBRL(spent)} de ${formatBRL(mission.target)}`;
+      if (spent > mission.target) status = 'failed';
+      else if (weekOver && dataCoversWeek) status = 'completed';
+      else if (weekOver) status = 'awaiting_data';
+    } else if (mission.id === 'categorize_all') {
+      progressLabel = `${facts.uncategorizedCount} sem categoria`;
+      if (facts.uncategorizedCount === 0 && !weekOver) status = 'completed';
+      else if (weekOver) status = 'failed';
+      progress = facts.uncategorizedCount === 0 ? 100 : 0;
+    } else if (mission.id === 'import_statement') {
+      const count = facts.statements.filter(s => {
+        const d = s.imported_at.slice(0, 10);
+        return d >= weekKey && d <= weekEnd;
+      }).length;
+      progress = Math.min(100, count * 100);
+      progressLabel = `${count} de 1 extrato`;
+      status = count >= 1 ? 'completed' : weekOver ? 'failed' : 'in_progress';
+    } else if (mission.id === 'reserve_aporte') {
+      const count = facts.reserveAportes.filter(m => m.date >= weekKey && m.date <= weekEnd).length;
+      progress = Math.min(100, count * 100);
+      progressLabel = `${count} de 1 aporte`;
+      if (count >= 1) status = 'completed';
+      else if (weekOver && dataCoversWeek) status = 'failed';
+      else if (weekOver) status = 'awaiting_data';
+    } else if (mission.id === 'zero_spend_days') {
+      const spendDays = new Set(this.db.prepare(`
+        SELECT DISTINCT transaction_date as d FROM transactions
+        WHERE type = 'expense' AND status != 'cancelled' AND transaction_date >= ? AND transaction_date <= ?
+      `).all(weekKey, weekEnd).map(r => r.d));
+      const elapsed = weekOver ? 7 : Math.max(0, Math.round((parseDate(facts.today) - parseDate(weekKey)) / 86400000));
+      const zeroDays = Math.max(0, elapsed - spendDays.size);
+      progress = Math.min(100, Math.round((zeroDays / mission.target) * 100));
+      progressLabel = `${Math.min(zeroDays, mission.target)} de ${mission.target} dias`;
+      if (weekOver && dataCoversWeek) status = zeroDays >= mission.target ? 'completed' : 'failed';
+      else if (weekOver) status = 'awaiting_data';
+    }
+
+    if (status === 'completed') {
+      const completedAt = weekOver ? weekEnd : facts.today;
+      this.db.prepare(`
+        UPDATE game_weekly_missions SET completed_at = ? WHERE week_key = ? AND mission_id = ? AND completed_at IS NULL
+      `).run(completedAt, weekKey, mission.id);
+      return { ...mission, weekKey, completedAt, status, progress: 100, progressLabel };
+    }
+    return { ...mission, weekKey, status, progress, progressLabel };
+  }
+
+  // Missões de semanas anteriores ainda em aberto são reavaliadas (ex.: extrato chegou depois)
+  evaluateAllMissions(facts) {
+    const currentWeek = weekStart(facts.today);
+    const current = this.getWeeklyMissions(currentWeek, facts).map(m => this.evaluateMission(currentWeek, m, facts));
+    const pastWeeks = this.db.prepare(`
+      SELECT DISTINCT week_key FROM game_weekly_missions WHERE week_key < ? ORDER BY week_key DESC
+    `).all(currentWeek).map(r => r.week_key);
+    const past = [];
+    for (const wk of pastWeeks) {
+      for (const m of this.getWeeklyMissions(wk, facts, { create: false })) {
+        past.push(this.evaluateMission(wk, m, facts));
+      }
+    }
+    return { current, past, weekEnd: addDays(currentWeek, 6) };
+  }
+
+  // ==========================================
+  // Conquistas
+  // ==========================================
+  getAchievementDefinitions() {
+    return [
+      { id: 'primeiro_extrato', name: 'Primeiro Extrato', description: 'Importe seu primeiro extrato OFX/CSV.', rarity: 'comum', icon: 'FileUp', metric: 'statements', target: 1 },
+      { id: 'extratos_10', name: 'Arquivista', description: 'Importe 10 extratos.', rarity: 'raro', icon: 'FolderArchive', metric: 'statements', target: 10 },
+      { id: 'extratos_50', name: 'Guardião do Histórico', description: 'Importe 50 extratos.', rarity: 'epico', icon: 'Library', metric: 'statements', target: 50 },
+      { id: 'categorizador_100', name: 'Organizador', description: 'Tenha 100 lançamentos categorizados.', rarity: 'comum', icon: 'Tags', metric: 'categorized', target: 100 },
+      { id: 'categorizador_500', name: 'Taxonomista', description: 'Tenha 500 lançamentos categorizados.', rarity: 'raro', icon: 'Tags', metric: 'categorized', target: 500 },
+      { id: 'categorizador_2000', name: 'Professor do Pigo', description: '2.000 lançamentos categorizados treinando a inteligência.', rarity: 'epico', icon: 'GraduationCap', metric: 'categorized', target: 2000 },
+      { id: 'caixa_zero', name: 'Caixa de Entrada Zero', description: 'Nenhum lançamento sem categoria (com pelo menos 50 lançamentos).', rarity: 'raro', icon: 'Inbox', metric: 'inboxZero', target: 1 },
+      { id: 'mes_azul', name: 'No Azul', description: 'Feche um mês com resultado positivo.', rarity: 'comum', icon: 'TrendingUp', metric: 'positiveMonths', target: 1 },
+      { id: 'azul_3', name: 'Trimestre Azul', description: '3 meses seguidos no azul.', rarity: 'raro', icon: 'Flame', metric: 'positiveStreak', target: 3 },
+      { id: 'azul_6', name: 'Semestre Impecável', description: '6 meses seguidos no azul.', rarity: 'epico', icon: 'Flame', metric: 'positiveStreak', target: 6 },
+      { id: 'azul_12', name: 'Ano de Ouro', description: '12 meses seguidos no azul.', rarity: 'lendario', icon: 'Crown', metric: 'positiveStreak', target: 12 },
+      { id: 'primeira_reserva', name: 'Primeiro Tijolo', description: 'Faça seu primeiro aporte na reserva.', rarity: 'comum', icon: 'PiggyBank', metric: 'reserveAportes', target: 1 },
+      { id: 'aportes_12', name: 'Aportador Constante', description: 'Faça 12 aportes na reserva.', rarity: 'raro', icon: 'PiggyBank', metric: 'reserveAportes', target: 12 },
+      { id: 'reserva_1', name: 'Um Mês de Paz', description: 'Reserva cobrindo 1 mês de custo de vida.', rarity: 'raro', icon: 'Shield', metric: 'reserveCoverage', target: 1 },
+      { id: 'reserva_3', name: 'Colchão Seguro', description: 'Reserva cobrindo 3 meses de custo de vida.', rarity: 'epico', icon: 'ShieldCheck', metric: 'reserveCoverage', target: 3 },
+      { id: 'reserva_completa', name: 'Fortaleza', description: 'Atinja a meta completa da reserva.', rarity: 'lendario', icon: 'Castle', metric: 'reserveComplete', target: 1 },
+      { id: 'semanas_4', name: 'Ritmo Semanal', description: '4 semanas seguidas importando extratos.', rarity: 'raro', icon: 'CalendarCheck', metric: 'importStreak', target: 4 },
+      { id: 'semanas_12', name: 'Relógio Suíço', description: '12 semanas seguidas importando extratos.', rarity: 'epico', icon: 'CalendarCheck', metric: 'importStreak', target: 12 },
+      { id: 'fatura_3', name: 'Pagador Pontual', description: 'Pague 3 faturas de cartão até o vencimento.', rarity: 'comum', icon: 'CreditCard', metric: 'invoicesOnTime', target: 3 },
+      { id: 'fatura_12', name: 'Crédito de Ouro', description: 'Pague 12 faturas até o vencimento.', rarity: 'epico', icon: 'CreditCard', metric: 'invoicesOnTime', target: 12 },
+      { id: 'orcamento_5', name: 'Dentro do Teto', description: 'Cumpra 5 tetos de orçamento mensais.', rarity: 'raro', icon: 'Target', metric: 'budgetsKept', target: 5 },
+      { id: 'missoes_10', name: 'Caçador de Missões', description: 'Conclua 10 missões semanais.', rarity: 'raro', icon: 'Swords', metric: 'missionsCompleted', target: 10 },
+      { id: 'detetive', name: 'Detetive de Assinaturas', description: 'O Pigo identificou 5 despesas recorrentes nos seus extratos.', rarity: 'comum', icon: 'Search', metric: 'recurringDetected', target: 5 },
+    ];
+  }
+
+  computeAchievements(facts, streaks, missionsCompleted) {
+    const metrics = {
+      statements: facts.statements.length,
+      categorized: facts.categorizedCount,
+      inboxZero: facts.transactionCount >= 50 && facts.uncategorizedCount === 0 ? 1 : 0,
+      positiveMonths: facts.positiveMonths.length,
+      positiveStreak: streaks.positiveMonths.best,
+      reserveAportes: facts.reserveAportes.length,
+      reserveCoverage: facts.reserveStatus ? facts.reserveStatus.coverageMonths : 0,
+      reserveComplete: facts.reserveStatus && facts.reserveStatus.status === 'complete' ? 1 : 0,
+      importStreak: streaks.importWeeks.best,
+      invoicesOnTime: facts.invoicesOnTime.length,
+      budgetsKept: facts.budgetsKept.length,
+      missionsCompleted,
+      recurringDetected: facts.recurringCount,
+    };
+    const seen = new Map(this.db.prepare(`SELECT key, seen_at FROM game_seen WHERE key LIKE 'ach:%'`).all().map(r => [r.key, r.seen_at]));
+
+    return this.getAchievementDefinitions().map(def => {
+      const current = metrics[def.metric] || 0;
+      const unlocked = current >= def.target;
+      return {
+        ...def,
+        xp: RARITY_XP[def.rarity],
+        current: Math.min(current, def.target),
+        progress: Math.min(100, Math.round((current / def.target) * 100)),
+        unlocked,
+        unlockedAt: unlocked ? (seen.get(`ach:${def.id}`) || facts.today).slice(0, 10) : null,
+      };
+    });
+  }
+
+  // ==========================================
+  // Visão geral (XP, nível, eventos)
+  // ==========================================
+  getOverview() {
+    const facts = this.collectFacts();
+    const streaks = this.computeStreaks(facts);
+    const missions = this.evaluateAllMissions(facts);
+    const allMissions = [...missions.current, ...missions.past];
+    const completedMissions = allMissions.filter(m => m.status === 'completed');
+    const achievements = this.computeAchievements(facts, streaks, completedMissions.length);
+
+    const events = [];
+    for (const s of facts.statements) {
+      events.push({ id: `stmt:${s.id}`, date: s.imported_at.slice(0, 10), xp: XP.statementImport, kind: 'import', title: `Extrato importado: ${s.original_name}` });
+    }
+    for (const row of facts.categorizedByMonth) {
+      const date = row.month_key === facts.currentMonth ? facts.today : monthEnd(row.month_key);
+      events.push({ id: `cat:${row.month_key}`, date, xp: row.c * XP.categorizedTransaction, kind: 'categorize', title: `${row.c} lançamentos categorizados em ${monthLabel(row.month_key)}` });
+    }
+    for (const m of facts.positiveMonths) {
+      events.push({ id: `month:${m.monthKey}`, date: monthEnd(m.monthKey), xp: XP.positiveMonth, kind: 'month', title: `${monthLabel(m.monthKey)} fechou no azul (+${formatBRL(m.result)})` });
+    }
+    for (const a of facts.reserveAportes) {
+      const bonus = Math.min(XP.reserveAporteMaxBonus, Math.floor(Math.abs(a.amount) / 2000));
+      events.push({ id: `res:${a.id}`, date: a.date, xp: XP.reserveAporteBase + bonus, kind: 'reserve', title: `Aporte de ${formatBRL(Math.abs(a.amount))} na reserva` });
+    }
+    for (const b of facts.budgetsKept) {
+      events.push({ id: `bud:${b.budgetId}:${b.monthKey}`, date: monthEnd(b.monthKey), xp: XP.budgetKept, kind: 'budget', title: `Teto de ${b.categoryName} cumprido em ${monthLabel(b.monthKey)}` });
+    }
+    for (const p of facts.invoicesOnTime) {
+      events.push({ id: `inv:${p.id}`, date: p.transaction_date, xp: XP.invoiceOnTime, kind: 'invoice', title: `Fatura ${p.card_name} paga em dia` });
+    }
+    for (const m of completedMissions) {
+      events.push({ id: `mis:${m.weekKey}:${m.id}`, date: m.completedAt || facts.today, xp: m.xp, kind: 'mission', title: `Missão concluída: ${m.title}` });
+    }
+    for (const a of achievements.filter(x => x.unlocked)) {
+      events.push({ id: `ach:${a.id}`, date: a.unlockedAt, xp: a.xp, kind: 'achievement', title: `Conquista: ${a.name}` });
+    }
+    events.sort((a, b) => b.date.localeCompare(a.date) || b.xp - a.xp);
+
+    const totalXp = events.reduce((s, e) => s + e.xp, 0);
+    const levelInfo = levelFromXp(totalXp);
+    const xpByKind = {};
+    for (const e of events) xpByKind[e.kind] = (xpByKind[e.kind] || 0) + e.xp;
+    const nextTitle = LEVEL_TITLES.find(t => t.from > levelInfo.level) || null;
+
+    return {
+      totalXp,
+      level: levelInfo.level,
+      title: titleForLevel(levelInfo.level),
+      xpIntoLevel: levelInfo.xpIntoLevel,
+      xpForNext: levelInfo.xpForNext,
+      progressPercent: Math.round((levelInfo.xpIntoLevel / levelInfo.xpForNext) * 100),
+      nextTitle: nextTitle ? { title: nextTitle.title, level: nextTitle.from } : null,
+      streaks,
+      missions: { current: missions.current, weekEnd: missions.weekEnd, completedTotal: completedMissions.length },
+      achievements,
+      events: events.slice(0, 60),
+      xpByKind,
+      xpThisWeek: events.filter(e => e.date >= weekStart(facts.today)).reduce((s, e) => s + e.xp, 0),
+    };
+  }
+
+  // Novidades desde a última vez (para comemorar); na primeira execução só registra
+  getNewUnlocks() {
+    const overview = this.getOverview();
+    const seenKeys = new Set(this.db.prepare(`SELECT key FROM game_seen`).all().map(r => r.key));
+    const firstRun = seenKeys.size === 0;
+    const now = new Date().toISOString();
+    const markSeen = this.db.prepare(`INSERT OR IGNORE INTO game_seen (key, seen_at) VALUES (?, ?)`);
+
+    const fresh = [];
+    for (const a of overview.achievements.filter(x => x.unlocked)) {
+      const key = `ach:${a.id}`;
+      if (!seenKeys.has(key)) {
+        markSeen.run(key, now);
+        if (!firstRun) fresh.push({ type: 'achievement', id: a.id, name: a.name, rarity: a.rarity, xp: a.xp, icon: a.icon });
+      }
+    }
+    const levelKey = `level:${overview.level}`;
+    if (!seenKeys.has(levelKey)) {
+      markSeen.run(levelKey, now);
+      if (!firstRun) fresh.push({ type: 'level', level: overview.level, title: overview.title });
+    }
+
+    return {
+      firstRun,
+      unlocks: fresh,
+      summary: { level: overview.level, title: overview.title, totalXp: overview.totalXp, achievements: overview.achievements.filter(a => a.unlocked).length },
+    };
+  }
+}
+
+module.exports = {
+  GamificationEngine,
+  levelFromXp,
+  titleForLevel,
+  weekStart,
+  XP,
+  RARITY_XP,
+};

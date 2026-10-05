@@ -100,6 +100,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getGoalsIntelligence: () => ipcRenderer.invoke('intelligence:getGoals'),
   getMonthlyCloseout: (yearMonth) => ipcRenderer.invoke('intelligence:getMonthlyCloseout', yearMonth),
 
+  // Gamificação (Jornada)
+  getGameOverview: () => ipcRenderer.invoke('game:getOverview'),
+  getGameUnlocks: () => ipcRenderer.invoke('game:getUnlocks'),
+
   // Reserva Financeira
   getReserveOverview: (monthKey) => ipcRenderer.invoke('reserve:get', monthKey),
   setReserveTransactionExcluded: (transactionId, excluded) => ipcRenderer.invoke('reserve:setExcluded', transactionId, excluded),

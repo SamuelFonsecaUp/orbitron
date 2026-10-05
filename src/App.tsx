@@ -23,6 +23,8 @@ import { SettingsView } from './views/SettingsView';
 import { OnboardingView } from './views/OnboardingView';
 import { ImportView } from './views/ImportView';
 import { ReserveView } from './views/ReserveView';
+import { JourneyView } from './views/JourneyView';
+import { GameCelebration } from './components/GameWidgets';
 import { IntelligenceView } from './views/IntelligenceView';
 
 export const App: React.FC = () => {
@@ -62,6 +64,9 @@ export const App: React.FC = () => {
     <div className="flex h-screen w-screen overflow-hidden bg-[#090d16] text-slate-100 font-sans">
       {/* PIN Security Modal */}
       {isLocked && <PinLockModal />}
+
+      {/* Level-up / achievement celebrations */}
+      <GameCelebration />
 
       {/* Floating Notifications */}
       <ToastContainer />
@@ -106,6 +111,7 @@ export const App: React.FC = () => {
             {currentView === 'settings' && <SettingsView />}
             {currentView === 'import' && <ImportView />}
             {currentView === 'reserve' && <ReserveView />}
+            {currentView === 'journey' && <JourneyView />}
             {currentView === 'intelligence' && <IntelligenceView />}
           </div>
         </main>

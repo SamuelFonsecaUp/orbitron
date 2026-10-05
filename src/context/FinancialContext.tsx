@@ -13,6 +13,9 @@ import {
   CloudSession,
   SyncResult,
   SyncStatus,
+  GameOverview,
+  GameUnlock,
+  GameUnlocksResult,
 } from '../types';
 
 // Intervalo da sincronização automática em segundo plano
@@ -23,6 +26,7 @@ export type AppView =
   | 'transactions'
   | 'accounts'
   | 'reserve'
+  | 'journey'
   | 'cards'
   | 'budgets'
   | 'calendar'
@@ -87,6 +91,13 @@ interface FinancialContextType {
   // Theme (Dark / Light)
   theme: 'dark' | 'light';
   toggleTheme: () => Promise<void>;
+
+  // Gamificação (Jornada)
+  game: GameOverview | null;
+  refreshGame: () => Promise<void>;
+  celebrations: GameUnlock[];
+  welcomeSummary: GameUnlocksResult['summary'] | null;
+  dismissCelebration: () => void;
 
   // Cloud Auth & Sync (Supabase / Local-First)
   cloudSession: CloudSession | null;
@@ -253,6 +264,37 @@ export const FinancialProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }
   }, [refreshCloudSession]);
 
+  // Gamificação: XP derivado dos dados, recalculado após cada atualização
+  const [game, setGame] = useState<GameOverview | null>(null);
+  const [celebrations, setCelebrations] = useState<GameUnlock[]>([]);
+  const [welcomeSummary, setWelcomeSummary] = useState<GameUnlocksResult['summary'] | null>(null);
+
+  const refreshGame = useCallback(async () => {
+    if (!window.electronAPI?.getGameOverview) return;
+    try {
+      const [overview, unlocks] = await Promise.all([
+        window.electronAPI.getGameOverview(),
+        window.electronAPI.getGameUnlocks(),
+      ]);
+      setGame(overview);
+      if (unlocks.firstRun) {
+        setWelcomeSummary(unlocks.summary);
+      } else if (unlocks.unlocks.length > 0) {
+        setCelebrations(prev => [...prev, ...unlocks.unlocks]);
+      }
+    } catch (e) {
+      console.error('Error refreshing game:', e);
+    }
+  }, []);
+
+  const dismissCelebration = useCallback(() => {
+    if (welcomeSummary) {
+      setWelcomeSummary(null);
+    } else {
+      setCelebrations(prev => prev.slice(1));
+    }
+  }, [welcomeSummary]);
+
   const showToast = useCallback((message: string, type: 'success' | 'error' | 'info' = 'success') => {
     const id = Math.random().toString(36).substring(2, 9);
     setToasts(prev => [...prev, { id, message, type }]);
@@ -304,6 +346,7 @@ export const FinancialProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       if (window.electronAPI.getCloudPendingCount) {
         window.electronAPI.getCloudPendingCount().then(setPendingSyncCount).catch(() => {});
       }
+      refreshGame();
 
       // Apply theme
       const currentTheme = s?.theme === 'light' ? 'light' : 'dark';
@@ -314,7 +357,7 @@ export const FinancialProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     } finally {
       setIsLoading(false);
     }
-  }, [showToast]);
+  }, [showToast, refreshGame]);
 
   // Initial load & PIN check
   useEffect(() => {
@@ -463,6 +506,11 @@ export const FinancialProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         navigateToAccountTransactions,
         theme,
         toggleTheme,
+        game,
+        refreshGame,
+        celebrations,
+        welcomeSummary,
+        dismissCelebration,
         cloudSession,
         syncStatus,
         syncMessage,
