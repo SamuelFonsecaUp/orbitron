@@ -1,0 +1,89 @@
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { initDatabase, closeDatabase } from '../electron/database.cjs';
+import { FinancialService } from '../electron/services.cjs';
+import { levelFromXp, titleForLevel, weekStart } from '../electron/gamificationEngine.cjs';
+
+function monthKeyOffset(delta: number): string {
+  const now = new Date();
+  const d = new Date(now.getFullYear(), now.getMonth() + delta, 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+
+describe('Gamification (Pigo RPG Financeiro)', () => {
+  let db: any;
+  let service: any;
+
+  beforeEach(() => {
+    db = initDatabase(':memory:');
+    service = new FinancialService(db);
+  });
+
+  afterEach(() => {
+    closeDatabase();
+  });
+
+  it('uses a progressive level curve with titles', () => {
+    expect(levelFromXp(0)).toEqual({ level: 1, xpIntoLevel: 0, xpForNext: 100 });
+    expect(levelFromXp(100).level).toBe(2);
+    expect(levelFromXp(250).level).toBe(3);
+    expect(levelFromXp(249)).toEqual({ level: 2, xpIntoLevel: 149, xpForNext: 150 });
+    expect(titleForLevel(1)).toBe('Porquinho Curioso');
+    expect(titleForLevel(12)).toBe('Estrategista Financeiro');
+    expect(weekStart('2026-10-08')).toBe('2026-10-05');
+  });
+
+  it('starts at level 1 with an empty database', () => {
+    const o = service.getGameOverview();
+    expect(o.level).toBe(1);
+    expect(o.achievements.every((a: any) => !a.unlocked)).toBe(true);
+  });
+
+  it('derives XP retroactively from imports, categorization, positive months and reserve', () => {
+    const acc = service.createAccount({ name: 'Conta', type: 'checking', initialBalance: 0 });
+    service.saveImportedStatement({ originalName: 'extrato.ofx', fileType: 'ofx', content: '<OFX/>' });
+
+    const months = [monthKeyOffset(-3), monthKeyOffset(-2), monthKeyOffset(-1)];
+    for (const m of months) {
+      service.createTransaction({ accountId: acc.id, categoryId: 'cat_salario', type: 'income', description: 'Salário', amount: 500000, transactionDate: `${m}-05`, status: 'completed' });
+      service.createTransaction({ accountId: acc.id, categoryId: 'cat_moradia', type: 'expense', description: 'Aluguel', amount: 200000, transactionDate: `${m}-10`, status: 'completed' });
+      service.createTransaction({ accountId: acc.id, categoryId: 'cat_investimentos', type: 'expense', description: 'Aplicacao CDB', amount: 100000, transactionDate: `${m}-15`, status: 'completed' });
+    }
+
+    const o = service.getGameOverview();
+    expect(o.xpByKind.import).toBe(50);
+    expect(o.xpByKind.categorize).toBe(9 * 2);
+    expect(o.xpByKind.month).toBe(3 * 200);
+    expect(o.xpByKind.reserve).toBeGreaterThanOrEqual(3 * 50);
+    expect(o.streaks.positiveMonths.current).toBe(3);
+
+    const unlocked = o.achievements.filter((a: any) => a.unlocked).map((a: any) => a.id);
+    expect(unlocked).toEqual(expect.arrayContaining(['primeiro_extrato', 'mes_azul', 'azul_3', 'primeira_reserva']));
+    expect(o.level).toBeGreaterThan(5);
+  });
+
+  it('generates three weekly missions and keeps them stable during the week', () => {
+    const acc = service.createAccount({ name: 'Conta', type: 'checking', initialBalance: 0 });
+    for (let i = 1; i <= 40; i++) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      service.createTransaction({ accountId: acc.id, categoryId: 'cat_alimentacao', type: 'expense', description: `Mercado ${i}`, amount: 8000, transactionDate: d.toISOString().slice(0, 10), status: 'completed' });
+    }
+    const first = service.getGameOverview().missions.current;
+    expect(first).toHaveLength(3);
+    expect(first[0].id).toBe('spend_cap');
+    const again = service.getGameOverview().missions.current;
+    expect(again.map((m: any) => m.title)).toEqual(first.map((m: any) => m.title));
+  });
+
+  it('celebrates only new unlocks after the first run', () => {
+    const firstRun = service.getGameUnlocks();
+    expect(firstRun.firstRun).toBe(true);
+    expect(firstRun.unlocks).toHaveLength(0);
+
+    service.saveImportedStatement({ originalName: 'novo.ofx', fileType: 'ofx', content: '<OFX/>' });
+    const next = service.getGameUnlocks();
+    expect(next.firstRun).toBe(false);
+    expect(next.unlocks.some((u: any) => u.type === 'achievement' && u.id === 'primeiro_extrato')).toBe(true);
+    expect(service.getGameUnlocks().unlocks).toHaveLength(0);
+  });
+});

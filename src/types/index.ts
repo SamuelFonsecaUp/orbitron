@@ -775,6 +775,8 @@ export interface ElectronAPI {
   detectRecurringPatterns: () => Promise<RecurringCandidate[]>;
   getCreditCardIntelligence: () => Promise<CardIntelligenceData[]>;
   getGoalsIntelligence: () => Promise<GoalIntelligence[]>;
+  getGameOverview: () => Promise<GameOverview>;
+  getGameUnlocks: () => Promise<GameUnlocksResult>;
   getReserveOverview: (monthKey?: string) => Promise<ReserveStatus>;
   setReserveTransactionExcluded: (transactionId: string, excluded: boolean) => Promise<boolean>;
   registerReserveMovement: (data: {
@@ -829,6 +831,77 @@ export interface CloudSession {
 }
 
 export type SyncStatus = 'synced' | 'offline' | 'local_only' | 'syncing' | 'error' | 'auth_expired';
+
+// --- GAMIFICAÇÃO (JORNADA) ---
+export type GameRarity = 'comum' | 'raro' | 'epico' | 'lendario';
+
+export interface GameAchievement {
+  id: string;
+  name: string;
+  description: string;
+  rarity: GameRarity;
+  icon: string;
+  metric: string;
+  target: number;
+  current: number;
+  progress: number;
+  xp: number;
+  unlocked: boolean;
+  unlockedAt: string | null;
+}
+
+export interface GameMission {
+  id: string;
+  title: string;
+  description: string;
+  xp: number;
+  target: number;
+  weekKey: string;
+  status: 'in_progress' | 'completed' | 'failed' | 'awaiting_data';
+  progress: number;
+  progressLabel: string;
+  completedAt?: string | null;
+}
+
+export interface GameStreak {
+  current: number;
+  best: number;
+  atRisk: boolean;
+}
+
+export interface GameEvent {
+  id: string;
+  date: string;
+  xp: number;
+  kind: 'import' | 'categorize' | 'month' | 'reserve' | 'budget' | 'invoice' | 'mission' | 'achievement';
+  title: string;
+}
+
+export interface GameOverview {
+  totalXp: number;
+  level: number;
+  title: string;
+  xpIntoLevel: number;
+  xpForNext: number;
+  progressPercent: number;
+  nextTitle: { title: string; level: number } | null;
+  streaks: { importWeeks: GameStreak; positiveMonths: GameStreak };
+  missions: { current: GameMission[]; weekEnd: string; completedTotal: number };
+  achievements: GameAchievement[];
+  events: GameEvent[];
+  xpByKind: Record<string, number>;
+  xpThisWeek: number;
+}
+
+export type GameUnlock =
+  | { type: 'achievement'; id: string; name: string; rarity: GameRarity; xp: number; icon: string }
+  | { type: 'level'; level: number; title: string };
+
+export interface GameUnlocksResult {
+  firstRun: boolean;
+  unlocks: GameUnlock[];
+  summary: { level: number; title: string; totalXp: number; achievements: number };
+}
 
 export interface AppUpdateStatus {
   state: 'downloading' | 'ready';

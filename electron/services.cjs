@@ -6,6 +6,7 @@ const { hashPin, verifyPin, generateSalt } = require('./crypto.cjs');
 const { FinancialIntelligenceEngine } = require('./intelligenceEngine.cjs');
 const { CloudAuth } = require('./cloudAuth.cjs');
 const { CloudSyncEngine } = require('./syncEngine.cjs');
+const { GamificationEngine } = require('./gamificationEngine.cjs');
 
 // Helper to format ISO date to YYYY-MM
 function getMonthKey(dateStr) {
@@ -80,6 +81,21 @@ class FinancialService {
       this._intelligence = new FinancialIntelligenceEngine(this.db);
     }
     return this._intelligence;
+  }
+
+  get gamification() {
+    if (!this._gamification) {
+      this._gamification = new GamificationEngine(this.db, this.intelligence);
+    }
+    return this._gamification;
+  }
+
+  getGameOverview() {
+    return this.gamification.getOverview();
+  }
+
+  getGameUnlocks() {
+    return this.gamification.getNewUnlocks();
   }
 
   get cloudAuth() {
