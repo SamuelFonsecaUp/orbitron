@@ -104,6 +104,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getGameOverview: () => ipcRenderer.invoke('game:getOverview'),
   getGameUnlocks: () => ipcRenderer.invoke('game:getUnlocks'),
   getGameWorld: () => ipcRenderer.invoke('game:getWorld'),
+  getGameAssets: () => ipcRenderer.invoke('game:getAssets'),
+  openGameAssetsFolder: () => ipcRenderer.invoke('game:openAssetsFolder'),
 
   // Reserva Financeira
   getReserveOverview: (monthKey) => ipcRenderer.invoke('reserve:get', monthKey),

@@ -377,6 +377,12 @@ app.whenReady().then(() => {
   handleIpc('game:getOverview', () => service.getGameOverview());
   handleIpc('game:getUnlocks', () => service.getGameUnlocks());
   handleIpc('game:getWorld', () => service.getGameWorld());
+  handleIpc('game:getAssets', () => service.getGameAssets());
+  handleIpc('game:openAssetsFolder', async () => {
+    const folder = service.getGameAssetsFolder();
+    await shell.openPath(folder);
+    return folder;
+  });
 
   // Reserva Financeira
   handleIpc('reserve:get', (monthKey) => service.getReserveOverview(monthKey));

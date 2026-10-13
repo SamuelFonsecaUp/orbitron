@@ -59,6 +59,8 @@ Diferente de sistemas web comuns que travam sem internet ou vendem seus dados, o
 - **24 mobis, 5 papéis de parede e 5 pisos** liberados por **conquistas** e **níveis** da Jornada (ex.: *Cofre de Aço* com 1 mês de reserva, *Estátua Dourada do Pigo* com a reserva completa).
 - O **Pigo** anda pelo quarto (clique no piso) desviando dos móveis.
 - Dois ambientes: **Sala do Tesouro** (finanças) e **Quarto do Herói** (vida, libera na fase de hábitos). O layout sincroniza entre computadores.
+- Alta resolução (tiles de 64×32), **tela cheia**, quarto de **4 a 24 tiles** em cada lado, paredes baixa/normal/alta e **cores livres**.
+- **Use seus próprios PNGs** para mobis, pisos, paredes e o Pigo — veja [docs/ASSETS.md](docs/ASSETS.md).
 - Arte original no mesmo estilo isométrico — nenhum asset de terceiros.
 
 ### 🏰 Reino do Pigo (pixel art)
