@@ -14,7 +14,8 @@ Arquivos de código relacionados:
 | `src/game/pack/pack.json` | Catálogo do pacote oficial |
 | `src/game/pack.ts` | Carregador do pacote (empacota automaticamente todo PNG da pasta) |
 | `src/game/mobis.tsx` | Mobis desenhados em código (24) e suas conquistas |
-| `src/game/avatar.tsx` | Avatar: partes, roupas, cabelos, acessórios e o que libera cada um |
+| `src/game/avatar.tsx` | Opções do provador (cabelos, roupas, acessórios) e o que libera cada uma |
+| `src/game/avatarSheet.ts` | Veste o corpo base (`pack/avatar/base.png`) por regiões e gera direções, caminhada e pose sentada |
 | `src/game/room.ts` | Plantas de quarto (mapas de altura) e o nível de cada uma |
 | `src/game/sprites.ts` | Sprites pequenos (Pigo pet, goblins, dragão…) |
 
@@ -67,6 +68,19 @@ src/game/pack/
 - **`walkable`**: tapetes (dá para pisar e pôr móveis em cima).
 
 Depois de adicionar: `npm test` confere se todo arquivo citado existe, e `npm run release` publica para todos.
+
+## Avatar (corpo base)
+
+O avatar é gerado a partir de **`src/game/pack/avatar/base.png`**: uma folha com as vistas do boneco **lado a lado**, na ordem
+**costas · perfil (olhando para a direita) · frente · 3/4 de frente (olhando para a esquerda) · 3/4 de costas**.
+O app separa as vistas sozinho (colunas vazias entre elas) e espelha para obter as 8 direções.
+
+Regras para a arte funcionar:
+- Pele em **uma cor lisa** (cadastrada em `pack.json → avatar.skin`, hoje `#fdc996`) e **contorno escuro** de 1 px.
+- Fundo **transparente** ou branco (`avatar.background`).
+- Todas as vistas com os **pés na mesma linha** e as mesmas proporções da referência (~79 px de altura): a cabeça termina ~54 px acima dos pés, o tronco vai até ~22 px e os sapatos ocupam os 3 px de baixo.
+
+A partir disso o app **veste** o boneco por regiões (camisa/mangas, calça, sapatos), desenha **cabelos e acessórios** com contorno, gera os **passos da caminhada** e a pose **sentada**. As opções do provador (e o que libera cada uma) ficam em `src/game/avatar.tsx`.
 
 ## Resolução e como desenhar
 

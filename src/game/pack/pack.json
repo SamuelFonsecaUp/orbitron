@@ -8,9 +8,15 @@
       "w": 1,
       "d": 1,
       "category": "tesouro",
-      "rooms": ["finance", "life"],
+      "rooms": [
+        "finance",
+        "life"
+      ],
       "qty": 1,
-      "unlock": { "type": "level", "level": 2 }
+      "unlock": {
+        "type": "level",
+        "level": 2
+      }
     }
   ],
   "floors": [
@@ -18,7 +24,11 @@
       "id": "parquet",
       "name": "Parquet",
       "file": "pisos/parquet.png",
-      "unlock": { "type": "achievement", "id": "extratos_10", "label": "Arquivista" }
+      "unlock": {
+        "type": "achievement",
+        "id": "extratos_10",
+        "label": "Arquivista"
+      }
     }
   ],
   "walls": [
@@ -26,8 +36,23 @@
       "id": "tijolinho",
       "name": "Tijolinho",
       "file": "paredes/tijolinho.png",
-      "unlock": { "type": "level", "level": 4 }
+      "unlock": {
+        "type": "level",
+        "level": 4
+      }
     }
   ],
-  "overrides": {}
+  "overrides": {},
+  "avatar": {
+    "base": "avatar/base.png",
+    "views": [
+      "back",
+      "side",
+      "front",
+      "front34",
+      "back34"
+    ],
+    "background": "#ffffff",
+    "skin": "#fdc996"
+  }
 }

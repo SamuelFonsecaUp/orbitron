@@ -47,7 +47,15 @@ export interface PackOverride {
   offsetY?: number;
 }
 
+export interface PackAvatar {
+  base: string; // folha com as vistas lado a lado
+  views?: ('back' | 'side' | 'front' | 'front34' | 'back34')[];
+  background?: string | null; // cor de fundo a ignorar (ex.: branco)
+  skin?: string; // cor da pele no desenho base (para trocar o tom)
+}
+
 export interface AssetPack {
+  avatar?: PackAvatar;
   mobis: PackMobi[];
   floors: PackSurface[];
   walls: PackSurface[];
@@ -55,6 +63,7 @@ export interface AssetPack {
 }
 
 export const ASSET_PACK: AssetPack = {
+  avatar: (packJson as { avatar?: PackAvatar }).avatar,
   mobis: (packJson.mobis || []) as PackMobi[],
   floors: (packJson.floors || []) as PackSurface[],
   walls: (packJson.walls || []) as PackSurface[],

@@ -54,6 +54,7 @@ export const HAIR_STYLES: WardrobeOption[] = [
   { id: 'franja', name: 'Franja', unlock: { type: 'level', level: 3 } },
   { id: 'espetado', name: 'Espetado', unlock: { type: 'level', level: 6 } },
   { id: 'black', name: 'Black Power', unlock: { type: 'achievement', id: 'categorizador_100', label: 'Organizador' } },
+  { id: 'moicano', name: 'Moicano', unlock: { type: 'level', level: 8 } },
 ];
 
 export const TOP_STYLES: WardrobeOption[] = [

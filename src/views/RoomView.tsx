@@ -18,6 +18,7 @@ import {
   TOP_STYLES, WardrobeOption, dirFromStep,
 } from '../game/avatar';
 import { ASSET_PACK, packFileUrl } from '../game/pack';
+import { SheetAvatar, SheetAvatarViews, useAvatarSheet } from '../game/SheetAvatar';
 
 // Resolução: unit 2 = tiles de 64x32 px
 const UNIT = 2;
@@ -137,6 +138,7 @@ interface Actor {
 
 export const RoomView: React.FC = () => {
   const { game, showToast } = useFinancial();
+  const avatarSheet = useAvatarSheet();
   const [roomId, setRoomId] = useState<RoomId>('finance');
   const [layouts, setLayouts] = useState<RoomLayouts | null>(null);
   const [look, setLook] = useState<AvatarLook>(DEFAULT_LOOK);
@@ -698,8 +700,9 @@ export const RoomView: React.FC = () => {
   // Avatar
   const sitItem = avatar.sitUid ? layout.items.find(i => i.uid === avatar.sitUid) : null;
   const sitDef = sitItem ? lookup(sitItem.mobiId) : null;
-  // sentado: o quadril (≈12 unidades acima do pé na pose sentada) apoia na altura do assento
-  const avZ = (tileHeight(pm, avatar.pos[0], avatar.pos[1]) ?? 0) * STEP_Z + (sitDef ? (sitDef.seatZ ?? 8) - 12 : 0);
+  // sentado: com o corpo base, os joelhos ficam na altura do assento; no desenho procedural, o quadril
+  const sitOffset = avatarSheet ? -1 : -12;
+  const avZ = (tileHeight(pm, avatar.pos[0], avatar.pos[1]) ?? 0) * STEP_Z + (sitDef ? (sitDef.seatZ ?? 8) + sitOffset : 0);
   const [avX, avY] = project(o, avatar.pos[0] + 0.5, avatar.pos[1] + 0.5, avZ);
   const moving = avatar.path.length > 0;
 
@@ -709,7 +712,7 @@ export const RoomView: React.FC = () => {
     const text = bubble.length > 44 ? `${bubble.slice(0, 43)}…` : bubble;
     const bw = text.length * 6.4 + 16;
     const bh = 18;
-    const lift = sitDef ? 56 : 70;
+    const lift = avatarSheet ? (sitDef ? 76 : 90) : (sitDef ? 56 : 70);
     const avXGuess = project(o, avatar.pos[0] + 0.5, avatar.pos[1] + 0.5)[0];
     const left = avXGuess - bw / 2;
     const dx = Math.max(6 - left, 0) + Math.min(scene.width - 6 - (left + bw), 0);
@@ -727,7 +730,11 @@ export const RoomView: React.FC = () => {
     node: (
       <g key="avatar" style={{ pointerEvents: 'none', transform: `translate(${avX}px, ${avY}px)`, transition: `transform ${STEP_MS}ms linear` }}>
         <ellipse cx={0} cy={0} rx={12} ry={5} fill="#000" opacity={0.2} />
-        <Avatar look={look} dir={avatar.dir} frame={moving ? walkFrame : 0} sitting={Boolean(sitDef)} x={0} y={1} />
+        {avatarSheet ? (
+          <SheetAvatar sheet={avatarSheet} look={look} dir={avatar.dir} frame={moving ? walkFrame : 0} sitting={Boolean(sitDef)} x={0} y={2} />
+        ) : (
+          <Avatar look={look} dir={avatar.dir} frame={moving ? walkFrame : 0} sitting={Boolean(sitDef)} x={0} y={1} />
+        )}
         {bubbleNode}
       </g>
     ),
@@ -908,7 +915,11 @@ export const RoomView: React.FC = () => {
     <div ref={wrapperRef} className={`h-full flex flex-col ${isFullscreen ? 'bg-[#0b0e1a] p-3' : 'p-4'} gap-3`}>
       <div className="flex flex-wrap items-center justify-between gap-3 shrink-0">
         <div className="flex items-center gap-3">
-          <AvatarPreview look={look} size={44} />
+          {avatarSheet ? (
+            <span className="w-8"><SheetAvatarViews sheet={avatarSheet} look={look} height={44} dirs={['s']} /></span>
+          ) : (
+            <AvatarPreview look={look} size={44} />
+          )}
           <div>
             <h1 className="text-xl font-pixel font-bold text-white leading-none">{room.name}</h1>
             <p className="text-[11px] text-slate-400 mt-1">
@@ -1047,9 +1058,15 @@ export const RoomView: React.FC = () => {
 
               {panel === 'visual' && (
                 <div className="space-y-3">
-                  <div className="flex items-end justify-center gap-4 p-3 rounded-xl bg-gradient-to-b from-slate-800/60 to-slate-950/60 border border-slate-800">
-                    <AvatarPreview look={look} dir="se" size={128} />
-                    <AvatarPreview look={look} dir="nw" size={128} />
+                  <div className="flex items-end justify-center gap-4 p-2 rounded-xl bg-gradient-to-b from-slate-200 to-slate-50 border border-slate-800">
+                    {avatarSheet ? (
+                      <SheetAvatarViews sheet={avatarSheet} look={look} height={120} />
+                    ) : (
+                      <>
+                        <AvatarPreview look={look} dir="se" size={128} />
+                        <AvatarPreview look={look} dir="nw" size={128} />
+                      </>
+                    )}
                   </div>
                   {swatches('Pele', SKIN_TONES, look.skin, c => updateLook({ skin: c }))}
                   {wardrobeRow('Cabelo', HAIR_STYLES, look.hair, id => updateLook({ hair: id }))}
