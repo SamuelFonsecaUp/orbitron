@@ -332,6 +332,25 @@ export interface Settings {
   roomLayouts?: RoomLayouts | null;
 }
 
+// --- Assets do jogo enviados pelo usuário ---
+export interface GameAssetManifestEntry {
+  name?: string;
+  w?: number;
+  d?: number;
+  walkable?: boolean;
+  offsetX?: number;
+  offsetY?: number;
+}
+
+export interface GameAssets {
+  folder: string;
+  manifest: { mobis?: Record<string, GameAssetManifestEntry>; pigo?: { offsetX?: number; offsetY?: number } };
+  mobis: Record<string, string>;
+  floors: Record<string, string>;
+  walls: Record<string, string>;
+  pigo: string | null;
+}
+
 // --- Quartos isométricos ---
 export interface PlacedMobi {
   uid: string;
@@ -345,6 +364,12 @@ export interface RoomLayout {
   wallpaper: string;
   floor: string;
   items: PlacedMobi[];
+  width?: number;
+  depth?: number;
+  wallHeight?: 'baixa' | 'normal' | 'alta';
+  // Cores livres (quando wallpaper/floor = 'custom')
+  customWall?: [string, string];
+  customFloor?: [string, string];
 }
 
 export type RoomLayouts = Partial<Record<'finance' | 'life', RoomLayout>>;
@@ -796,6 +821,8 @@ export interface ElectronAPI {
   getGameOverview: () => Promise<GameOverview>;
   getGameUnlocks: () => Promise<GameUnlocksResult>;
   getGameWorld: () => Promise<GameWorldState>;
+  getGameAssets: () => Promise<GameAssets>;
+  openGameAssetsFolder: () => Promise<string>;
   getReserveOverview: (monthKey?: string) => Promise<ReserveStatus>;
   setReserveTransactionExcluded: (transactionId: string, excluded: boolean) => Promise<boolean>;
   registerReserveMovement: (data: {

@@ -14,14 +14,17 @@ export const TILE_H = 16;
 export interface IsoOrigin {
   x: number;
   y: number;
+  // Resolução: 1 = tiles de 32x16; 2 = tiles de 64x32 (o dobro de detalhe). Alturas escalam junto.
+  unit?: number;
 }
 
 export type Pt = [number, number];
 
 export function project(origin: IsoOrigin, gx: number, gy: number, z = 0): Pt {
+  const u = origin.unit ?? 1;
   return [
-    Math.round(origin.x + (gx - gy) * (TILE_W / 2)),
-    Math.round(origin.y + (gx + gy) * (TILE_H / 2) - z),
+    Math.round(origin.x + (gx - gy) * (TILE_W / 2) * u),
+    Math.round(origin.y + (gx + gy) * (TILE_H / 2) * u - z * u),
   ];
 }
 
@@ -136,7 +139,7 @@ export const IsoBox: React.FC<IsoBoxProps> = ({ origin, gx, gy, w, d, h, z = 0, 
       strokePolygon([A, B, C, D], colors.outline, out);
     }
     return out;
-  }, [origin.x, origin.y, gx, gy, w, d, h, z, colors.top, colors.left, colors.right, colors.outline]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [origin.x, origin.y, origin.unit, gx, gy, w, d, h, z, colors.top, colors.left, colors.right, colors.outline]); // eslint-disable-line react-hooks/exhaustive-deps
   return <Runs runs={runs} opacity={opacity} />;
 };
 
@@ -156,7 +159,7 @@ export const IsoGhostBox: React.FC<Omit<IsoBoxProps, 'colors'> & { color: string
     strokeLine(C, Cb, color, out, true);
     strokeLine(B, Bb, color, out, true);
     return out;
-  }, [origin.x, origin.y, gx, gy, w, d, h, z, color]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [origin.x, origin.y, origin.unit, gx, gy, w, d, h, z, color]); // eslint-disable-line react-hooks/exhaustive-deps
   return <Runs runs={runs} opacity={opacity} />;
 };
 
@@ -178,7 +181,7 @@ export const IsoRoof: React.FC<{ origin: IsoOrigin; gx: number; gy: number; w: n
     strokeLine(A, B, PALETTE.k, out);
     strokeLine(D, A, PALETTE.k, out);
     return out;
-  }, [origin.x, origin.y, gx, gy, w, d, z, h, color]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [origin.x, origin.y, origin.unit, gx, gy, w, d, z, h, color]); // eslint-disable-line react-hooks/exhaustive-deps
   return <Runs runs={runs} />;
 };
 
@@ -190,7 +193,7 @@ export const IsoTile: React.FC<{ origin: IsoOrigin; gx: number; gy: number; colo
     fillPolygon(pts, color, out);
     if (outline) strokePolygon(pts, outline, out);
     return out;
-  }, [origin.x, origin.y, gx, gy, color, outline]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [origin.x, origin.y, origin.unit, gx, gy, color, outline]); // eslint-disable-line react-hooks/exhaustive-deps
   return <Runs runs={runs} />;
 };
 

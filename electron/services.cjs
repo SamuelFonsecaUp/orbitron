@@ -33,6 +33,47 @@ function addMonths(dateStr, monthsToAdd) {
   return `${year}-${formattedMonth}-${formattedDay}`;
 }
 
+const GAME_ASSETS_README = `PIGO — PASTA DE ASSETS DO JOGO
+================================
+Solte aqui seus PNGs (pixel art). O app lê esta pasta toda vez que você abre
+o Quarto ou clica em "Recarregar assets" — não precisa recompilar nada.
+
+Resolução do quarto: cada tile do piso é um losango de 64 x 32 pixels.
+1 pixel da sua imagem = 1 pixel do quarto (a tela amplia sem borrar).
+
+mobis/<id>.png      -> substitui o desenho do mobi com esse id
+                       (ids: cadeira, mesa, tapete, planta, luminaria, gaveteiro,
+                        estante_pastas, caixas, escrivaninha, vaso_azul, sofa_azul,
+                        estatua_pigo, cofre, cofre_forte, estatua_ouro, telescopio,
+                        relogio, registradora, balanca, quadro_missoes, aquario,
+                        lareira, trono, fonte_moedas)
+mobis/<id>_r1.png   -> versão girada (opcional; sem ela o app espelha a imagem)
+mobis/<novo>.png    -> id que não existe vira um mobi NOVO, já liberado
+                       (defina nome e tamanho no manifest.json)
+
+  Como desenhar um mobi: em vista isométrica, com o losango do chão que ele
+  ocupa encostado na BORDA DE BAIXO da imagem. Largura ideal = (w + d) x 32 px
+  (1x1 = 64 px, 2x1 = 96 px, 2x2 = 128 px). A altura é livre.
+  Ajuste fino: offsetX / offsetY no manifest.json.
+
+pisos/<nome>.png    -> novo piso. Textura QUADRADA e plana (ex.: 32x32 ou 64x64);
+                       o app projeta em cada tile.
+paredes/<nome>.png  -> novo papel de parede. Textura plana: 32 px de largura por
+                       tile; altura = altura da parede (baixa 80, normal 128,
+                       alta 192 px). O app inclina para as duas paredes.
+pigo.png            -> substitui o Pigo (base da imagem = pé do personagem).
+
+manifest.json: veja o exemplo criado nesta pasta.
+`;
+
+const GAME_ASSETS_MANIFEST_EXAMPLE = JSON.stringify({
+  mobis: {
+    exemplo_meu_sofa: { name: 'Meu Sofá', w: 2, d: 1, walkable: false, offsetX: 0, offsetY: 0 },
+    cofre: { offsetX: 0, offsetY: 0 },
+  },
+  pigo: { offsetX: 0, offsetY: 0 },
+}, null, 2);
+
 function parseJsonObject(value) {
   if (!value) return null;
   try {
@@ -3261,6 +3302,53 @@ class FinancialService {
 
   detectRecurringPatterns() {
     return this.intelligence.detectRecurringPatterns();
+  }
+
+  // --- ASSETS DO JOGO (PNGs do usuário, lidos em tempo de execução) ---
+  getGameAssetsFolder() {
+    const folder = path.join(this.getUserDataPath(), 'game-assets');
+    for (const sub of ['', 'mobis', 'pisos', 'paredes']) {
+      const dir = path.join(folder, sub);
+      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    }
+    const readme = path.join(folder, 'LEIA-ME.txt');
+    if (!fs.existsSync(readme)) fs.writeFileSync(readme, GAME_ASSETS_README, 'utf8');
+    const manifest = path.join(folder, 'manifest.json');
+    if (!fs.existsSync(manifest)) fs.writeFileSync(manifest, GAME_ASSETS_MANIFEST_EXAMPLE, 'utf8');
+    return folder;
+  }
+
+  getGameAssets() {
+    const folder = this.getGameAssetsFolder();
+    const toDataUrl = (file) => {
+      const ext = path.extname(file).slice(1).toLowerCase();
+      const mime = ext === 'jpg' ? 'jpeg' : ext;
+      return `data:image/${mime};base64,${fs.readFileSync(file).toString('base64')}`;
+    };
+    const readDir = (sub) => {
+      const dir = path.join(folder, sub);
+      const out = {};
+      for (const f of fs.readdirSync(dir)) {
+        if (/\.(png|gif|webp|jpe?g)$/i.test(f)) out[f.replace(/\.[^.]+$/, '')] = toDataUrl(path.join(dir, f));
+      }
+      return out;
+    };
+    let manifest = {};
+    try {
+      // Remove o BOM que o Bloco de Notas do Windows costuma adicionar
+      manifest = JSON.parse(fs.readFileSync(path.join(folder, 'manifest.json'), 'utf8').replace(/^\uFEFF/, ''));
+    } catch (e) {
+      manifest = {};
+    }
+    const pigoFile = ['pigo.png', 'pigo.gif', 'pigo.webp'].map(f => path.join(folder, f)).find(f => fs.existsSync(f));
+    return {
+      folder,
+      manifest,
+      mobis: readDir('mobis'),
+      floors: readDir('pisos'),
+      walls: readDir('paredes'),
+      pigo: pigoFile ? toDataUrl(pigoFile) : null,
+    };
   }
 
   // --- RESERVA FINANCEIRA ---

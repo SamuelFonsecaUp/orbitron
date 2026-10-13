@@ -202,12 +202,13 @@ export const MOBIS: MobiDef[] = [
     id: 'estatua_pigo', name: 'Cofrinho Pigo', description: 'Seu primeiro aporte na reserva.', category: 'tesouro',
     w: 1, d: 1, qty: 1, rooms: ['finance'], unlock: { type: 'achievement', id: 'primeira_reserva', label: 'Primeiro Tijolo' },
     render: c => {
+      const u = c.o.unit ?? 1;
       const top = P(c, 0.5, 0.5, 8);
       const { w, h } = spriteSize(PIGO);
       return (
         <g>
           {B(c, 0.15, 0.15, 0.7, 0.7, 8, 0, WHITE)}
-          <PixelSprite sprite={PIGO} x={top[0] - w / 2} y={top[1] - h + 2} />
+          <PixelSprite sprite={PIGO} x={top[0] - (w * u) / 2} y={top[1] - h * u + 2 * u} scale={u} />
         </g>
       );
     },
@@ -216,12 +217,13 @@ export const MOBIS: MobiDef[] = [
     id: 'cofre', name: 'Cofre de Aço', description: 'Um mês de custo de vida guardado.', category: 'tesouro',
     w: 1, d: 1, qty: 1, rooms: ['finance'], unlock: { type: 'achievement', id: 'reserva_1', label: 'Um Mês de Paz' },
     render: c => {
+      const u = c.o.unit ?? 1;
       const dial = P(c, 0.5, 0.9, 9);
       return (
         <g>
           {B(c, 0.1, 0.1, 0.8, 0.8, 18, 0, DARK_STEEL)}
-          <rect x={dial[0] - 2} y={dial[1] - 2} width={4} height={4} fill={PALETTE.y} />
-          <rect x={dial[0] - 1} y={dial[1] - 1} width={2} height={2} fill={PALETTE.k} />
+          <rect x={dial[0] - 2 * u} y={dial[1] - 2 * u} width={4 * u} height={4 * u} fill={PALETTE.y} />
+          <rect x={dial[0] - u} y={dial[1] - u} width={2 * u} height={2 * u} fill={PALETTE.k} />
         </g>
       );
     },
@@ -230,13 +232,14 @@ export const MOBIS: MobiDef[] = [
     id: 'cofre_forte', name: 'Cofre-Forte', description: 'Três meses de custo de vida protegidos.', category: 'tesouro',
     w: 2, d: 2, qty: 1, rooms: ['finance'], unlock: { type: 'achievement', id: 'reserva_3', label: 'Colchão Seguro' },
     render: c => {
+      const u = c.o.unit ?? 1;
       const center = P(c, 1, 1.9, 16);
       return (
         <g>
           {B(c, 0.1, 0.1, 1.8, 1.8, 32, 0, STEEL)}
-          <circle cx={center[0]} cy={center[1]} r={7} fill={PALETTE.N} />
-          <circle cx={center[0]} cy={center[1]} r={4} fill={PALETTE.y} />
-          <rect x={center[0] - 1} y={center[1] - 6} width={2} height={12} fill={PALETTE.N} />
+          <circle cx={center[0]} cy={center[1]} r={7 * u} fill={PALETTE.N} />
+          <circle cx={center[0]} cy={center[1]} r={4 * u} fill={PALETTE.y} />
+          <rect x={center[0] - u} y={center[1] - 6 * u} width={2 * u} height={12 * u} fill={PALETTE.N} />
         </g>
       );
     },
@@ -245,13 +248,14 @@ export const MOBIS: MobiDef[] = [
     id: 'estatua_ouro', name: 'Estátua Dourada do Pigo', description: 'Reserva completa. Lendário.', category: 'raros',
     w: 2, d: 2, qty: 1, rooms: ['finance', 'life'], unlock: { type: 'achievement', id: 'reserva_completa', label: 'Fortaleza' },
     render: c => {
+      const u = c.o.unit ?? 1;
       const top = P(c, 1, 1, 12);
       const { w, h } = spriteSize(PIGO);
       return (
         <g>
           {B(c, 0.2, 0.2, 1.6, 1.6, 6, 0, WHITE)}
           {B(c, 0.4, 0.4, 1.2, 1.2, 6, 6, boxColorsFrom('#b9c2cc'))}
-          <PixelSprite sprite={PIGO} x={top[0] - w} y={top[1] - h * 2 + 3} scale={2} colors={{ p: '#ffcd75', P: '#e0a33a', y: '#fff4c2' }} />
+          <PixelSprite sprite={PIGO} x={top[0] - w * u} y={top[1] - h * 2 * u + 3 * u} scale={2 * u} colors={{ p: '#ffcd75', P: '#e0a33a', y: '#fff4c2' }} />
         </g>
       );
     },
@@ -272,12 +276,13 @@ export const MOBIS: MobiDef[] = [
     id: 'relogio', name: 'Relógio de Pêndulo', description: '4 semanas seguidas importando.', category: 'decoração',
     w: 1, d: 1, qty: 1, rooms: ['finance', 'life'], unlock: { type: 'achievement', id: 'semanas_4', label: 'Ritmo Semanal' },
     render: c => {
+      const u = c.o.unit ?? 1;
       const face = P(c, 0.5, 0.75, 30);
       return (
         <g>
           {B(c, 0.25, 0.3, 0.5, 0.45, 38, 0, DARK_WOOD)}
-          <rect x={face[0] - 3} y={face[1] - 3} width={6} height={6} fill={PALETTE.w} />
-          <rect x={face[0]} y={face[1] - 2} width={1} height={3} fill={PALETTE.k} />
+          <rect x={face[0] - 3 * u} y={face[1] - 3 * u} width={6 * u} height={6 * u} fill={PALETTE.w} />
+          <rect x={face[0]} y={face[1] - 2 * u} width={u} height={3 * u} fill={PALETTE.k} />
         </g>
       );
     },
@@ -325,13 +330,14 @@ export const MOBIS: MobiDef[] = [
     id: 'aquario', name: 'Aquário', description: 'Nível 5 da Jornada.', category: 'raros',
     w: 2, d: 1, qty: 1, rooms: ['finance', 'life'], unlock: { type: 'level', level: 5 },
     render: c => {
+      const u = c.o.unit ?? 1;
       const fish = P(c, 1, 0.9, 14);
       return (
         <g>
           {B(c, 0.05, 0.15, 1.9, 0.7, 8, 0, DARK_WOOD)}
           {B(c, 0.1, 0.2, 1.8, 0.6, 12, 8, boxColorsFrom('#41a6f6'))}
-          <rect x={fish[0] - 8} y={fish[1] - 1} width={3} height={2} fill={PALETTE.o} />
-          <rect x={fish[0] + 4} y={fish[1] - 4} width={3} height={2} fill={PALETTE.y} />
+          <rect x={fish[0] - 8 * u} y={fish[1] - u} width={3 * u} height={2 * u} fill={PALETTE.o} />
+          <rect x={fish[0] + 4 * u} y={fish[1] - 4 * u} width={3 * u} height={2 * u} fill={PALETTE.y} />
         </g>
       );
     },
@@ -340,13 +346,14 @@ export const MOBIS: MobiDef[] = [
     id: 'lareira', name: 'Lareira', description: 'Nível 10 da Jornada.', category: 'raros',
     w: 2, d: 1, qty: 1, rooms: ['finance', 'life'], unlock: { type: 'level', level: 10 },
     render: c => {
+      const u = c.o.unit ?? 1;
       const fire = P(c, 1, 0.9, 2);
       return (
         <g>
           {B(c, 0.05, 0.1, 1.9, 0.8, 24, 0, boxColorsFrom('#9c4a3a'))}
           {B(c, 0, 0.05, 2, 0.9, 3, 24, boxColorsFrom('#c9d8e2'))}
-          <rect x={fire[0] - 7} y={fire[1] - 12} width={14} height={11} fill={PALETTE.k} />
-          <PixelSprite sprite={FLAME} x={fire[0] - 4} y={fire[1] - 9} scale={2} />
+          <rect x={fire[0] - 7 * u} y={fire[1] - 12 * u} width={14 * u} height={11 * u} fill={PALETTE.k} />
+          <PixelSprite sprite={FLAME} x={fire[0] - 4 * u} y={fire[1] - 9 * u} scale={2 * u} />
         </g>
       );
     },
@@ -366,13 +373,14 @@ export const MOBIS: MobiDef[] = [
     id: 'fonte_moedas', name: 'Fonte de Moedas', description: 'Nível 20 da Jornada.', category: 'raros',
     w: 2, d: 2, qty: 1, rooms: ['finance', 'life'], unlock: { type: 'level', level: 20 },
     render: c => {
+      const u = c.o.unit ?? 1;
       const top = P(c, 1, 1, 22);
       return (
         <g>
           {B(c, 0.1, 0.1, 1.8, 1.8, 6, 0, WHITE)}
           {B(c, 0.25, 0.25, 1.5, 1.5, 1, 5, boxColorsFrom('#41a6f6'))}
           {B(c, 0.85, 0.85, 0.3, 0.3, 16, 6, WHITE)}
-          <PixelSprite sprite={COIN} x={top[0] - 2} y={top[1] - 5} />
+          <PixelSprite sprite={COIN} x={top[0] - 2 * u} y={top[1] - 5 * u} scale={u} />
         </g>
       );
     },
