@@ -33,10 +33,12 @@ function addMonths(dateStr, monthsToAdd) {
   return `${year}-${formattedMonth}-${formattedDay}`;
 }
 
-const GAME_ASSETS_README = `PIGO — PASTA DE ASSETS DO JOGO
-================================
-Solte aqui seus PNGs (pixel art). O app lê esta pasta toda vez que você abre
-o Quarto ou clica em "Recarregar assets" — não precisa recompilar nada.
+const GAME_ASSETS_README = `PIGO — MODO CRIADOR (TESTE DE ASSETS)
+=====================================
+Solte aqui PNGs para TESTAR no seu quarto (Quarto > Criador > Recarregar).
+Não precisa recompilar. Itens daqui não vão para outros jogadores: quando
+estiverem prontos, mova-os para o pacote oficial em src/game/pack/ e
+cadastre em pack.json (veja docs/ASSETS.md no repositório).
 
 Resolução do quarto: cada tile do piso é um losango de 64 x 32 pixels.
 1 pixel da sua imagem = 1 pixel do quarto (a tela amplia sem borrar).
@@ -59,8 +61,8 @@ mobis/<novo>.png    -> id que não existe vira um mobi NOVO, já liberado
 pisos/<nome>.png    -> novo piso. Textura QUADRADA e plana (ex.: 32x32 ou 64x64);
                        o app projeta em cada tile.
 paredes/<nome>.png  -> novo papel de parede. Textura plana: 32 px de largura por
-                       tile; altura = altura da parede (baixa 80, normal 128,
-                       alta 192 px). O app inclina para as duas paredes.
+                       tile; altura = altura da parede (baixa 96, normal 144,
+                       alta 208 px). O app inclina para as duas paredes.
 pigo.png            -> substitui o Pigo (base da imagem = pé do personagem).
 
 manifest.json: veja o exemplo criado nesta pasta.
@@ -188,6 +190,7 @@ class FinancialService {
       reserveCategoryIds: parseJsonArray(row.reserve_category_ids),
       reserveInitialAmount: row.reserve_initial_amount || 0,
       roomLayouts: parseJsonObject(row.room_layouts),
+      avatarLook: parseJsonObject(row.avatar_look),
       reserveAutoDetect: row.reserve_auto_detect === null || row.reserve_auto_detect === undefined ? true : Boolean(row.reserve_auto_detect),
     };
   }
@@ -215,6 +218,10 @@ class FinancialService {
     if (data.reserveCategoryIds !== undefined) {
       fields.push('reserve_category_ids = ?');
       values.push(Array.isArray(data.reserveCategoryIds) ? JSON.stringify(data.reserveCategoryIds) : null);
+    }
+    if (data.avatarLook !== undefined) {
+      fields.push('avatar_look = ?');
+      values.push(data.avatarLook && typeof data.avatarLook === 'object' ? JSON.stringify(data.avatarLook) : null);
     }
     if (data.roomLayouts !== undefined) {
       fields.push('room_layouts = ?');

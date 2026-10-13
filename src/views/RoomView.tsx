@@ -1,30 +1,36 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
-  FolderOpen, Lock, Maximize2, Minimize2, Minus, Move, Package, PanelRightClose, PanelRightOpen,
-  Plus, RefreshCw, RotateCw, Sparkles, X,
+  Armchair, FolderOpen, Lamp, LayoutGrid, Lock, Maximize2, Minimize2, Move, Package, PanelRightClose,
+  PanelRightOpen, Pickaxe, RefreshCw, RotateCw, Shirt, Sparkles, X,
 } from 'lucide-react';
 import { useFinancial } from '../context/FinancialContext';
-import { GameAssets, RoomLayout, RoomLayouts } from '../types';
+import { GameAssets, PlacedMobi, RoomLayout, RoomLayouts } from '../types';
 import { IsoBox, IsoOrigin, IsoTile, project, shade } from '../game/iso';
 import { PALETTE, PixelIcon, PixelSprite, spriteSize } from '../game/pixel';
 import { PIGO, PIGO_BLINK } from '../game/sprites';
-import { FLOORS, MOBIS, MobiCtx, MobiDef, RoomId, SurfaceDef, WALLPAPERS, isUnlocked, unlockLabel } from '../game/mobis';
+import { FLOORS, MOBIS, MobiCtx, MobiDef, RoomId, SurfaceDef, UnlockRule, WALLPAPERS, isUnlocked, unlockLabel } from '../game/mobis';
 import {
-  ROOM_MAX, ROOM_MIN, RoomDims, canPlace, defaultLayout, findPath, footprint, itemsOutside, layoutDims,
-  newUid, occupiedTiles, screenToTile,
+  ROOM_MODELS, STEP_Z, canPlace, defaultLayout, findPath, footprint, footprintHeight, getModel, itemsNotFitting,
+  newUid, occupiedTiles, parseModel, pickTile, tileHeight, wallSegments, ParsedModel,
 } from '../game/room';
+import {
+  Avatar, AvatarDir, AvatarLook, AvatarPreview, DEFAULT_LOOK, HAIR_STYLES, HATS, PALETTE_CHOICES, SKIN_TONES,
+  TOP_STYLES, WardrobeOption, dirFromStep,
+} from '../game/avatar';
+import { ASSET_PACK, packFileUrl } from '../game/pack';
 
-// Resolução do quarto: unit 2 = tiles de 64x32 px (o dobro de detalhe da versão anterior)
+// Resolução: unit 2 = tiles de 64x32 px
 const UNIT = 2;
-const MARGIN = 24;
-const STEP_MS = 240;
-const WALL_HEIGHTS: Record<NonNullable<RoomLayout['wallHeight']>, number> = { baixa: 40, normal: 64, alta: 96 };
+const MARGIN = 28;
+const FLOOR_T = 5; // espessura do piso
+const STEP_MS = 300;
+const WALL_HEIGHTS: Record<NonNullable<RoomLayout['wallHeight']>, number> = { baixa: 48, normal: 72, alta: 104 };
 
 type Mode =
   | { kind: 'idle' }
   | { kind: 'placing'; mobiId: string; rot: 0 | 1; movingUid?: string };
 
-type Panel = 'mobis' | 'paredes' | 'pisos' | 'quarto';
+type Panel = 'mobis' | 'visual' | 'plantas' | 'paredes' | 'pisos' | 'criador';
 
 const ROOMS: { id: RoomId; name: string; subtitle: string; available: boolean }[] = [
   { id: 'finance', name: 'Sala do Tesouro', subtitle: 'Decorada com conquistas financeiras', available: true },
@@ -37,10 +43,14 @@ interface ImageInfo {
   h: number;
 }
 
-// Carrega dimensões das imagens enviadas pelo usuário
+interface SurfaceOption extends SurfaceDef {
+  image?: string; // url da textura (pacote oficial ou modo criador)
+}
+
+// Carrega dimensões de imagens (pacote oficial e modo criador)
 function useImageInfos(sources: Record<string, string>): Record<string, ImageInfo> {
   const [infos, setInfos] = useState<Record<string, ImageInfo>>({});
-  const key = Object.keys(sources).sort().join('|') + Object.values(sources).map(v => v.length).join(',');
+  const key = Object.entries(sources).map(([k, v]) => `${k}:${v.length}:${v.slice(-16)}`).sort().join('|');
   useEffect(() => {
     let cancelled = false;
     const entries = Object.entries(sources);
@@ -61,26 +71,21 @@ function useImageInfos(sources: Record<string, string>): Record<string, ImageInf
   return infos;
 }
 
-// Mobi desenhado com a imagem do usuário: losango do chão encostado na borda de baixo da imagem
+// Mobi desenhado com PNG: losango do chão encostado na borda de baixo da imagem
 function imageRender(def: { w: number; d: number }, img: ImageInfo, imgRot1: ImageInfo | undefined, offset: { x: number; y: number }) {
   return (c: MobiCtx) => {
     const { w, d } = c.rot ? { w: def.d, d: def.w } : { w: def.w, d: def.d };
-    const left = project(c.o, c.gx, c.gy + d)[0];
-    const right = project(c.o, c.gx + w, c.gy)[0];
-    const bottom = project(c.o, c.gx + w, c.gy + d)[1];
-    const useRot1 = c.rot === 1 && imgRot1;
-    const pic = useRot1 ? imgRot1! : img;
+    const z = c.z ?? 0;
+    const left = project(c.o, c.gx, c.gy + d, z)[0];
+    const right = project(c.o, c.gx + w, c.gy, z)[0];
+    const bottom = project(c.o, c.gx + w, c.gy + d, z)[1];
+    const pic = c.rot === 1 && imgRot1 ? imgRot1 : img;
     const x = Math.round((left + right) / 2 - pic.w / 2 + offset.x);
     const y = Math.round(bottom - pic.h + offset.y);
     const mirror = c.rot === 1 && !imgRot1;
     return (
       <image
-        href={pic.url}
-        x={x}
-        y={y}
-        width={pic.w}
-        height={pic.h}
-        style={{ imageRendering: 'pixelated' }}
+        href={pic.url} x={x} y={y} width={pic.w} height={pic.h} style={{ imageRendering: 'pixelated' }}
         transform={mirror ? `translate(${2 * x + pic.w} 0) scale(-1 1)` : undefined}
       />
     );
@@ -94,23 +99,48 @@ const MobiPreview: React.FC<{ def: MobiDef; locked: boolean }> = ({ def, locked 
   const vbW = (def.w + def.d) * 32 + 16;
   const vbH = 92 + (def.w + def.d) * 16 + 6;
   return (
-    <svg
-      viewBox={`${vbX} 0 ${vbW} ${vbH}`}
-      width={64}
-      height={64}
-      shapeRendering="crispEdges"
-      style={{ imageRendering: 'pixelated', filter: locked ? 'grayscale(1) brightness(0.5)' : undefined }}
-    >
-      {def.render({ o, gx: 0, gy: 0, rot: 0 })}
+    <svg viewBox={`${vbX} 0 ${vbW} ${vbH}`} width={60} height={60} shapeRendering="crispEdges"
+      style={{ imageRendering: 'pixelated', filter: locked ? 'grayscale(1) brightness(0.5)' : undefined }}>
+      {def.render({ o, gx: 0, gy: 0, rot: 0, state: 1 })}
     </svg>
   );
 };
+
+// Miniatura da planta (mapa de alturas)
+const ModelPreview: React.FC<{ pm: ParsedModel; locked: boolean }> = ({ pm, locked }) => {
+  const o: IsoOrigin = { x: pm.d * 16 + 4, y: 4 + pm.maxH * 6 };
+  const w = (pm.w + pm.d) * 16 + 8;
+  const h = (pm.w + pm.d) * 8 + 8 + pm.maxH * 6;
+  const tiles: React.ReactNode[] = [];
+  for (let gy = 0; gy < pm.d; gy++) {
+    for (let gx = 0; gx < pm.w; gx++) {
+      const ht = pm.heights[gy][gx];
+      if (ht === null) continue;
+      const pts = [project(o, gx, gy, ht * 6), project(o, gx + 1, gy, ht * 6), project(o, gx + 1, gy + 1, ht * 6), project(o, gx, gy + 1, ht * 6)];
+      tiles.push(<polygon key={`${gx}-${gy}`} points={pts.map(p => p.join(',')).join(' ')} fill={ht ? (ht > 1 ? '#c28a4a' : '#a0672f') : '#8f5b28'} stroke="#5d3a1a" strokeWidth={0.6} />);
+    }
+  }
+  return (
+    <svg viewBox={`0 0 ${w} ${h}`} width="100%" height={70} style={{ filter: locked ? 'grayscale(1) brightness(0.45)' : undefined }}>
+      {tiles}
+    </svg>
+  );
+};
+
+interface Actor {
+  pos: [number, number];
+  path: [number, number][];
+  dir: AvatarDir;
+  sitUid?: string | null;
+  pendingSit?: string | null;
+}
 
 export const RoomView: React.FC = () => {
   const { game, showToast } = useFinancial();
   const [roomId, setRoomId] = useState<RoomId>('finance');
   const [layouts, setLayouts] = useState<RoomLayouts | null>(null);
-  const [assets, setAssets] = useState<GameAssets | null>(null);
+  const [look, setLook] = useState<AvatarLook>(DEFAULT_LOOK);
+  const [creatorAssets, setCreatorAssets] = useState<GameAssets | null>(null);
   const [mode, setMode] = useState<Mode>({ kind: 'idle' });
   const [selectedUid, setSelectedUid] = useState<string | null>(null);
   const [hover, setHover] = useState<[number, number] | null>(null);
@@ -118,11 +148,15 @@ export const RoomView: React.FC = () => {
   const [panelOpen, setPanelOpen] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [scale, setScale] = useState(1);
-  const [pigo, setPigo] = useState<{ pos: [number, number]; path: [number, number][]; flip: boolean }>({ pos: [2, 5], path: [], flip: false });
+  const [avatar, setAvatar] = useState<Actor>({ pos: [0, 5], path: [], dir: 'se' });
+  const [pet, setPet] = useState<Actor>({ pos: [2, 2], path: [], dir: 'se' });
+  const [walkFrame, setWalkFrame] = useState<1 | 2>(1);
+  const [bubble, setBubble] = useState<string | null>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lookTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const night = useMemo(() => {
     const h = new Date().getHours();
@@ -134,78 +168,124 @@ export const RoomView: React.FC = () => {
     [game]
   );
   const level = game?.level || 1;
+  const can = useCallback((rule: UnlockRule) => isUnlocked(rule, unlockedAchievements, level), [unlockedAchievements, level]);
 
-  // --- Assets do usuário ---
-  const loadAssets = useCallback(async () => {
+  // ---------- Assets: pacote oficial (dentro do app) + modo criador (pasta local) ----------
+  const loadCreatorAssets = useCallback(async () => {
     if (!window.electronAPI?.getGameAssets) return;
     try {
-      setAssets(await window.electronAPI.getGameAssets());
+      setCreatorAssets(await window.electronAPI.getGameAssets());
     } catch (e) {
       console.error(e);
     }
   }, []);
 
   useEffect(() => {
-    loadAssets();
-  }, [loadAssets]);
+    loadCreatorAssets();
+  }, [loadCreatorAssets]);
 
-  const mobiImages = useImageInfos(assets?.mobis || {});
-  const floorImages = useImageInfos(assets?.floors || {});
-  const wallImages = useImageInfos(assets?.walls || {});
-  const pigoImages = useImageInfos(assets?.pigo ? { pigo: assets.pigo } : {});
+  const packSources = useMemo(() => {
+    const out: Record<string, string> = {};
+    for (const m of ASSET_PACK.mobis) {
+      const url = packFileUrl(m.file);
+      if (url) out[`mobi:${m.id}`] = url;
+      const rot = packFileUrl(m.fileRotated);
+      if (rot) out[`mobi:${m.id}_r1`] = rot;
+    }
+    for (const [id, ov] of Object.entries(ASSET_PACK.overrides)) {
+      const url = packFileUrl(ov.file);
+      if (url) out[`mobi:${id}`] = url;
+      const rot = packFileUrl(ov.fileRotated);
+      if (rot) out[`mobi:${id}_r1`] = rot;
+    }
+    for (const f of ASSET_PACK.floors) { const url = packFileUrl(f.file); if (url) out[`floor:${f.id}`] = url; }
+    for (const w of ASSET_PACK.walls) { const url = packFileUrl(w.file); if (url) out[`wall:${w.id}`] = url; }
+    return out;
+  }, []);
+  const creatorSources = useMemo(() => {
+    const out: Record<string, string> = {};
+    for (const [k, v] of Object.entries(creatorAssets?.mobis || {})) out[`mobi:${k}`] = v;
+    for (const [k, v] of Object.entries(creatorAssets?.floors || {})) out[`floor:criador_${k}`] = v;
+    for (const [k, v] of Object.entries(creatorAssets?.walls || {})) out[`wall:criador_${k}`] = v;
+    if (creatorAssets?.pigo) out.pigo = creatorAssets.pigo;
+    return out;
+  }, [creatorAssets]);
+  const packImages = useImageInfos(packSources);
+  const creatorImages = useImageInfos(creatorSources);
 
-  // Catálogo efetivo: mobis do jogo (com imagem do usuário quando houver) + mobis novos do usuário
   const catalog: MobiDef[] = useMemo(() => {
-    const manifest = assets?.manifest?.mobis || {};
-    const offsetOf = (id: string) => ({ x: manifest[id]?.offsetX || 0, y: manifest[id]?.offsetY || 0 });
-    const base = MOBIS.map(m => (mobiImages[m.id]
-      ? { ...m, render: imageRender(m, mobiImages[m.id], mobiImages[`${m.id}_r1`], offsetOf(m.id)) }
-      : m));
-    const known = new Set(MOBIS.map(m => m.id));
-    const custom: MobiDef[] = Object.keys(mobiImages)
-      .filter(name => !name.endsWith('_r1') && !known.has(name))
+    const creatorManifest = creatorAssets?.manifest?.mobis || {};
+    const img = (id: string) => creatorImages[`mobi:${id}`] || packImages[`mobi:${id}`];
+    const imgR = (id: string) => creatorImages[`mobi:${id}_r1`] || packImages[`mobi:${id}_r1`];
+    const offset = (id: string) => ({
+      x: creatorManifest[id]?.offsetX ?? ASSET_PACK.overrides[id]?.offsetX ?? 0,
+      y: creatorManifest[id]?.offsetY ?? ASSET_PACK.overrides[id]?.offsetY ?? 0,
+    });
+    const base = MOBIS.map(m => (img(m.id) ? { ...m, render: imageRender(m, img(m.id)!, imgR(m.id), offset(m.id)) } : m));
+    const pack: MobiDef[] = ASSET_PACK.mobis
+      .filter(p => img(p.id))
+      .map(p => {
+        const w = p.w || 1;
+        const d = p.d || 1;
+        return {
+          id: p.id, name: p.name, description: p.description || 'Mobi do pacote oficial.',
+          category: p.category || 'decoração', w, d, walkable: p.walkable, seat: p.seat, seatZ: p.seatZ,
+          qty: p.qty || 1, rooms: p.rooms || ['finance', 'life'], unlock: p.unlock || { type: 'default' },
+          render: imageRender({ w, d }, img(p.id)!, imgR(p.id), { x: p.offsetX || 0, y: p.offsetY || 0 }),
+        };
+      });
+    const known = new Set([...base, ...pack].map(m => m.id));
+    const creator: MobiDef[] = Object.keys(creatorAssets?.mobis || {})
+      .filter(name => !name.endsWith('_r1') && !known.has(name) && creatorImages[`mobi:${name}`])
       .map(name => {
-        const entry = manifest[name] || {};
+        const entry = creatorManifest[name] || {};
         const w = Math.max(1, Math.round(entry.w || 1));
         const d = Math.max(1, Math.round(entry.d || 1));
         return {
-          id: name,
-          name: entry.name || name.replace(/[_-]+/g, ' '),
-          description: 'Mobi personalizado (seu asset).',
-          category: 'decoração' as const,
-          w, d,
-          walkable: Boolean(entry.walkable),
-          qty: 99,
-          rooms: ['finance', 'life'] as RoomId[],
-          unlock: { type: 'default' as const },
-          render: imageRender({ w, d }, mobiImages[name], mobiImages[`${name}_r1`], offsetOf(name)),
+          id: name, name: `${entry.name || name.replace(/[_-]+/g, ' ')} (criador)`, description: 'Teste do modo criador.',
+          category: 'decoração' as const, w, d, walkable: Boolean(entry.walkable), qty: 99,
+          rooms: ['finance', 'life'] as RoomId[], unlock: { type: 'default' as const },
+          render: imageRender({ w, d }, creatorImages[`mobi:${name}`], creatorImages[`mobi:${name}_r1`], offset(name)),
         };
       });
-    return [...base, ...custom];
-  }, [assets, mobiImages]);
+    return [...base, ...pack, ...creator];
+  }, [creatorAssets, creatorImages, packImages]);
 
   const lookup = useCallback((id: string) => catalog.find(m => m.id === id), [catalog]);
 
-  const wallOptions: SurfaceDef[] = useMemo(() => [
+  const wallOptions: SurfaceOption[] = useMemo(() => [
     ...WALLPAPERS,
-    ...Object.keys(wallImages).map(name => ({ id: `asset:${name}`, name: `${name} (seu asset)`, colors: ['#888888', '#777777'] as [string, string], unlock: { type: 'default' as const } })),
-  ], [wallImages]);
-  const floorOptions: SurfaceDef[] = useMemo(() => [
+    ...ASSET_PACK.walls.filter(w => packImages[`wall:${w.id}`]).map(w => ({ id: `pack:${w.id}`, name: w.name, colors: ['#9a8a7a', '#8a7a6a'] as [string, string], unlock: w.unlock || { type: 'default' as const }, image: packImages[`wall:${w.id}`].url })),
+    ...Object.keys(creatorAssets?.walls || {}).filter(k => creatorImages[`wall:criador_${k}`]).map(k => ({ id: `criador:${k}`, name: `${k} (criador)`, colors: ['#888888', '#777777'] as [string, string], unlock: { type: 'default' as const }, image: creatorImages[`wall:criador_${k}`].url })),
+  ], [packImages, creatorAssets, creatorImages]);
+  const floorOptions: SurfaceOption[] = useMemo(() => [
     ...FLOORS,
-    ...Object.keys(floorImages).map(name => ({ id: `asset:${name}`, name: `${name} (seu asset)`, colors: ['#888888', '#777777'] as [string, string], unlock: { type: 'default' as const } })),
-  ], [floorImages]);
+    ...ASSET_PACK.floors.filter(f => packImages[`floor:${f.id}`]).map(f => ({ id: `pack:${f.id}`, name: f.name, colors: ['#9a7a5a', '#8a6a4a'] as [string, string], unlock: f.unlock || { type: 'default' as const }, image: packImages[`floor:${f.id}`].url })),
+    ...Object.keys(creatorAssets?.floors || {}).filter(k => creatorImages[`floor:criador_${k}`]).map(k => ({ id: `criador:${k}`, name: `${k} (criador)`, colors: ['#888888', '#777777'] as [string, string], unlock: { type: 'default' as const }, image: creatorImages[`floor:criador_${k}`].url })),
+  ], [packImages, creatorAssets, creatorImages]);
+  const imageOf = (opt: SurfaceOption | undefined): ImageInfo | undefined => {
+    if (!opt?.image) return undefined;
+    return [...Object.values(packImages), ...Object.values(creatorImages)].find(i => i.url === opt.image);
+  };
 
-  // --- Layout salvo (sincronizado entre computadores) ---
+  // ---------- Layout e visual salvos (sincronizados entre computadores) ----------
   useEffect(() => {
     window.electronAPI?.getSettings().then(s => {
       const saved = s?.roomLayouts || {};
-      setLayouts({ finance: saved.finance || defaultLayout('finance'), life: saved.life || defaultLayout('life') });
+      const fix = (l: RoomLayout | undefined, room: RoomId): RoomLayout => {
+        const base = l || defaultLayout(room);
+        return { ...base, model: base.model || 'sala' };
+      };
+      setLayouts({ finance: fix(saved.finance, 'finance'), life: fix(saved.life, 'life') });
+      if (s?.avatarLook) setLook({ ...DEFAULT_LOOK, ...(s.avatarLook as Partial<AvatarLook>) });
     });
   }, []);
 
   const layout: RoomLayout | null = layouts ? layouts[roomId] || defaultLayout(roomId) : null;
-  const dims: RoomDims = layout ? layoutDims(layout) : { w: 10, d: 8 };
+  const model = getModel(layout?.model);
+  const pm = parseModel(model);
   const wallH = WALL_HEIGHTS[layout?.wallHeight || 'normal'];
+  const wallTop = pm.maxH * STEP_Z + wallH;
 
   const persist = useCallback((next: RoomLayouts) => {
     if (saveTimer.current) clearTimeout(saveTimer.current);
@@ -223,29 +303,53 @@ export const RoomView: React.FC = () => {
     });
   }, [roomId, persist]);
 
-  // --- Geometria da cena (depende do tamanho do quarto e da altura da parede) ---
+  const updateLook = (patch: Partial<AvatarLook>) => {
+    setLook(prev => {
+      const next = { ...prev, ...patch };
+      if (lookTimer.current) clearTimeout(lookTimer.current);
+      lookTimer.current = setTimeout(() => {
+        window.electronAPI?.updateSettings({ avatarLook: next as unknown as Record<string, string> });
+      }, 400);
+      return next;
+    });
+  };
+
+  // Mobis que não cabem na planta atual (de layouts antigos) voltam ao inventário
+  useEffect(() => {
+    if (!layout) return;
+    const bad = itemsNotFitting(layout.items, pm, lookup);
+    if (bad.length) updateLayout(l => ({ ...l, items: l.items.filter(i => !bad.some(b => b.uid === i.uid)) }));
+  }, [layout?.model, catalog.length]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Personagens entram pela porta ao trocar de planta
+  useEffect(() => {
+    setAvatar({ pos: pm.door, path: [], dir: 'se' });
+    const free = [[pm.door[0] + 1, pm.door[1]], [pm.door[0] + 1, pm.door[1] - 1], [pm.door[0], pm.door[1] - 1]]
+      .find(([x, y]) => tileHeight(pm, x, y) !== null) as [number, number] | undefined;
+    setPet({ pos: free || pm.door, path: [], dir: 'se' });
+  }, [pm.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ---------- Geometria da cena ----------
   const scene = useMemo(() => {
-    const tileX = 16 * UNIT;
-    const tileY = 8 * UNIT;
-    const origin: IsoOrigin = { x: MARGIN + dims.d * tileX + 12, y: MARGIN + wallH * UNIT + 12, unit: UNIT };
-    const width = (dims.w + dims.d) * tileX + MARGIN * 2 + 24;
-    const height = origin.y + (dims.w + dims.d) * tileY + MARGIN + 16;
+    const hw = 16 * UNIT;
+    const hh = 8 * UNIT;
+    const origin: IsoOrigin = { x: MARGIN + pm.d * hw + 8, y: MARGIN + wallTop * UNIT + 8, unit: UNIT };
+    const width = (pm.w + pm.d) * hw + MARGIN * 2 + 16;
+    const height = origin.y + (pm.w + pm.d) * hh + FLOOR_T * UNIT + MARGIN;
     return { origin, width, height };
-  }, [dims.w, dims.d, wallH]);
+  }, [pm, wallTop]);
   const o = scene.origin;
 
-  // Escala para caber inteiro na área disponível (largura e altura)
   useLayoutEffect(() => {
     const el = stageRef.current;
     if (!el) return;
-    const update = () => setScale(Math.max(0.5, Math.min(el.clientWidth / scene.width, el.clientHeight / scene.height)));
+    const update = () => setScale(Math.max(0.3, Math.min(el.clientWidth / scene.width, el.clientHeight / scene.height)));
     update();
     const ro = new ResizeObserver(update);
     ro.observe(el);
     return () => ro.disconnect();
   }, [scene.width, scene.height, layouts, panelOpen, isFullscreen]);
 
-  // Tela cheia de verdade (API do navegador/Electron)
   useEffect(() => {
     const onChange = () => setIsFullscreen(Boolean(document.fullscreenElement));
     document.addEventListener('fullscreenchange', onChange);
@@ -261,39 +365,70 @@ export const RoomView: React.FC = () => {
     }
   };
 
-  // --- Pigo: anda um tile por vez; parado, passeia sozinho ---
-  useEffect(() => {
-    const t = setInterval(() => {
-      setPigo(p => {
-        if (p.path.length === 0) return p;
-        const [next, ...rest] = p.path;
-        const dx = next[0] - p.pos[0] - (next[1] - p.pos[1]);
-        return { pos: next, path: rest, flip: dx === 0 ? p.flip : dx < 0 };
-      });
-    }, STEP_MS);
-    return () => clearInterval(t);
-  }, []);
+  // ---------- Movimento dos personagens ----------
+  const itemsRef = useRef<PlacedMobi[]>([]);
+  itemsRef.current = layout?.items || [];
 
   useEffect(() => {
-    if (!layout) return;
-    setPigo(p => (p.pos[0] >= dims.w || p.pos[1] >= dims.d ? { pos: [0, 0], path: [], flip: p.flip } : p));
     const t = setInterval(() => {
-      setPigo(p => {
-        if (p.path.length > 0 || mode.kind === 'placing') return p;
-        const occ = occupiedTiles(layout.items, undefined, lookup);
-        for (let tries = 0; tries < 10; tries++) {
-          const target: [number, number] = [Math.floor(Math.random() * dims.w), Math.floor(Math.random() * dims.d)];
-          if (occ.has(`${target[0]},${target[1]}`)) continue;
-          const path = findPath(layout.items, p.pos, target, dims, lookup);
-          if (path.length > 0 && path.length < 10) return { ...p, path };
+      setAvatar(a => {
+        if (a.path.length === 0) {
+          if (a.pendingSit) {
+            const seat = itemsRef.current.find(i => i.uid === a.pendingSit);
+            const dir: AvatarDir = seat && seat.rot === 1 ? 'se' : 'sw';
+            return { ...a, sitUid: a.pendingSit, pendingSit: null, dir };
+          }
+          return a;
+        }
+        const [next, ...rest] = a.path;
+        return { ...a, pos: next, path: rest, dir: dirFromStep(next[0] - a.pos[0], next[1] - a.pos[1], a.dir), sitUid: null };
+      });
+      setPet(p => {
+        if (p.path.length === 0) return p;
+        const [next, ...rest] = p.path;
+        return { ...p, pos: next, path: rest, dir: dirFromStep(next[0] - p.pos[0], next[1] - p.pos[1], p.dir) };
+      });
+    }, STEP_MS);
+    const f = setInterval(() => setWalkFrame(fr => (fr === 1 ? 2 : 1)), STEP_MS / 2);
+    return () => { clearInterval(t); clearInterval(f); };
+  }, []);
+
+  // Pigo (pet) passeia sozinho
+  useEffect(() => {
+    const t = setInterval(() => {
+      setPet(p => {
+        if (p.path.length > 0) return p;
+        const occ = occupiedTiles(itemsRef.current, undefined, lookup);
+        for (let tries = 0; tries < 12; tries++) {
+          const target: [number, number] = [Math.floor(Math.random() * pm.w), Math.floor(Math.random() * pm.d)];
+          if (tileHeight(pm, target[0], target[1]) === null || occ.has(`${target[0]},${target[1]}`)) continue;
+          const path = findPath(itemsRef.current, p.pos, target, pm, { lookup });
+          if (path.length > 0 && path.length < 9) return { ...p, path };
         }
         return p;
       });
-    }, 5000);
+    }, 4500);
     return () => clearInterval(t);
-  }, [layout, mode.kind, dims.w, dims.d, lookup]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [pm, lookup]);
 
-  // Atalhos: R gira, Esc cancela
+  // Balão de fala com as missões da semana
+  useEffect(() => {
+    const lines = [
+      ...(game?.missions.current || []).filter(m => m.status === 'in_progress').map(m => `Missão: ${m.title}`),
+      `Nível ${game?.level ?? 1} • ${game?.title ?? ''}`,
+      'Clique duas vezes numa cadeira para sentar!',
+    ];
+    let i = 0;
+    const show = () => {
+      setBubble(lines[i % lines.length]);
+      i++;
+      setTimeout(() => setBubble(null), 5000);
+    };
+    const first = setTimeout(show, 1500);
+    const t = setInterval(show, 18000);
+    return () => { clearTimeout(first); clearInterval(t); };
+  }, [game]);
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') { setMode({ kind: 'idle' }); setSelectedUid(null); }
@@ -311,14 +446,124 @@ export const RoomView: React.FC = () => {
     return counts;
   }, [layouts]);
 
-  const tileFromEvent = (e: React.MouseEvent): [number, number] | null => {
-    const svg = svgRef.current;
-    if (!svg) return null;
-    const rect = svg.getBoundingClientRect();
-    const t = screenToTile(o, (e.clientX - rect.left) / scale, (e.clientY - rect.top) / scale);
-    if (t[0] < 0 || t[1] < 0 || t[0] >= dims.w || t[1] >= dims.d) return null;
-    return t;
-  };
+  // ---------- Camadas estáticas memorizadas (piso e paredes) ----------
+  const wallDef = wallOptions.find(w => w.id === layout?.wallpaper) || WALLPAPERS[0];
+  const floorDef = floorOptions.find(f => f.id === layout?.floor) || FLOORS[0];
+  const wallColors: [string, string] = layout?.wallpaper === 'custom' && layout.customWall ? layout.customWall : wallDef.colors;
+  const floorColors: [string, string] = layout?.floor === 'custom' && layout.customFloor ? layout.customFloor : floorDef.colors;
+  const wallTexture = imageOf(wallDef as SurfaceOption);
+  const floorTexture = imageOf(floorDef as SurfaceOption);
+
+  const floorNodes = useMemo(() => {
+    const nodes: { key: number; node: React.ReactNode }[] = [];
+    const edge = shade(floorColors[1], -0.2);
+    for (let gy = 0; gy < pm.d; gy++) {
+      for (let gx = 0; gx < pm.w; gx++) {
+        const ht = pm.heights[gy][gx];
+        if (ht === null) continue;
+        const top = (gx + gy) % 2 ? floorColors[1] : floorColors[0];
+        const z = ht * STEP_Z;
+        const [ex, ey] = project(o, gx, gy, z);
+        nodes.push({
+          key: gx + gy + 0.5,
+          node: (
+            <g key={`t${gx}-${gy}`}>
+              <IsoBox origin={o} gx={gx} gy={gy} w={1} d={1} h={z + FLOOR_T} z={-FLOOR_T}
+                colors={{ top, left: shade(floorColors[0], -0.3), right: shade(floorColors[0], -0.45), outline: edge }} />
+              {floorTexture && (
+                <image href={floorTexture.url} width={floorTexture.w} height={floorTexture.h} style={{ imageRendering: 'pixelated' }}
+                  transform={`matrix(${(16 * UNIT) / floorTexture.w} ${(8 * UNIT) / floorTexture.w} ${(-16 * UNIT) / floorTexture.w} ${(8 * UNIT) / floorTexture.w} ${ex} ${ey})`} />
+              )}
+            </g>
+          ),
+        });
+      }
+    }
+    return nodes;
+  }, [pm, o, floorColors[0], floorColors[1], floorTexture?.url]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const wallNode = useMemo(() => {
+    const { back, left } = wallSegments(pm);
+    const parts: React.ReactNode[] = [];
+    const topColor = '#2c2420';
+    const baseOf = (gx: number, gy: number) => (tileHeight(pm, gx, gy) ?? 0) * STEP_Z - FLOOR_T;
+    for (const s of back) {
+      const base = baseOf(s.gx, s.gy);
+      parts.push(<IsoBox key={`b${s.gx}`} origin={o} gx={s.gx} gy={s.gy - 0.25} w={1} d={0.25} h={wallTop - base} z={base}
+        colors={{ top: topColor, left: wallColors[0], right: shade(wallColors[0], -0.25), outline: PALETTE.k }} />);
+      if (wallTexture) {
+        const [ex, ey] = project(o, s.gx, s.gy, wallTop);
+        parts.push(<image key={`bt${s.gx}`} href={wallTexture.url} width={wallTexture.w} height={wallTexture.h} style={{ imageRendering: 'pixelated' }}
+          transform={`matrix(${(16 * UNIT) / wallTexture.w} ${(8 * UNIT) / wallTexture.w} 0 ${((wallTop - base - FLOOR_T) * UNIT) / wallTexture.h} ${ex} ${ey})`} />);
+      } else {
+        const [x, y] = project(o, s.gx + 0.5, s.gy, wallTop);
+        parts.push(<rect key={`bs${s.gx}`} x={x} y={y + UNIT} width={UNIT} height={(wallTop - base - FLOOR_T - 6) * UNIT} fill={shade(wallColors[0], -0.07)} />);
+      }
+      // rodapé
+      parts.push(<IsoBox key={`bb${s.gx}`} origin={o} gx={s.gx} gy={s.gy - 0.05} w={1} d={0.05} h={5} z={base + FLOOR_T}
+        colors={{ top: '#5d3a1a', left: '#6b4220', right: '#5d3a1a' }} />);
+    }
+    for (const s of left) {
+      const base = baseOf(s.gx, s.gy);
+      parts.push(<IsoBox key={`l${s.gy}`} origin={o} gx={s.gx - 0.25} gy={s.gy} w={0.25} d={1} h={wallTop - base} z={base}
+        colors={{ top: topColor, left: shade(wallColors[1], -0.25), right: wallColors[1], outline: PALETTE.k }} />);
+      if (wallTexture) {
+        const [ex, ey] = project(o, s.gx, s.gy + 1, wallTop);
+        parts.push(<image key={`lt${s.gy}`} href={wallTexture.url} width={wallTexture.w} height={wallTexture.h} style={{ imageRendering: 'pixelated' }}
+          transform={`matrix(${(16 * UNIT) / wallTexture.w} ${(-8 * UNIT) / wallTexture.w} 0 ${((wallTop - base - FLOOR_T) * UNIT) / wallTexture.h} ${ex} ${ey})`} />);
+        const a = project(o, s.gx, s.gy, wallTop);
+        const b = project(o, s.gx, s.gy + 1, wallTop);
+        const bb = project(o, s.gx, s.gy + 1, base + FLOOR_T);
+        const ab = project(o, s.gx, s.gy, base + FLOOR_T);
+        parts.push(<polygon key={`ls${s.gy}`} points={`${a[0]},${a[1]} ${b[0]},${b[1]} ${bb[0]},${bb[1]} ${ab[0]},${ab[1]}`} fill="#000" opacity={0.14} />);
+      } else {
+        const [x, y] = project(o, s.gx, s.gy + 0.5, wallTop);
+        parts.push(<rect key={`lst${s.gy}`} x={x} y={y + UNIT} width={UNIT} height={(wallTop - base - FLOOR_T - 6) * UNIT} fill={shade(wallColors[1], -0.08)} />);
+      }
+      parts.push(<IsoBox key={`lb${s.gy}`} origin={o} gx={s.gx - 0.05} gy={s.gy} w={0.05} d={1} h={5} z={base + FLOOR_T}
+        colors={{ top: '#5d3a1a', left: '#5d3a1a', right: '#6b4220' }} />);
+    }
+    // canto
+    if (back.length && left.length && back[0].gx === left[0].gx && back[0].gy === left[0].gy) {
+      const s = back[0];
+      const base = baseOf(s.gx, s.gy);
+      parts.push(<IsoBox key="corner" origin={o} gx={s.gx - 0.25} gy={s.gy - 0.25} w={0.25} d={0.25} h={wallTop - base} z={base}
+        colors={{ top: topColor, left: shade(wallColors[1], -0.3), right: shade(wallColors[0], -0.3), outline: PALETTE.k }} />);
+    }
+    // janelas na parede do fundo
+    const windowSegs = back.length >= 6 ? [back[Math.floor(back.length * 0.35)], back[Math.floor(back.length * 0.7)]] : back.length >= 3 ? [back[Math.floor(back.length * 0.6)]] : [];
+    windowSegs.forEach((s, i) => {
+      const base = baseOf(s.gx, s.gy) + FLOOR_T;
+      const z1 = base + Math.min(wallH - 14, 30);
+      const z2 = Math.min(wallTop - 6, z1 + 30);
+      const pts = [project(o, s.gx + 0.15, s.gy, z2), project(o, s.gx + 0.85, s.gy, z2), project(o, s.gx + 0.85, s.gy, z1), project(o, s.gx + 0.15, s.gy, z1)];
+      const inner = [project(o, s.gx + 0.22, s.gy, z2 - 3), project(o, s.gx + 0.78, s.gy, z2 - 3), project(o, s.gx + 0.78, s.gy, z1 + 3), project(o, s.gx + 0.22, s.gy, z1 + 3)];
+      const mid = [project(o, s.gx + 0.5, s.gy, z2 - 3), project(o, s.gx + 0.5, s.gy, z1 + 3)];
+      parts.push(
+        <g key={`win${i}`}>
+          <polygon points={pts.map(p => p.join(',')).join(' ')} fill="#f4f4f4" stroke={PALETTE.k} strokeWidth={1} />
+          <polygon points={inner.map(p => p.join(',')).join(' ')} fill={night ? '#1d2550' : '#8fd0ff'} />
+          {!night && <polygon points={`${inner[0].join(',')} ${inner[1].join(',')} ${inner[2][0]},${inner[2][1] - 10 * UNIT}`} fill="#c9ecff" opacity={0.6} />}
+          <line x1={mid[0][0]} y1={mid[0][1]} x2={mid[1][0]} y2={mid[1][1]} stroke="#f4f4f4" strokeWidth={UNIT} />
+        </g>
+      );
+    });
+    // porta na parede esquerda
+    const doorSeg = left.find(s => s.gy === pm.door[1]);
+    if (doorSeg) {
+      const base = baseOf(doorSeg.gx, doorSeg.gy) + FLOOR_T;
+      const dz = Math.min(wallH - 10, 46);
+      const frame = [project(o, doorSeg.gx, doorSeg.gy + 0.12, base), project(o, doorSeg.gx, doorSeg.gy + 0.88, base), project(o, doorSeg.gx, doorSeg.gy + 0.88, base + dz), project(o, doorSeg.gx, doorSeg.gy + 0.12, base + dz)];
+      const hole = [project(o, doorSeg.gx, doorSeg.gy + 0.2, base), project(o, doorSeg.gx, doorSeg.gy + 0.8, base), project(o, doorSeg.gx, doorSeg.gy + 0.8, base + dz - 4), project(o, doorSeg.gx, doorSeg.gy + 0.2, base + dz - 4)];
+      parts.push(
+        <g key="door">
+          <polygon points={frame.map(p => p.join(',')).join(' ')} fill="#8b5a2b" stroke={PALETTE.k} strokeWidth={1} />
+          <polygon points={hole.map(p => p.join(',')).join(' ')} fill="#0d0f1c" />
+        </g>
+      );
+    }
+    return <g>{parts}</g>;
+  }, [pm, o, wallTop, wallH, wallColors[0], wallColors[1], wallTexture?.url, night]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!layout || !layouts) {
     return (
@@ -330,27 +575,36 @@ export const RoomView: React.FC = () => {
   }
 
   const room = ROOMS.find(r => r.id === roomId)!;
-  const wallDef = wallOptions.find(w => w.id === layout.wallpaper) || WALLPAPERS[0];
-  const floorDef = floorOptions.find(f => f.id === layout.floor) || FLOORS[0];
-  const wallColors: [string, string] = layout.wallpaper === 'custom' && layout.customWall ? layout.customWall : wallDef.colors;
-  const floorColors: [string, string] = layout.floor === 'custom' && layout.customFloor ? layout.customFloor : floorDef.colors;
-  const wallTexture = layout.wallpaper.startsWith('asset:') ? wallImages[layout.wallpaper.slice(6)] : undefined;
-  const floorTexture = layout.floor.startsWith('asset:') ? floorImages[layout.floor.slice(6)] : undefined;
   const selectedItem = layout.items.find(i => i.uid === selectedUid) || null;
   const selectedDef = selectedItem ? lookup(selectedItem.mobiId) : null;
   const placingDef = mode.kind === 'placing' ? lookup(mode.mobiId) : null;
-  const pigoBlock = new Set([`${pigo.pos[0]},${pigo.pos[1]}`]);
-  const placingValid = Boolean(
-    placingDef && hover && mode.kind === 'placing' &&
-    canPlace(layout.items, placingDef, hover[0], hover[1], mode.rot, mode.movingUid, mode.movingUid ? undefined : pigoBlock, dims, lookup)
-  );
+  const actorBlock = new Set([`${avatar.pos[0]},${avatar.pos[1]}`, `${pet.pos[0]},${pet.pos[1]}`]);
+  const placeOk = (def: MobiDef, gx: number, gy: number, rot: 0 | 1, moving?: string) =>
+    canPlace(layout.items, def, gx, gy, rot, pm, { ignoreUid: moving, blocked: moving ? undefined : actorBlock, lookup });
+  const placingValid = Boolean(placingDef && hover && mode.kind === 'placing' && placeOk(placingDef, hover[0], hover[1], mode.rot, mode.movingUid));
+
+  const tileFromEvent = (e: React.MouseEvent): [number, number] | null => {
+    const svg = svgRef.current;
+    if (!svg) return null;
+    const rect = svg.getBoundingClientRect();
+    return pickTile(pm, o, (e.clientX - rect.left) / scale, (e.clientY - rect.top) / scale);
+  };
+
+  const walkAvatarTo = (target: [number, number], sitUid?: string) => {
+    const path = findPath(layout.items, avatar.pos, target, pm, { lookup, allowTarget: Boolean(sitUid) });
+    if (path.length === 0 && !(target[0] === avatar.pos[0] && target[1] === avatar.pos[1])) {
+      showToast('Não dá para chegar aí.', 'info');
+      return;
+    }
+    setAvatar(a => ({ ...a, path, sitUid: null, pendingSit: sitUid || null }));
+  };
 
   const handleSceneClick = (e: React.MouseEvent) => {
     const t = tileFromEvent(e);
     if (mode.kind === 'placing') {
       if (!t || !placingDef) return;
-      if (!canPlace(layout.items, placingDef, t[0], t[1], mode.rot, mode.movingUid, mode.movingUid ? undefined : pigoBlock, dims, lookup)) {
-        showToast('Não cabe aqui: escolha um espaço livre no piso.', 'info');
+      if (!placeOk(placingDef, t[0], t[1], mode.rot, mode.movingUid)) {
+        showToast('Não cabe aqui: escolha um espaço livre e plano.', 'info');
         return;
       }
       if (mode.movingUid) {
@@ -365,16 +619,26 @@ export const RoomView: React.FC = () => {
       return;
     }
     setSelectedUid(null);
-    if (t) {
-      const path = findPath(layout.items, pigo.pos, t, dims, lookup);
-      if (path.length) setPigo(p => ({ ...p, path }));
+    if (t) walkAvatarTo(t);
+  };
+
+  // Estado padrão de mobis interativos: lareira acesa; luminária acesa à noite
+  const defaultState = (def: MobiDef) => (def.id === 'lareira' || (def.id === 'luminaria' && night) ? 1 : 0);
+
+  const interact = (item: PlacedMobi) => {
+    const def = lookup(item.mobiId);
+    if (!def) return;
+    if (def.toggle) {
+      updateLayout(l => ({ ...l, items: l.items.map(i => (i.uid === item.uid ? { ...i, state: (i.state ?? defaultState(def)) ? 0 : 1 } : i)) }));
+    } else if (def.seat) {
+      walkAvatarTo([item.gx, item.gy], item.uid);
     }
   };
 
   const rotateSelected = () => {
     if (!selectedItem || !selectedDef) return;
     const rot: 0 | 1 = selectedItem.rot ? 0 : 1;
-    if (!canPlace(layout.items, selectedDef, selectedItem.gx, selectedItem.gy, rot, selectedItem.uid, undefined, dims, lookup)) {
+    if (!placeOk(selectedDef, selectedItem.gx, selectedItem.gy, rot, selectedItem.uid)) {
       showToast('Sem espaço para girar aqui.', 'info');
       return;
     }
@@ -384,159 +648,182 @@ export const RoomView: React.FC = () => {
   const pickUpSelected = () => {
     if (!selectedItem) return;
     updateLayout(l => ({ ...l, items: l.items.filter(i => i.uid !== selectedItem.uid) }));
+    if (avatar.sitUid === selectedItem.uid) setAvatar(a => ({ ...a, sitUid: null }));
     setSelectedUid(null);
   };
 
-  // Redimensionar: mobis que ficariam do lado de fora voltam ao inventário
-  const resizeRoom = (axis: 'width' | 'depth', delta: number) => {
-    const next = { w: dims.w, d: dims.d };
-    if (axis === 'width') next.w = Math.min(ROOM_MAX, Math.max(ROOM_MIN, dims.w + delta));
-    else next.d = Math.min(ROOM_MAX, Math.max(ROOM_MIN, dims.d + delta));
-    if (next.w === dims.w && next.d === dims.d) return;
-    const outside = itemsOutside(layout.items, next, lookup);
-    updateLayout(l => ({
-      ...l,
-      width: next.w,
-      depth: next.d,
-      items: l.items.filter(i => !outside.some(x => x.uid === i.uid)),
-    }));
-    if (outside.length) showToast(`${outside.length} mobi(s) ficaram fora e voltaram ao inventário.`, 'info');
+  const chooseModel = (id: string) => {
+    const m = ROOM_MODELS.find(x => x.id === id);
+    if (!m) return;
+    if (level < m.minLevel) {
+      showToast(`Planta "${m.name}" libera no nível ${m.minLevel}.`, 'info');
+      return;
+    }
+    const target = parseModel(m);
+    const bad = itemsNotFitting(layout.items, target, lookup);
+    updateLayout(l => ({ ...l, model: id, items: l.items.filter(i => !bad.some(b => b.uid === i.uid)) }));
+    if (bad.length) showToast(`${bad.length} mobi(s) não couberam na nova planta e voltaram ao inventário.`, 'info');
   };
 
-  // --- Montagem da cena ---
-  const floorTiles: React.ReactNode[] = [];
-  const tileOutline = shade(floorColors[1], -0.18);
-  for (let gx = 0; gx < dims.w; gx++) {
-    for (let gy = 0; gy < dims.d; gy++) {
-      if (floorTexture) {
-        const [ex, ey] = project(o, gx, gy);
-        const s = floorTexture.w;
-        floorTiles.push(
-          <image
-            key={`f${gx}-${gy}`}
-            href={floorTexture.url}
-            width={floorTexture.w}
-            height={floorTexture.h}
-            style={{ imageRendering: 'pixelated' }}
-            transform={`matrix(${(16 * UNIT) / s} ${(8 * UNIT) / s} ${(-16 * UNIT) / s} ${(8 * UNIT) / s} ${ex} ${ey})`}
-          />
-        );
-      } else {
-        floorTiles.push(
-          <IsoTile key={`f${gx}-${gy}`} origin={o} gx={gx} gy={gy} color={(gx + gy) % 2 ? floorColors[1] : floorColors[0]} outline={tileOutline} />
-        );
-      }
-    }
-  }
-
-  // Paredes: textura do usuário inclinada por segmento, ou listras de cor
-  const wallDecor: React.ReactNode[] = [];
-  if (wallTexture) {
-    for (let i = 0; i < dims.w; i++) {
-      const [ex, ey] = project(o, i, 0, wallH);
-      wallDecor.push(
-        <image key={`wb${i}`} href={wallTexture.url} width={wallTexture.w} height={wallTexture.h} style={{ imageRendering: 'pixelated' }}
-          transform={`matrix(${(16 * UNIT) / wallTexture.w} ${(8 * UNIT) / wallTexture.w} 0 ${(wallH * UNIT) / wallTexture.h} ${ex} ${ey})`} />
-      );
-    }
-    for (let j = 0; j < dims.d; j++) {
-      const [ex, ey] = project(o, 0, j + 1, wallH);
-      wallDecor.push(
-        <image key={`wl${j}`} href={wallTexture.url} width={wallTexture.w} height={wallTexture.h} style={{ imageRendering: 'pixelated' }}
-          transform={`matrix(${(16 * UNIT) / wallTexture.w} ${(-8 * UNIT) / wallTexture.w} 0 ${(wallH * UNIT) / wallTexture.h} ${ex} ${ey})`} />
-      );
-    }
-    // sombreado da parede esquerda
-    const a = project(o, 0, 0, wallH);
-    const b = project(o, 0, dims.d, wallH);
-    const bb = project(o, 0, dims.d);
-    const ab = project(o, 0, 0);
-    wallDecor.push(<polygon key="shade" points={`${a[0]},${a[1]} ${b[0]},${b[1]} ${bb[0]},${bb[1]} ${ab[0]},${ab[1]}`} fill="#000" opacity={0.15} />);
-  } else {
-    for (let i = 1; i < dims.w * 2; i += 2) {
-      const [x, y] = project(o, i / 2, 0);
-      wallDecor.push(<rect key={`sb${i}`} x={x} y={y - wallH * UNIT} width={UNIT} height={(wallH - 3) * UNIT} fill={shade(wallColors[0], -0.08)} />);
-    }
-    for (let i = 1; i < dims.d * 2; i += 2) {
-      const [x, y] = project(o, 0, i / 2);
-      wallDecor.push(<rect key={`sl${i}`} x={x} y={y - wallH * UNIT} width={UNIT} height={(wallH - 3) * UNIT} fill={shade(wallColors[1], -0.1)} />);
-    }
-  }
-
+  // ---------- Objetos ordenados por profundidade ----------
   type Obj = { key: number; node: React.ReactNode };
-  const objects: Obj[] = [];
+  const objects: Obj[] = [...floorNodes];
+  const shadow = (gx: number, gy: number, w: number, d: number, z: number, k: string) => {
+    const [cx, cy] = project(o, gx + w / 2, gy + d / 2, z);
+    return <ellipse key={k} cx={cx} cy={cy} rx={(w + d) * 7 * UNIT} ry={(w + d) * 3.5 * UNIT} fill="#000" opacity={0.18} />;
+  };
+
   for (const it of layout.items) {
     const def = lookup(it.mobiId);
     if (!def || it.uid === (mode.kind === 'placing' ? mode.movingUid : undefined)) continue;
     const { w, d } = footprint(def, it.rot);
+    const z = (footprintHeight(pm, it.gx, it.gy, w, d) ?? 0) * STEP_Z;
     const selected = it.uid === selectedUid;
     objects.push({
-      key: def.walkable ? -100 + it.gx + it.gy : it.gx + w + it.gy + d,
+      key: def.walkable ? it.gx + it.gy + 0.6 : it.gx + w + it.gy + d,
       node: (
         <g
           key={it.uid}
           className={`${mode.kind === 'idle' ? 'pixel-clickable' : ''} ${selected ? 'pixel-selected' : ''}`}
-          onClick={(e) => {
-            if (mode.kind !== 'idle') return;
-            e.stopPropagation();
-            setSelectedUid(it.uid);
-          }}
+          onClick={(e) => { if (mode.kind !== 'idle') return; e.stopPropagation(); setSelectedUid(it.uid); }}
+          onDoubleClick={(e) => { if (mode.kind !== 'idle') return; e.stopPropagation(); interact(it); }}
         >
-          {def.render({ o, gx: it.gx, gy: it.gy, rot: it.rot, night })}
+          {!def.walkable && shadow(it.gx, it.gy, w, d, z, 's')}
+          {def.render({ o, gx: it.gx, gy: it.gy, rot: it.rot, night, z, state: it.state ?? defaultState(def) })}
         </g>
       ),
     });
   }
 
-  const pigoAnchor = project(o, pigo.pos[0] + 0.5, pigo.pos[1] + 0.5);
-  const customPigo = pigoImages.pigo;
-  const pigoOffset = assets?.manifest?.pigo || {};
-  let pigoNode: React.ReactNode;
-  if (customPigo) {
-    const x = Math.round(pigoAnchor[0] - customPigo.w / 2 + (pigoOffset.offsetX || 0));
-    const y = Math.round(pigoAnchor[1] - customPigo.h + 4 + (pigoOffset.offsetY || 0));
-    pigoNode = (
-      <image href={customPigo.url} x={x} y={y} width={customPigo.w} height={customPigo.h} style={{ imageRendering: 'pixelated' }}
-        transform={pigo.flip ? `translate(${2 * x + customPigo.w} 0) scale(-1 1)` : undefined} />
-    );
-  } else {
-    const ps = 2 * UNIT;
-    const { w: pw, h: ph } = spriteSize(PIGO);
-    const px = Math.round(pigoAnchor[0] - (pw * ps) / 2);
-    const py = Math.round(pigoAnchor[1] - ph * ps + 4 * UNIT);
-    pigoNode = (
-      <>
-        <PixelSprite sprite={PIGO} x={px} y={py} scale={ps} flip={pigo.flip} />
-        <g className="pixel-blink"><PixelSprite sprite={PIGO_BLINK} x={px} y={py} scale={ps} flip={pigo.flip} /></g>
-      </>
+  // Avatar
+  const sitItem = avatar.sitUid ? layout.items.find(i => i.uid === avatar.sitUid) : null;
+  const sitDef = sitItem ? lookup(sitItem.mobiId) : null;
+  // sentado: o quadril (≈12 unidades acima do pé na pose sentada) apoia na altura do assento
+  const avZ = (tileHeight(pm, avatar.pos[0], avatar.pos[1]) ?? 0) * STEP_Z + (sitDef ? (sitDef.seatZ ?? 8) - 12 : 0);
+  const [avX, avY] = project(o, avatar.pos[0] + 0.5, avatar.pos[1] + 0.5, avZ);
+  const moving = avatar.path.length > 0;
+
+  // Balão de fala: largura pelo texto, sempre dentro da cena
+  let bubbleNode: React.ReactNode = null;
+  if (bubble) {
+    const text = bubble.length > 44 ? `${bubble.slice(0, 43)}…` : bubble;
+    const bw = text.length * 6.4 + 16;
+    const bh = 18;
+    const lift = sitDef ? 56 : 70;
+    const avXGuess = project(o, avatar.pos[0] + 0.5, avatar.pos[1] + 0.5)[0];
+    const left = avXGuess - bw / 2;
+    const dx = Math.max(6 - left, 0) + Math.min(scene.width - 6 - (left + bw), 0);
+    bubbleNode = (
+      <g transform={`translate(${dx} ${-lift})`}>
+        <rect x={-bw / 2} y={-bh} width={bw} height={bh} rx={4} fill="#f4f4f4" stroke={PALETTE.k} strokeWidth={1.5} />
+        <polygon points={`${-dx - 4},0 ${-dx + 4},0 ${-dx},6`} fill="#f4f4f4" stroke={PALETTE.k} strokeWidth={1.5} />
+        <text x={0} y={-5} textAnchor="middle" fontSize={11} fill="#1a1c2c" className="font-pixel">{text}</text>
+      </g>
     );
   }
+
   objects.push({
-    key: pigo.pos[0] + pigo.pos[1] + 2.01,
-    node: <g key="pigo" className={pigo.path.length ? '' : 'pixel-bob'} style={{ pointerEvents: 'none' }}>{pigoNode}</g>,
+    key: avatar.pos[0] + avatar.pos[1] + 2.05,
+    node: (
+      <g key="avatar" style={{ pointerEvents: 'none', transform: `translate(${avX}px, ${avY}px)`, transition: `transform ${STEP_MS}ms linear` }}>
+        <ellipse cx={0} cy={0} rx={12} ry={5} fill="#000" opacity={0.2} />
+        <Avatar look={look} dir={avatar.dir} frame={moving ? walkFrame : 0} sitting={Boolean(sitDef)} x={0} y={1} />
+        {bubbleNode}
+      </g>
+    ),
+  });
+
+  // Pigo (pet)
+  const petZ = (tileHeight(pm, pet.pos[0], pet.pos[1]) ?? 0) * STEP_Z;
+  const [ptX, ptY] = project(o, pet.pos[0] + 0.5, pet.pos[1] + 0.5, petZ);
+  const customPigo = creatorImages.pigo;
+  const { w: pw, h: ph } = spriteSize(PIGO);
+  const petFlip = pet.dir === 'sw' || pet.dir === 'nw';
+  objects.push({
+    key: pet.pos[0] + pet.pos[1] + 2.04,
+    node: (
+      <g key="pet" style={{ pointerEvents: 'none', transform: `translate(${ptX}px, ${ptY}px)`, transition: `transform ${STEP_MS}ms linear` }}>
+        <ellipse cx={0} cy={0} rx={8 * UNIT} ry={3.5 * UNIT} fill="#000" opacity={0.2} />
+        {customPigo ? (
+          <image href={customPigo.url} x={-customPigo.w / 2} y={-customPigo.h + 2} width={customPigo.w} height={customPigo.h} style={{ imageRendering: 'pixelated' }}
+            transform={petFlip ? 'scale(-1 1)' : undefined} />
+        ) : (
+          <g className={pet.path.length ? '' : 'pixel-bob'}>
+            <PixelSprite sprite={PIGO} x={-(pw * UNIT) / 2} y={-ph * UNIT + 2 * UNIT} scale={UNIT} flip={petFlip} />
+            <g className="pixel-blink"><PixelSprite sprite={PIGO_BLINK} x={-(pw * UNIT) / 2} y={-ph * UNIT + 2 * UNIT} scale={UNIT} flip={petFlip} /></g>
+          </g>
+        )}
+      </g>
+    ),
   });
   objects.sort((a, b) => a.key - b.key);
 
-  // Prévia do mobi sendo posicionado
+  // Prévia de posicionamento
   let preview: React.ReactNode = null;
   if (placingDef && hover && mode.kind === 'placing') {
     const { w, d } = footprint(placingDef, mode.rot);
+    const z = (footprintHeight(pm, hover[0], hover[1], w, d) ?? tileHeight(pm, hover[0], hover[1]) ?? 0) * STEP_Z;
     const tiles: React.ReactNode[] = [];
     for (let x = 0; x < w; x++) {
       for (let y = 0; y < d; y++) {
-        tiles.push(<IsoTile key={`pv${x}-${y}`} origin={o} gx={hover[0] + x} gy={hover[1] + y} color={placingValid ? 'rgba(115,239,247,0.35)' : 'rgba(239,68,68,0.45)'} outline={placingValid ? PALETTE.C : '#ef4444'} />);
+        tiles.push(<IsoTile key={`pv${x}-${y}`} origin={{ ...o, y: o.y - z * UNIT }} gx={hover[0] + x} gy={hover[1] + y}
+          color={placingValid ? 'rgba(115,239,247,0.35)' : 'rgba(239,68,68,0.45)'} outline={placingValid ? PALETTE.C : '#ef4444'} />);
       }
     }
     preview = (
       <g style={{ pointerEvents: 'none' }}>
         {tiles}
-        <g opacity={0.75}>{placingDef.render({ o, gx: hover[0], gy: hover[1], rot: mode.rot, night })}</g>
+        <g opacity={0.75}>{placingDef.render({ o, gx: hover[0], gy: hover[1], rot: mode.rot, night, z })}</g>
       </g>
     );
   }
+  const hoverZ = hover ? (tileHeight(pm, hover[0], hover[1]) ?? 0) * STEP_Z : 0;
 
   const roomMobis = catalog.filter(m => m.rooms.includes(roomId));
-  const unlockedTotal = roomMobis.filter(m => isUnlocked(m.unlock, unlockedAchievements, level)).length;
+  const unlockedTotal = roomMobis.filter(m => can(m.unlock)).length;
+
+  // ---------- UI dos painéis ----------
+  const wardrobeRow = (label: string, options: WardrobeOption[], current: string, onPick: (id: string) => void) => (
+    <div>
+      <span className="text-[11px] font-semibold text-slate-300 block mb-1.5">{label}</span>
+      <div className="grid grid-cols-3 gap-1.5">
+        {options.map(opt => {
+          const ok = can(opt.unlock);
+          return (
+            <button
+              key={opt.id}
+              disabled={!ok}
+              onClick={() => onPick(opt.id)}
+              title={ok ? opt.name : unlockLabel(opt.unlock)}
+              className={`relative px-1.5 py-1.5 rounded-lg text-[10px] font-semibold border leading-tight ${
+                current === opt.id ? 'bg-amber-500/15 border-amber-500/50 text-amber-200' : ok ? 'bg-slate-950/60 border-slate-800 text-slate-300 hover:border-slate-700' : 'bg-slate-950/30 border-slate-850 text-slate-600'
+              }`}
+            >
+              {!ok && <Lock className="inline w-2.5 h-2.5 mr-0.5 -mt-0.5" />}
+              {opt.name}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+
+  const swatches = (label: string, colors: string[], current: string, onPick: (c: string) => void) => (
+    <div>
+      <span className="text-[11px] font-semibold text-slate-300 block mb-1.5">{label}</span>
+      <div className="flex flex-wrap gap-1">
+        {colors.map(col => (
+          <button key={col} onClick={() => onPick(col)} title={col}
+            className={`w-5 h-5 rounded-md border ${current === col ? 'border-white ring-2 ring-amber-400' : 'border-slate-700'}`}
+            style={{ background: col }} />
+        ))}
+        <label className="w-5 h-5 rounded-md border border-dashed border-slate-500 flex items-center justify-center text-[10px] text-slate-400 cursor-pointer overflow-hidden" title="Cor livre">
+          +
+          <input type="color" value={current} onChange={(e) => onPick(e.target.value)} className="opacity-0 w-0 h-0" />
+        </label>
+      </div>
+    </div>
+  );
 
   const surfaceList = (kind: 'paredes' | 'pisos') => {
     const options = kind === 'paredes' ? wallOptions : floorOptions;
@@ -544,21 +831,29 @@ export const RoomView: React.FC = () => {
     const custom = kind === 'paredes' ? (layout.customWall || wallColors) : (layout.customFloor || floorColors);
     return (
       <div className="space-y-2">
-        {options.map((s: SurfaceDef) => {
-          const unlocked = isUnlocked(s.unlock, unlockedAchievements, level);
-          const isAsset = s.id.startsWith('asset:');
-          const img = isAsset ? (kind === 'paredes' ? wallImages : floorImages)[s.id.slice(6)] : undefined;
+        {kind === 'paredes' && (
+          <div className="grid grid-cols-3 gap-1.5 mb-1">
+            {(['baixa', 'normal', 'alta'] as const).map(hgt => (
+              <button key={hgt} onClick={() => updateLayout(l => ({ ...l, wallHeight: hgt }))}
+                className={`py-1.5 rounded-lg text-[11px] font-semibold border capitalize ${(layout.wallHeight || 'normal') === hgt ? 'bg-amber-500/15 border-amber-500/40 text-amber-200' : 'bg-slate-950/60 border-slate-800 text-slate-300'}`}>
+                Parede {hgt}
+              </button>
+            ))}
+          </div>
+        )}
+        {options.map(s => {
+          const ok = can(s.unlock);
           return (
             <button
               key={s.id}
-              disabled={!unlocked}
+              disabled={!ok}
               onClick={() => updateLayout(l => (kind === 'paredes' ? { ...l, wallpaper: s.id } : { ...l, floor: s.id }))}
               className={`w-full flex items-center gap-3 p-2 rounded-xl border text-left ${
-                currentId === s.id ? 'bg-amber-500/10 border-amber-500/40' : unlocked ? 'bg-slate-950/60 border-slate-800 hover:border-slate-700' : 'bg-slate-950/30 border-slate-850'
+                currentId === s.id ? 'bg-amber-500/10 border-amber-500/40' : ok ? 'bg-slate-950/60 border-slate-800 hover:border-slate-700' : 'bg-slate-950/30 border-slate-850'
               }`}
             >
-              <span className="flex w-10 h-8 rounded-md overflow-hidden border border-slate-700 shrink-0" style={{ filter: unlocked ? undefined : 'grayscale(1) brightness(0.5)' }}>
-                {img ? <img src={img.url} className="w-full h-full object-cover" style={{ imageRendering: 'pixelated' }} alt="" /> : (
+              <span className="flex w-10 h-8 rounded-md overflow-hidden border border-slate-700 shrink-0" style={{ filter: ok ? undefined : 'grayscale(1) brightness(0.5)' }}>
+                {s.image ? <img src={s.image} className="w-full h-full object-cover" style={{ imageRendering: 'pixelated' }} alt="" /> : (
                   <>
                     <span className="flex-1" style={{ background: s.colors[0] }} />
                     <span className="flex-1" style={{ background: s.colors[1] }} />
@@ -566,17 +861,16 @@ export const RoomView: React.FC = () => {
                 )}
               </span>
               <span className="min-w-0">
-                <span className={`text-xs font-semibold block truncate ${unlocked ? 'text-white' : 'text-slate-500'}`}>{s.name}</span>
-                <span className="text-[10px] text-slate-500">{unlocked ? (currentId === s.id ? 'Em uso' : 'Clique para usar') : unlockLabel(s.unlock)}</span>
+                <span className={`text-xs font-semibold block truncate ${ok ? 'text-white' : 'text-slate-500'}`}>{s.name}</span>
+                <span className="text-[10px] text-slate-500">{ok ? (currentId === s.id ? 'Em uso' : 'Clique para usar') : unlockLabel(s.unlock)}</span>
               </span>
-              {!unlocked && <Lock className="ml-auto w-3.5 h-3.5 text-slate-500" />}
+              {!ok && <Lock className="ml-auto w-3.5 h-3.5 text-slate-500" />}
             </button>
           );
         })}
-        {/* Cores livres */}
         <div className={`p-2 rounded-xl border ${currentId === 'custom' ? 'bg-amber-500/10 border-amber-500/40' : 'bg-slate-950/60 border-slate-800'}`}>
           <span className="text-xs font-semibold text-white block mb-1.5">Cores livres</span>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
             {[0, 1].map(idx => (
               <label key={idx} className="flex items-center gap-1.5 text-[10px] text-slate-400">
                 <input
@@ -592,7 +886,7 @@ export const RoomView: React.FC = () => {
                   }}
                   className="w-7 h-7 rounded border border-slate-700 bg-transparent cursor-pointer"
                 />
-                {kind === 'paredes' ? (idx === 0 ? 'Parede do fundo' : 'Parede lateral') : (idx === 0 ? 'Tile A' : 'Tile B')}
+                {kind === 'paredes' ? (idx === 0 ? 'Fundo' : 'Lateral') : (idx === 0 ? 'Tile A' : 'Tile B')}
               </label>
             ))}
           </div>
@@ -601,35 +895,41 @@ export const RoomView: React.FC = () => {
     );
   };
 
+  const TABS: { id: Panel; label: string; Icon: React.FC<{ className?: string }> }[] = [
+    { id: 'mobis', label: 'Mobis', Icon: Armchair },
+    { id: 'visual', label: 'Visual', Icon: Shirt },
+    { id: 'plantas', label: 'Plantas', Icon: LayoutGrid },
+    { id: 'paredes', label: 'Paredes', Icon: Lamp },
+    { id: 'pisos', label: 'Pisos', Icon: Package },
+    { id: 'criador', label: 'Criador', Icon: Pickaxe },
+  ];
+
   return (
     <div ref={wrapperRef} className={`h-full flex flex-col ${isFullscreen ? 'bg-[#0b0e1a] p-3' : 'p-4'} gap-3`}>
-      {/* Header + abas de ambiente */}
       <div className="flex flex-wrap items-center justify-between gap-3 shrink-0">
         <div className="flex items-center gap-3">
-          <PixelIcon sprite={PIGO} size={32} />
+          <AvatarPreview look={look} size={44} />
           <div>
             <h1 className="text-xl font-pixel font-bold text-white leading-none">{room.name}</h1>
-            <p className="text-[11px] text-slate-400 mt-1">{room.subtitle} • {dims.w}×{dims.d} tiles • clique no piso para o Pigo andar</p>
+            <p className="text-[11px] text-slate-400 mt-1">
+              Planta: {model.name} • {pm.tileCount} tiles • clique no piso para andar • duplo clique para sentar/acender
+            </p>
           </div>
         </div>
         <div className="flex items-center gap-2">
           <div className="flex bg-slate-950/80 p-1 rounded-xl border border-slate-850">
             {ROOMS.map(r => (
-              <button
-                key={r.id}
-                disabled={!r.available}
-                onClick={() => { setRoomId(r.id); setMode({ kind: 'idle' }); setSelectedUid(null); }}
+              <button key={r.id} disabled={!r.available} onClick={() => { setRoomId(r.id); setMode({ kind: 'idle' }); setSelectedUid(null); }}
                 title={r.available ? r.name : r.subtitle}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-pixel transition-all ${
                   roomId === r.id ? 'bg-amber-500/20 text-amber-300' : r.available ? 'text-slate-300 hover:text-white' : 'text-slate-600 cursor-not-allowed'
-                }`}
-              >
+                }`}>
                 {!r.available && <Lock className="w-3 h-3" />}
                 {r.name}
               </button>
             ))}
           </div>
-          <button onClick={() => setPanelOpen(v => !v)} title={panelOpen ? 'Esconder inventário' : 'Mostrar inventário'} className="p-2 rounded-lg bg-slate-900/80 border border-slate-800 text-slate-300 hover:text-white">
+          <button onClick={() => setPanelOpen(v => !v)} title={panelOpen ? 'Esconder painel' : 'Mostrar painel'} className="p-2 rounded-lg bg-slate-900/80 border border-slate-800 text-slate-300 hover:text-white">
             {panelOpen ? <PanelRightClose className="w-4 h-4" /> : <PanelRightOpen className="w-4 h-4" />}
           </button>
           <button onClick={toggleFullscreen} title={isFullscreen ? 'Sair da tela cheia' : 'Tela cheia'} className="p-2 rounded-lg bg-slate-900/80 border border-slate-800 text-slate-300 hover:text-white">
@@ -639,12 +939,11 @@ export const RoomView: React.FC = () => {
       </div>
 
       <div className="flex-1 min-h-0 flex gap-3">
-        {/* Palco do quarto */}
         <div className="flex-1 min-w-0 flex flex-col gap-2">
           <div
             ref={stageRef}
-            className="relative flex-1 min-h-0 rounded-2xl overflow-hidden border-4 border-slate-800 bg-[#14182b] flex items-center justify-center"
-            style={{ cursor: mode.kind === 'placing' ? (placingValid ? 'copy' : 'not-allowed') : 'default' }}
+            className="relative flex-1 min-h-0 rounded-2xl overflow-hidden border-4 border-slate-800 flex items-center justify-center"
+            style={{ cursor: mode.kind === 'placing' ? (placingValid ? 'copy' : 'not-allowed') : 'default', background: night ? 'radial-gradient(circle at 50% 30%, #1b2140, #0b0e1a)' : 'radial-gradient(circle at 50% 30%, #23304f, #10142a)' }}
           >
             <svg
               ref={svgRef}
@@ -657,37 +956,13 @@ export const RoomView: React.FC = () => {
               onMouseLeave={() => setHover(null)}
               onClick={handleSceneClick}
             >
-              {/* Paredes */}
-              <IsoBox origin={o} gx={0} gy={-0.3} w={dims.w} d={0.3} h={wallH} colors={{ top: '#3a2f2a', left: wallColors[0], right: shade(wallColors[0], -0.25), outline: PALETTE.k }} />
-              <IsoBox origin={o} gx={-0.3} gy={-0.3} w={0.3} d={dims.d + 0.3} h={wallH} colors={{ top: '#3a2f2a', left: shade(wallColors[1], -0.25), right: wallColors[1], outline: PALETTE.k }} />
-              {wallDecor}
-              <IsoBox origin={o} gx={0} gy={-0.06} w={dims.w} d={0.06} h={4} colors={{ top: '#5d3a1a', left: '#6b4220', right: '#5d3a1a' }} />
-              <IsoBox origin={o} gx={-0.06} gy={0} w={0.06} d={dims.d} h={4} colors={{ top: '#5d3a1a', left: '#5d3a1a', right: '#6b4220' }} />
-              {/* Janela na parede do fundo */}
-              {dims.w >= 6 && (() => {
-                const wx = Math.max(1, dims.w - 4);
-                const top = Math.min(wallH - 10, 46);
-                const a = project(o, wx, 0, top);
-                const b = project(o, wx + 2, 0, top);
-                const hgt = 22 * UNIT;
-                return (
-                  <g>
-                    <polygon points={`${a[0]},${a[1]} ${b[0]},${b[1]} ${b[0]},${b[1] + hgt} ${a[0]},${a[1] + hgt}`} fill={PALETTE.k} />
-                    <polygon points={`${a[0] + 3},${a[1] + 3} ${b[0] - 3},${b[1]} ${b[0] - 3},${b[1] + hgt - 3} ${a[0] + 3},${a[1] + hgt}`} fill={night ? '#29366f' : '#9fd8ff'} />
-                    <line x1={(a[0] + b[0]) / 2} y1={(a[1] + b[1]) / 2 + 2} x2={(a[0] + b[0]) / 2} y2={(a[1] + b[1]) / 2 + hgt - 2} stroke={PALETTE.k} strokeWidth={UNIT} />
-                  </g>
-                );
-              })()}
-
-              {/* Piso */}
-              {floorTiles}
+              {wallNode}
+              {objects.map(ob => <React.Fragment key={(ob.node as React.ReactElement).key}>{ob.node}</React.Fragment>)}
               {hover && mode.kind === 'idle' && (
-                <IsoTile origin={o} gx={hover[0]} gy={hover[1]} color="rgba(255,255,255,0.18)" outline={PALETTE.w} />
+                <IsoTile origin={{ ...o, y: o.y - hoverZ * UNIT }} gx={hover[0]} gy={hover[1]} color="rgba(255,255,255,0.16)" outline={PALETTE.w} />
               )}
-
-              {objects.map((ob, i) => <React.Fragment key={i}>{ob.node}</React.Fragment>)}
               {preview}
-              {night && <rect x={0} y={0} width={scene.width} height={scene.height} fill="#0b1030" opacity={0.18} pointerEvents="none" />}
+              {night && <rect x={0} y={0} width={scene.width} height={scene.height} fill="#0b1030" opacity={0.16} pointerEvents="none" />}
             </svg>
 
             {mode.kind === 'placing' && placingDef && (
@@ -697,7 +972,6 @@ export const RoomView: React.FC = () => {
             )}
           </div>
 
-          {/* Barra de ações do mobi selecionado */}
           {selectedItem && selectedDef && mode.kind === 'idle' && (
             <div className="shrink-0 flex flex-wrap items-center justify-between gap-2 p-3 rounded-xl bg-slate-900/80 border border-slate-800">
               <div>
@@ -705,13 +979,16 @@ export const RoomView: React.FC = () => {
                 <span className="text-[11px] text-slate-400 block">{selectedDef.description}</span>
               </div>
               <div className="flex gap-1.5">
+                {(selectedDef.seat || selectedDef.toggle) && (
+                  <button onClick={() => interact(selectedItem)} className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold text-white bg-brand-600 hover:bg-brand-500">
+                    {selectedDef.seat ? <><Armchair className="w-3.5 h-3.5" /> Sentar</> : <><Lamp className="w-3.5 h-3.5" /> Ligar/Desligar</>}
+                  </button>
+                )}
                 <button onClick={rotateSelected} className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-200 bg-slate-800 hover:bg-slate-750">
                   <RotateCw className="w-3.5 h-3.5" /> Girar
                 </button>
-                <button
-                  onClick={() => { setMode({ kind: 'placing', mobiId: selectedItem.mobiId, rot: selectedItem.rot, movingUid: selectedItem.uid }); setSelectedUid(null); }}
-                  className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-200 bg-slate-800 hover:bg-slate-750"
-                >
+                <button onClick={() => { setMode({ kind: 'placing', mobiId: selectedItem.mobiId, rot: selectedItem.rot, movingUid: selectedItem.uid }); setSelectedUid(null); }}
+                  className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-200 bg-slate-800 hover:bg-slate-750">
                   <Move className="w-3.5 h-3.5" /> Mover
                 </button>
                 <button onClick={pickUpSelected} className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-200 bg-slate-800 hover:bg-slate-750">
@@ -725,105 +1002,110 @@ export const RoomView: React.FC = () => {
           )}
         </div>
 
-        {/* Inventário / personalização */}
         {panelOpen && (
-          <div className="w-[300px] shrink-0 p-3 rounded-2xl bg-slate-900/80 border border-slate-800 flex flex-col gap-3 min-h-0">
-            <div className="flex items-center justify-between shrink-0">
-              <span className="font-pixel text-lg text-white">Inventário</span>
-              <span className="text-[11px] text-slate-400 flex items-center gap-1">
-                <Sparkles className="w-3 h-3 text-amber-400" /> {unlockedTotal}/{roomMobis.length}
-              </span>
-            </div>
-            <div className="grid grid-cols-4 bg-slate-950/80 p-1 rounded-lg border border-slate-850 shrink-0">
-              {([['mobis', 'Mobis'], ['paredes', 'Paredes'], ['pisos', 'Pisos'], ['quarto', 'Quarto']] as const).map(([k, label]) => (
-                <button
-                  key={k}
-                  onClick={() => setPanel(k)}
-                  className={`px-1 py-1 text-[11px] font-semibold rounded-md ${panel === k ? 'bg-slate-800 text-white' : 'text-slate-400 hover:text-white'}`}
-                >
-                  {label}
+          <div className="w-[310px] shrink-0 p-3 rounded-2xl bg-slate-900/80 border border-slate-800 flex flex-col gap-3 min-h-0">
+            <div className="grid grid-cols-3 gap-1 bg-slate-950/80 p-1 rounded-lg border border-slate-850 shrink-0">
+              {TABS.map(({ id, label, Icon }) => (
+                <button key={id} onClick={() => setPanel(id)}
+                  className={`flex items-center justify-center gap-1 px-1 py-1.5 text-[11px] font-semibold rounded-md ${panel === id ? 'bg-slate-800 text-white' : 'text-slate-400 hover:text-white'}`}>
+                  <Icon className="w-3.5 h-3.5" /> {label}
                 </button>
               ))}
             </div>
 
             <div className="flex-1 min-h-0 overflow-y-auto pr-1">
               {panel === 'mobis' && (
-                <div className="grid grid-cols-2 gap-2">
-                  {[...roomMobis]
-                    .sort((a, b) => Number(isUnlocked(b.unlock, unlockedAchievements, level)) - Number(isUnlocked(a.unlock, unlockedAchievements, level)))
-                    .map(def => {
-                      const unlocked = isUnlocked(def.unlock, unlockedAchievements, level);
+                <>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="font-pixel text-base text-white">Inventário</span>
+                    <span className="text-[11px] text-slate-400 flex items-center gap-1"><Sparkles className="w-3 h-3 text-amber-400" /> {unlockedTotal}/{roomMobis.length}</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    {[...roomMobis].sort((a, b) => Number(can(b.unlock)) - Number(can(a.unlock))).map(def => {
+                      const ok = can(def.unlock);
                       const available = def.qty - (placedCount[def.id] || 0);
                       const active = mode.kind === 'placing' && mode.mobiId === def.id && !mode.movingUid;
                       return (
-                        <button
-                          key={def.id}
-                          disabled={!unlocked || available <= 0}
+                        <button key={def.id} disabled={!ok || available <= 0}
                           onClick={() => { setSelectedUid(null); setMode({ kind: 'placing', mobiId: def.id, rot: 0 }); }}
-                          title={unlocked ? def.description : `Bloqueado — ${unlockLabel(def.unlock)}`}
+                          title={ok ? def.description : `Bloqueado — ${unlockLabel(def.unlock)}`}
                           className={`relative flex flex-col items-center p-2 rounded-xl border text-center transition-all ${
-                            active ? 'bg-cyan-500/10 border-cyan-400/50' : unlocked ? 'bg-slate-950/60 border-slate-800 hover:border-amber-500/50' : 'bg-slate-950/30 border-slate-850'
-                          } ${unlocked && available <= 0 ? 'opacity-50' : ''}`}
-                        >
-                          <MobiPreview def={def} locked={!unlocked} />
-                          <span className={`text-[11px] font-semibold leading-tight ${unlocked ? 'text-white' : 'text-slate-500'}`}>{def.name}</span>
+                            active ? 'bg-cyan-500/10 border-cyan-400/50' : ok ? 'bg-slate-950/60 border-slate-800 hover:border-amber-500/50' : 'bg-slate-950/30 border-slate-850'
+                          } ${ok && available <= 0 ? 'opacity-50' : ''}`}>
+                          <MobiPreview def={def} locked={!ok} />
+                          <span className={`text-[11px] font-semibold leading-tight ${ok ? 'text-white' : 'text-slate-500'}`}>{def.name}</span>
                           <span className="text-[10px] text-slate-500 mt-0.5">
-                            {unlocked ? (def.qty >= 99 ? 'Seu asset' : `${Math.max(0, available)} de ${def.qty}`) : unlockLabel(def.unlock)}
+                            {ok ? (def.qty >= 99 ? 'Ilimitado' : `${Math.max(0, available)} de ${def.qty}`) : unlockLabel(def.unlock)}
                           </span>
-                          {!unlocked && <Lock className="absolute top-2 right-2 w-3 h-3 text-slate-500" />}
+                          {!ok && <Lock className="absolute top-2 right-2 w-3 h-3 text-slate-500" />}
                         </button>
                       );
                     })}
+                  </div>
+                </>
+              )}
+
+              {panel === 'visual' && (
+                <div className="space-y-3">
+                  <div className="flex items-end justify-center gap-4 p-3 rounded-xl bg-gradient-to-b from-slate-800/60 to-slate-950/60 border border-slate-800">
+                    <AvatarPreview look={look} dir="se" size={128} />
+                    <AvatarPreview look={look} dir="nw" size={128} />
+                  </div>
+                  {swatches('Pele', SKIN_TONES, look.skin, c => updateLook({ skin: c }))}
+                  {wardrobeRow('Cabelo', HAIR_STYLES, look.hair, id => updateLook({ hair: id }))}
+                  {swatches('Cor do cabelo', PALETTE_CHOICES, look.hairColor, c => updateLook({ hairColor: c }))}
+                  {wardrobeRow('Roupa', TOP_STYLES, look.top, id => updateLook({ top: id }))}
+                  {swatches('Cor da roupa', PALETTE_CHOICES, look.topColor, c => updateLook({ topColor: c }))}
+                  {swatches('Calça', PALETTE_CHOICES, look.pantsColor, c => updateLook({ pantsColor: c }))}
+                  {swatches('Sapatos', PALETTE_CHOICES, look.shoesColor, c => updateLook({ shoesColor: c }))}
+                  {wardrobeRow('Acessório', HATS, look.hat, id => updateLook({ hat: id }))}
+                  {swatches('Cor do acessório', PALETTE_CHOICES, look.hatColor, c => updateLook({ hatColor: c }))}
+                </div>
+              )}
+
+              {panel === 'plantas' && (
+                <div className="grid grid-cols-2 gap-2">
+                  {ROOM_MODELS.map(m => {
+                    const ok = level >= m.minLevel;
+                    const p = parseModel(m);
+                    return (
+                      <button key={m.id} onClick={() => chooseModel(m.id)} title={ok ? m.description : `Libera no nível ${m.minLevel}`}
+                        className={`relative flex flex-col items-center p-2 rounded-xl border text-center ${
+                          layout.model === m.id ? 'bg-amber-500/10 border-amber-500/50' : ok ? 'bg-slate-950/60 border-slate-800 hover:border-amber-500/40' : 'bg-slate-950/30 border-slate-850'
+                        }`}>
+                        <ModelPreview pm={p} locked={!ok} />
+                        <span className={`text-[11px] font-semibold ${ok ? 'text-white' : 'text-slate-500'}`}>{m.name}</span>
+                        <span className="text-[10px] text-slate-500">{ok ? `${p.tileCount} tiles${p.maxH ? ' • desníveis' : ''}` : `Nível ${m.minLevel}`}</span>
+                        {!ok && <Lock className="absolute top-2 right-2 w-3 h-3 text-slate-500" />}
+                      </button>
+                    );
+                  })}
                 </div>
               )}
 
               {panel === 'paredes' && surfaceList('paredes')}
               {panel === 'pisos' && surfaceList('pisos')}
 
-              {panel === 'quarto' && (
-                <div className="space-y-4">
-                  <div>
-                    <span className="text-xs font-semibold text-slate-300 block mb-2">Tamanho do quarto</span>
-                    {([['width', 'Largura', dims.w], ['depth', 'Profundidade', dims.d]] as const).map(([axis, label, value]) => (
-                      <div key={axis} className="flex items-center justify-between mb-2">
-                        <span className="text-xs text-slate-400">{label}</span>
-                        <div className="flex items-center gap-2">
-                          <button onClick={() => resizeRoom(axis, -1)} disabled={value <= ROOM_MIN} className="p-1.5 rounded-md bg-slate-800 text-slate-200 disabled:opacity-30"><Minus className="w-3 h-3" /></button>
-                          <span className="font-pixel text-sm text-white w-8 text-center">{value}</span>
-                          <button onClick={() => resizeRoom(axis, 1)} disabled={value >= ROOM_MAX} className="p-1.5 rounded-md bg-slate-800 text-slate-200 disabled:opacity-30"><Plus className="w-3 h-3" /></button>
-                        </div>
-                      </div>
-                    ))}
-                    <span className="text-[10px] text-slate-500">De {ROOM_MIN} a {ROOM_MAX} tiles. Ao diminuir, mobis do lado de fora voltam ao inventário.</span>
-                  </div>
-                  <div>
-                    <span className="text-xs font-semibold text-slate-300 block mb-2">Altura das paredes</span>
-                    <div className="grid grid-cols-3 gap-1.5">
-                      {(['baixa', 'normal', 'alta'] as const).map(hgt => (
-                        <button
-                          key={hgt}
-                          onClick={() => updateLayout(l => ({ ...l, wallHeight: hgt }))}
-                          className={`py-1.5 rounded-lg text-xs font-semibold border capitalize ${(layout.wallHeight || 'normal') === hgt ? 'bg-amber-500/15 border-amber-500/40 text-amber-200' : 'bg-slate-950/60 border-slate-800 text-slate-300'}`}
-                        >
-                          {hgt}
-                        </button>
-                      ))}
-                    </div>
+              {panel === 'criador' && (
+                <div className="space-y-3 text-[11px] text-slate-400">
+                  <div className="p-3 rounded-xl bg-slate-950/60 border border-slate-800 space-y-2">
+                    <span className="text-xs font-semibold text-white block">Pacote oficial (para todos os jogadores)</span>
+                    <span className="block">
+                      Os assets que você disponibiliza ficam em <code className="text-amber-300">src/game/pack/</code> e são cadastrados em
+                      <code className="text-amber-300"> pack.json</code> (nome, tamanho e qual conquista/nível libera). Eles vão junto no instalador.
+                    </span>
+                    <span className="block">No pacote agora: {ASSET_PACK.mobis.length} mobi(s), {ASSET_PACK.floors.length} piso(s), {ASSET_PACK.walls.length} parede(s).</span>
                   </div>
                   <div className="p-3 rounded-xl bg-slate-950/60 border border-slate-800 space-y-2">
-                    <span className="text-xs font-semibold text-white block">Seus assets (pixel art)</span>
-                    <span className="text-[11px] text-slate-400 block">
-                      Solte PNGs na pasta de assets para trocar mobis, pisos, paredes e o Pigo — ou criar mobis novos. Guia completo no arquivo LEIA-ME.txt da pasta.
-                    </span>
-                    <span className="text-[10px] text-slate-500 block break-all">{assets?.folder}</span>
+                    <span className="text-xs font-semibold text-white block">Modo criador (testar antes de publicar)</span>
+                    <span className="block">Solte um PNG nesta pasta e clique em Recarregar para vê-lo no quarto na hora, sem recompilar.</span>
+                    <span className="text-[10px] text-slate-500 block break-all">{creatorAssets?.folder}</span>
                     <div className="flex gap-1.5">
                       <button onClick={() => window.electronAPI?.openGameAssetsFolder()} className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg text-xs font-semibold text-slate-200 bg-slate-800 hover:bg-slate-750">
                         <FolderOpen className="w-3.5 h-3.5" /> Abrir pasta
                       </button>
-                      <button
-                        onClick={async () => { await loadAssets(); showToast('Assets recarregados!', 'success'); }}
-                        className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg text-xs font-semibold text-slate-200 bg-slate-800 hover:bg-slate-750"
-                      >
+                      <button onClick={async () => { await loadCreatorAssets(); showToast('Assets do criador recarregados!', 'success'); }}
+                        className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg text-xs font-semibold text-slate-200 bg-slate-800 hover:bg-slate-750">
                         <RefreshCw className="w-3.5 h-3.5" /> Recarregar
                       </button>
                     </div>

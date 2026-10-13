@@ -305,6 +305,7 @@ function initDatabase(customPath = null) {
 
     // Quartos isométricos (mobis posicionados, parede e piso)
     `ALTER TABLE settings ADD COLUMN room_layouts TEXT`,
+    `ALTER TABLE settings ADD COLUMN avatar_look TEXT`,
   ];
   for (const m of migrations) {
     try { db.exec(m); } catch (e) {}

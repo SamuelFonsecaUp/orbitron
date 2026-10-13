@@ -1,92 +1,106 @@
 # Assets do jogo (pixel art)
 
-O Pigo desenha tudo em código por padrão, mas **qualquer mobi, piso, parede e o próprio Pigo podem ser trocados por PNGs seus**, sem recompilar o app.
+Há dois lugares para assets, com papéis diferentes:
 
-## Onde colocar
+| Onde | Para quem | Como funciona |
+|---|---|---|
+| **`src/game/pack/`** — pacote oficial | **Todos os jogadores** | Você coloca os PNGs aqui e cadastra em `pack.json` (nome, tamanho e **qual conquista ou nível libera**). Eles vão dentro do instalador e chegam a todo mundo pela atualização automática. |
+| `%APPDATA%\financeiro\game-assets\` — modo criador | Só você, para testar | Solte um PNG e clique em *Quarto → Criador → Recarregar*. Aparece na hora, sem recompilar. Quando estiver bom, mova para o pacote oficial. |
 
-| Onde | Para quê |
+Arquivos de código relacionados:
+
+| Arquivo | O que é |
 |---|---|
-| `%APPDATA%\financeiro\game-assets\` | **Sua pasta de assets** (lida pelo app em tempo de execução). É criada na primeira vez que você abre o **Quarto**. No app: *Quarto → aba "Quarto" → Abrir pasta*. Depois de copiar os PNGs, clique em **Recarregar**. |
-| `src/game/sprites.ts` | Sprites embutidos no código (Pigo, goblins, dragão, moedas…) desenhados como matriz de caracteres. |
-| `src/game/mobis.tsx` | Catálogo de mobis: nome, tamanho, **regra de desbloqueio** (conquista/nível) e desenho padrão. Papéis de parede e pisos do catálogo também ficam aqui. |
-| `src/game/iso.tsx` | Motor isométrico (projeção 2:1, rasterização em pixels). |
+| `src/game/pack/pack.json` | Catálogo do pacote oficial |
+| `src/game/pack.ts` | Carregador do pacote (empacota automaticamente todo PNG da pasta) |
+| `src/game/mobis.tsx` | Mobis desenhados em código (24) e suas conquistas |
+| `src/game/avatar.tsx` | Avatar: partes, roupas, cabelos, acessórios e o que libera cada um |
+| `src/game/room.ts` | Plantas de quarto (mapas de altura) e o nível de cada uma |
+| `src/game/sprites.ts` | Sprites pequenos (Pigo pet, goblins, dragão…) |
+
+## Pacote oficial: estrutura
 
 ```
-game-assets/
-├── LEIA-ME.txt          guia rápido (gerado pelo app)
-├── manifest.json        nomes, tamanhos e ajustes finos
-├── pigo.png             substitui o Pigo
-├── mobis/
-│   ├── cofre.png        substitui o mobi "cofre"
-│   ├── cofre_r1.png     versão girada (opcional; sem ela o app espelha)
-│   └── meu_sofa.png     id novo => mobi NOVO, já liberado
-├── pisos/
-│   └── madeira_hd.png   novo piso (textura plana)
-└── paredes/
-    └── tijolo.png       novo papel de parede (textura plana)
+src/game/pack/
+├── pack.json
+├── mobis/       bau_tesouro.png, meu_sofa.png, meu_sofa_r1.png…
+├── pisos/       parquet.png…
+└── paredes/     tijolinho.png…
 ```
 
-## Resolução
+### pack.json
 
-- Cada tile do piso do Quarto é um losango de **64 × 32 px**.
-- **1 pixel da sua imagem = 1 pixel do quarto.** A tela amplia sem borrar (`image-rendering: pixelated`).
+```json
+{
+  "mobis": [
+    {
+      "id": "meu_sofa",
+      "name": "Sofá de Couro",
+      "description": "Liberado com 3 meses no azul.",
+      "file": "mobis/meu_sofa.png",
+      "fileRotated": "mobis/meu_sofa_r1.png",
+      "w": 2, "d": 1,
+      "category": "assentos",
+      "rooms": ["finance", "life"],
+      "qty": 1,
+      "seat": true, "seatZ": 8,
+      "offsetX": 0, "offsetY": 0,
+      "unlock": { "type": "achievement", "id": "azul_3", "label": "Trimestre Azul" }
+    }
+  ],
+  "floors": [
+    { "id": "parquet", "name": "Parquet", "file": "pisos/parquet.png", "unlock": { "type": "level", "level": 4 } }
+  ],
+  "walls": [
+    { "id": "tijolinho", "name": "Tijolinho", "file": "paredes/tijolinho.png", "unlock": { "type": "default" } }
+  ],
+  "overrides": {
+    "cofre": { "file": "mobis/cofre_hd.png", "offsetY": -2 }
+  }
+}
+```
 
-## Mobis (`mobis/<id>.png`)
+- **`unlock`**: `{ "type": "default" }` (sempre liberado), `{ "type": "level", "level": 10 }` ou `{ "type": "achievement", "id": "<id>", "label": "<nome>" }`.
+  Ids de conquistas: `primeiro_extrato`, `extratos_10`, `extratos_50`, `categorizador_100`, `categorizador_500`, `categorizador_2000`, `caixa_zero`, `mes_azul`, `azul_3`, `azul_6`, `azul_12`, `primeira_reserva`, `aportes_12`, `reserva_1`, `reserva_3`, `reserva_completa`, `semanas_4`, `semanas_12`, `fatura_3`, `fatura_12`, `orcamento_5`, `missoes_10`, `detetive`.
+- **`overrides`**: troca o desenho de um mobi embutido (mantém a conquista dele). Ids: `cadeira`, `mesa`, `tapete`, `planta`, `luminaria`, `gaveteiro`, `estante_pastas`, `caixas`, `escrivaninha`, `vaso_azul`, `sofa_azul`, `estatua_pigo`, `cofre`, `cofre_forte`, `estatua_ouro`, `telescopio`, `relogio`, `registradora`, `balanca`, `quadro_missoes`, `aquario`, `lareira`, `trono`, `fonte_moedas`.
+- **`seat`**: o avatar senta (duplo clique). `seatZ` = altura do assento.
+- **`walkable`**: tapetes (dá para pisar e pôr móveis em cima).
 
-Desenhe em **vista isométrica**, com o losango do chão que o mobi ocupa **encostado na borda de baixo** da imagem e centralizado na horizontal:
+Depois de adicionar: `npm test` confere se todo arquivo citado existe, e `npm run release` publica para todos.
+
+## Resolução e como desenhar
+
+- O piso é feito de losangos de **64 × 32 px**; o avatar ocupa um quadro de **32 × 64 px**.
+- **1 pixel da imagem = 1 pixel do quarto** (a tela amplia sem borrar).
+
+### Mobis
+
+Vista **isométrica**, com o losango do chão que o mobi ocupa **encostado na borda de baixo** e centralizado:
 
 ```
         ┌──────────────┐  ← altura livre
         │    ▓▓▓▓▓▓    │
         │  ▓▓▓▓▓▓▓▓▓▓  │
-        │ ◇◇◇◇◇◇◇◇◇◇◇◇ │  ← losango do chão (w + d) × 32 px de largura
+        │ ◇◇◇◇◇◇◇◇◇◇◇◇ │  ← losango do chão: (w + d) × 32 px de largura
         └──────◇───────┘  ← ponta de baixo do losango = borda inferior
 ```
 
-| Pegada (w × d) | Largura ideal da imagem |
+| Pegada (w × d) | Largura ideal |
 |---|---|
 | 1 × 1 | 64 px |
 | 2 × 1 | 96 px |
 | 2 × 2 | 128 px |
 
-- **Ids existentes** (substituem o desenho, mantendo a conquista que libera): `cadeira`, `mesa`, `tapete`, `planta`, `luminaria`, `gaveteiro`, `estante_pastas`, `caixas`, `escrivaninha`, `vaso_azul`, `sofa_azul`, `estatua_pigo`, `cofre`, `cofre_forte`, `estatua_ouro`, `telescopio`, `relogio`, `registradora`, `balanca`, `quadro_missoes`, `aquario`, `lareira`, `trono`, `fonte_moedas`.
-- **Id novo** vira um mobi novo no inventário (liberado, quantidade ilimitada). Defina nome e pegada no `manifest.json`.
-- **Rotação**: `<id>_r1.png` é a versão girada. Sem ela, o app espelha a imagem horizontalmente.
+`fileRotated` é a versão girada; sem ela o app espelha a imagem. Veja `mobis/bau_tesouro.png` como exemplo.
 
-## Pisos (`pisos/<nome>.png`)
+### Pisos
 
-Textura **quadrada e plana** (vista de cima), por exemplo 32 × 32 ou 64 × 64. O app projeta a textura em cada losango do piso.
+Textura **quadrada e plana** (vista de cima): 32 × 32 ou 64 × 64. O app projeta em cada tile.
 
-## Paredes (`paredes/<nome>.png`)
+### Paredes
 
-Textura **plana** (vista de frente): **32 px de largura por tile**, altura = altura da parede:
+Textura **plana** (vista de frente), **32 px de largura por tile** e altura igual à da parede (baixa 96, normal 144, alta 208 px). O app inclina para as duas paredes.
 
-| Parede | Altura da textura |
-|---|---|
-| baixa | 80 px |
-| normal | 128 px |
-| alta | 192 px |
+## Modo criador
 
-O app inclina a textura para as duas paredes e escurece a lateral.
-
-## Pigo (`pigo.png`)
-
-A base da imagem é o pé do personagem (fica no centro do tile). Tamanho livre. Ele é espelhado quando anda para o outro lado.
-
-## manifest.json
-
-```json
-{
-  "mobis": {
-    "meu_sofa": { "name": "Meu Sofá", "w": 2, "d": 1, "walkable": false, "offsetX": 0, "offsetY": 0 },
-    "cofre": { "offsetY": -4 }
-  },
-  "pigo": { "offsetX": 0, "offsetY": 0 }
-}
-```
-
-- `w` / `d`: pegada em tiles (padrão 1 × 1).
-- `walkable`: `true` para tapetes (dá para pisar e pôr móveis em cima).
-- `offsetX` / `offsetY`: ajuste fino em pixels.
-
-> Para mudar **qual conquista libera** um mobi, ou criar mobis que dependam de conquistas, edite `src/game/mobis.tsx` (campo `unlock`).
+Mesma organização, na pasta `%APPDATA%\financeiro\game-assets\` (`mobis/`, `pisos/`, `paredes/`, `pigo.png`, `manifest.json`). Serve para testar rapidamente; itens do modo criador não têm desbloqueio e não vão para os outros jogadores.

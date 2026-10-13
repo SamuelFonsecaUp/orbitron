@@ -330,6 +330,7 @@ export interface Settings {
   reserveInitialAmount?: number;
   reserveAutoDetect?: boolean;
   roomLayouts?: RoomLayouts | null;
+  avatarLook?: Record<string, string> | null;
 }
 
 // --- Assets do jogo enviados pelo usuário ---
@@ -358,9 +359,11 @@ export interface PlacedMobi {
   gx: number;
   gy: number;
   rot: 0 | 1;
+  state?: number;
 }
 
 export interface RoomLayout {
+  model?: string; // planta do quarto (ver ROOM_MODELS)
   wallpaper: string;
   floor: string;
   items: PlacedMobi[];
@@ -1005,17 +1008,4 @@ declare global {
   }
 }
 
-declare module '*.png' {
-  const src: string;
-  export default src;
-}
-
-declare module '*.jpg' {
-  const src: string;
-  export default src;
-}
-
-declare module '*.svg' {
-  const src: string;
-  export default src;
-}
+// Importações de imagens/CSS: tipos em src/vite-env.d.ts (vite/client)

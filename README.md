@@ -54,14 +54,13 @@ Diferente de sistemas web comuns que travam sem internet ou vendem seus dados, o
 - Mostra aporte do mês, média recente, cobertura em meses, previsão para completar e sugere quanto do superávit separar.
 - Fechamento navegável mês a mês, com comparação de cada categoria contra a sua média dos 3 meses anteriores.
 
-### 🛋️ Quarto (estilo quarto isométrico)
-- Cômodo isométrico em pixel art onde você posiciona **mobis** livremente: escolher no inventário, posicionar, **girar** (R), **mover** e **guardar**; tapetes podem ficar sob outros móveis.
-- **24 mobis, 5 papéis de parede e 5 pisos** liberados por **conquistas** e **níveis** da Jornada (ex.: *Cofre de Aço* com 1 mês de reserva, *Estátua Dourada do Pigo* com a reserva completa).
-- O **Pigo** anda pelo quarto (clique no piso) desviando dos móveis.
-- Dois ambientes: **Sala do Tesouro** (finanças) e **Quarto do Herói** (vida, libera na fase de hábitos). O layout sincroniza entre computadores.
-- Alta resolução (tiles de 64×32), **tela cheia**, quarto de **4 a 24 tiles** em cada lado, paredes baixa/normal/alta e **cores livres**.
-- **Use seus próprios PNGs** para mobis, pisos, paredes e o Pigo — veja [docs/ASSETS.md](docs/ASSETS.md).
-- Arte original no mesmo estilo isométrico — nenhum asset de terceiros.
+### 🛋️ Quarto (estilo quarto isométrico com avatar)
+- **Avatar** em pixel art no estilo dos quartos isométricos: anda pelo quarto, **senta** (duplo clique em cadeiras/sofás) e fala em balões com as missões da semana. O **Pigo** vira o pet que passeia por ali.
+- **Provador**: pele, cabelos, roupas, cores e acessórios — peças especiais liberadas por **conquistas** e **níveis** (ex.: Colete do Tesoureiro, Coroa do Tesouro).
+- **12 plantas de quarto** (quadrado, L, T, U, palco, mezanino com escada, arena…) com **desníveis**, porta e janelas; plantas maiores liberam com o **nível**.
+- **Mobis** posicionados livremente (girar, mover, guardar), luminária e lareira que **acendem**, paredes e pisos do catálogo ou com cores livres.
+- **Pacote oficial de assets** em `src/game/pack/` (PNGs + `pack.json` com o que libera cada item) e **modo criador** para testar PNGs na hora — veja [docs/ASSETS.md](docs/ASSETS.md).
+- Alta resolução (tiles de 64×32), tela cheia e sincronização do quarto e do visual entre computadores. Arte original — nenhum asset de terceiros.
 
 ### 🏰 Reino do Pigo (pixel art)
 Suas finanças viram uma vila em pixel art que reage aos dados reais:

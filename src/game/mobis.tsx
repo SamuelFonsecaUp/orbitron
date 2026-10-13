@@ -21,6 +21,8 @@ export interface MobiCtx {
   gy: number;
   rot: 0 | 1;
   night?: boolean;
+  z?: number; // altura do piso onde o mobi está (degraus, palco, mezanino)
+  state?: number; // estado interativo (ex.: luminária acesa = 1)
 }
 
 export interface MobiDef {
@@ -31,6 +33,10 @@ export interface MobiDef {
   w: number; // pegada em tiles (rotação 0)
   d: number;
   walkable?: boolean; // tapetes: dá para pisar e colocar coisas por cima
+  seat?: boolean; // o Pigo pode sentar
+  toggle?: boolean; // clicar duas vezes liga/desliga (state 0/1)
+  // Altura do assento (unidades) para posicionar o Pigo sentado
+  seatZ?: number;
   qty: number; // quantas cópias o desbloqueio libera
   rooms: RoomId[];
   unlock: UnlockRule;
@@ -40,12 +46,12 @@ export interface MobiDef {
 // Caixa em coordenadas locais do mobi (rotação = espelha no eixo diagonal, como nos quartos isométricos clássicos)
 function B(c: MobiCtx, x: number, y: number, w: number, d: number, h: number, z: number, colors: BoxColors, key?: React.Key) {
   const [X, Y, W, D] = c.rot ? [y, x, d, w] : [x, y, w, d];
-  return <IsoBox key={key} origin={c.o} gx={c.gx + X} gy={c.gy + Y} w={W} d={D} h={h} z={z} colors={colors} />;
+  return <IsoBox key={key} origin={c.o} gx={c.gx + X} gy={c.gy + Y} w={W} d={D} h={h} z={z + (c.z ?? 0)} colors={colors} />;
 }
 
 function P(c: MobiCtx, x: number, y: number, z: number): [number, number] {
   const [X, Y] = c.rot ? [y, x] : [x, y];
-  return project(c.o, c.gx + X, c.gy + Y, z);
+  return project(c.o, c.gx + X, c.gy + Y, z + (c.z ?? 0));
 }
 
 const WOOD = boxColorsFrom('#a0672f');
@@ -68,8 +74,8 @@ function legs(c: MobiCtx, x: number, y: number, w: number, d: number, h: number,
 export const MOBIS: MobiDef[] = [
   // ---------- Básicos (sempre disponíveis) ----------
   {
-    id: 'cadeira', name: 'Cadeira de Madeira', description: 'Simples e honesta.', category: 'assentos',
-    w: 1, d: 1, qty: 4, rooms: ['finance', 'life'], unlock: { type: 'default' },
+    id: 'cadeira', name: 'Cadeira de Madeira', description: 'Simples e honesta. Duplo clique para sentar.', category: 'assentos',
+    w: 1, d: 1, qty: 4, seat: true, seatZ: 8, rooms: ['finance', 'life'], unlock: { type: 'default' },
     render: c => (
       <g>
         {legs(c, 0.2, 0.2, 0.6, 0.6, 6, DARK_WOOD)}
@@ -111,15 +117,21 @@ export const MOBIS: MobiDef[] = [
     ),
   },
   {
-    id: 'luminaria', name: 'Luminária de Chão', description: 'Acende à noite.', category: 'decoração',
-    w: 1, d: 1, qty: 2, rooms: ['finance', 'life'], unlock: { type: 'default' },
-    render: c => (
-      <g>
-        {B(c, 0.35, 0.35, 0.3, 0.3, 2, 0, DARK_STEEL)}
-        {B(c, 0.46, 0.46, 0.08, 0.08, 20, 2, DARK_STEEL)}
-        {B(c, 0.25, 0.25, 0.5, 0.5, 6, 20, boxColorsFrom(c.night ? '#fff2a8' : '#f4e3b5'))}
-      </g>
-    ),
+    id: 'luminaria', name: 'Luminária de Chão', description: 'Clique duas vezes para acender.', category: 'decoração',
+    w: 1, d: 1, qty: 2, toggle: true, rooms: ['finance', 'life'], unlock: { type: 'default' },
+    render: c => {
+      const on = c.state === 1;
+      const center = P(c, 0.5, 0.5, 0);
+      const u = c.o.unit ?? 1;
+      return (
+        <g>
+          {on && <ellipse cx={center[0]} cy={center[1]} rx={40 * u} ry={20 * u} fill="#ffe9a0" opacity={0.18} />}
+          {B(c, 0.35, 0.35, 0.3, 0.3, 2, 0, DARK_STEEL)}
+          {B(c, 0.46, 0.46, 0.08, 0.08, 20, 2, DARK_STEEL)}
+          {B(c, 0.25, 0.25, 0.5, 0.5, 6, 20, boxColorsFrom(on ? '#fff2a8' : '#c9bfa5'))}
+        </g>
+      );
+    },
   },
 
   // ---------- Desbloqueados por conquistas financeiras ----------
@@ -185,7 +197,7 @@ export const MOBIS: MobiDef[] = [
   },
   {
     id: 'sofa_azul', name: 'Sofá Trimestre Azul', description: 'Três meses seguidos no azul.', category: 'assentos',
-    w: 2, d: 1, qty: 1, rooms: ['finance', 'life'], unlock: { type: 'achievement', id: 'azul_3', label: 'Trimestre Azul' },
+    w: 2, d: 1, qty: 1, seat: true, seatZ: 6, rooms: ['finance', 'life'], unlock: { type: 'achievement', id: 'azul_3', label: 'Trimestre Azul' },
     render: c => {
       const blue = boxColorsFrom('#3b5dc9');
       return (
@@ -343,8 +355,8 @@ export const MOBIS: MobiDef[] = [
     },
   },
   {
-    id: 'lareira', name: 'Lareira', description: 'Nível 10 da Jornada.', category: 'raros',
-    w: 2, d: 1, qty: 1, rooms: ['finance', 'life'], unlock: { type: 'level', level: 10 },
+    id: 'lareira', name: 'Lareira', description: 'Nível 10 da Jornada. Clique duas vezes para acender.', category: 'raros',
+    w: 2, d: 1, qty: 1, toggle: true, rooms: ['finance', 'life'], unlock: { type: 'level', level: 10 },
     render: c => {
       const u = c.o.unit ?? 1;
       const fire = P(c, 1, 0.9, 2);
@@ -353,14 +365,14 @@ export const MOBIS: MobiDef[] = [
           {B(c, 0.05, 0.1, 1.9, 0.8, 24, 0, boxColorsFrom('#9c4a3a'))}
           {B(c, 0, 0.05, 2, 0.9, 3, 24, boxColorsFrom('#c9d8e2'))}
           <rect x={fire[0] - 7 * u} y={fire[1] - 12 * u} width={14 * u} height={11 * u} fill={PALETTE.k} />
-          <PixelSprite sprite={FLAME} x={fire[0] - 4 * u} y={fire[1] - 9 * u} scale={2 * u} />
+          {c.state !== 0 && <g className="pixel-bob"><PixelSprite sprite={FLAME} x={fire[0] - 4 * u} y={fire[1] - 9 * u} scale={2 * u} /></g>}
         </g>
       );
     },
   },
   {
     id: 'trono', name: 'Trono do Regente', description: 'Nível 15 da Jornada.', category: 'raros',
-    w: 1, d: 1, qty: 1, rooms: ['finance', 'life'], unlock: { type: 'level', level: 15 },
+    w: 1, d: 1, qty: 1, seat: true, seatZ: 10, rooms: ['finance', 'life'], unlock: { type: 'level', level: 15 },
     render: c => (
       <g>
         {B(c, 0.1, 0.1, 0.8, 0.8, 8, 0, GOLD)}
