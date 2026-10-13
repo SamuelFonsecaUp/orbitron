@@ -599,6 +599,109 @@ class GamificationEngine {
     };
   }
 
+  // ==========================================
+  // Reino do Pigo: os dados financeiros traduzidos em elementos da vila
+  // ==========================================
+  getWorldState() {
+    const facts = this.collectFacts();
+    const today = facts.today;
+    const overview = this.getOverview();
+
+    // Prédios = contas ativas
+    const accounts = this.db.prepare(`SELECT id, name, type, color FROM accounts WHERE active = 1 ORDER BY name ASC`).all()
+      .map(a => ({ ...a, balance: this.intelligence.getAccountBalanceAt(a.id, today) }));
+    const totalBalance = accounts.reduce((s, a) => s + a.balance, 0);
+
+    // Muralhas = reserva (camadas = meses de custo de vida cobertos)
+    const reserve = facts.reserveStatus;
+
+    // Dragão = faturas de cartão em aberto
+    const cards = this.db.prepare(`SELECT id, name, credit_limit FROM credit_cards WHERE active = 1`).all();
+    const cardDebt = cards.length === 0 ? 0 : this.db.prepare(`
+      SELECT COALESCE(SUM(amount), 0) as total FROM transactions
+      WHERE credit_card_id IS NOT NULL AND type = 'expense' AND status NOT IN ('cancelled', 'paid')
+    `).get().total;
+    const totalLimit = cards.reduce((s, c) => s + c.credit_limit, 0);
+    const longInstallments = this.db.prepare(`
+      SELECT COUNT(DISTINCT installment_id) as c FROM transactions
+      WHERE credit_card_id IS NOT NULL AND installment_id IS NOT NULL AND status NOT IN ('cancelled', 'paid')
+        AND invoice_month > ?
+    `).get(facts.currentMonth).c;
+
+    // Construções = metas
+    const goals = this.db.prepare(`SELECT id, name, color, target_amount, current_amount FROM goals ORDER BY created_at ASC`).all()
+      .map(g => ({
+        id: g.id,
+        name: g.name,
+        color: g.color,
+        progress: g.target_amount > 0 ? Math.min(100, Math.round((g.current_amount / g.target_amount) * 100)) : 0,
+        currentAmount: g.current_amount,
+        targetAmount: g.target_amount,
+      }));
+
+    // Goblins = assinaturas/recorrências ativas detectadas nos extratos
+    let subscriptions = [];
+    try {
+      subscriptions = this.intelligence.detectRecurringPatterns('expense')
+        .filter(p => p.isActive)
+        .map(p => ({ name: p.cleanDescription, amount: p.averageAmount, frequency: p.suggestedFrequency }));
+    } catch (e) {
+      subscriptions = [];
+    }
+
+    // Clima = saúde financeira + resultado do último mês fechado
+    let healthScore = 50;
+    try {
+      healthScore = this.intelligence.getFinancialHealthScore().score;
+    } catch (e) {}
+    const lastMonthKey = addMonthsToKey(facts.currentMonth, -1);
+    const lastMonthPositive = facts.positiveMonths.some(m => m.monthKey === lastMonthKey);
+    const lastMonthHadData = Boolean(this.db.prepare(`
+      SELECT 1 FROM transactions WHERE transaction_date >= ? AND transaction_date <= ? LIMIT 1
+    `).get(`${lastMonthKey}-01`, `${lastMonthKey}-31`));
+    let weather = 'cloudy';
+    if (lastMonthHadData && !lastMonthPositive && healthScore < 60) weather = 'rain';
+    else if (healthScore >= 70 || lastMonthPositive) weather = 'sunny';
+
+    // Caravana = extrato importado nos últimos 7 dias
+    const lastImport = facts.statements.length > 0 ? facts.statements[facts.statements.length - 1].imported_at : null;
+    const caravanArrived = Boolean(lastImport && lastImport.slice(0, 10) >= addDays(today, -7));
+
+    return {
+      level: overview.level,
+      title: overview.title,
+      totalXp: overview.totalXp,
+      progressPercent: overview.progressPercent,
+      healthScore,
+      weather,
+      festival: lastMonthPositive,
+      lastMonthKey,
+      treasury: { totalBalance },
+      buildings: accounts,
+      walls: reserve ? {
+        layers: Math.max(0, Math.floor(reserve.coverageMonths)),
+        coverageMonths: reserve.coverageMonths,
+        targetMonths: reserve.targetMonths,
+        balance: reserve.balance,
+        status: reserve.status,
+      } : { layers: 0, coverageMonths: 0, targetMonths: 6, balance: 0, status: 'not_configured' },
+      dragon: {
+        present: cardDebt > 0,
+        debt: cardDebt,
+        totalLimit,
+        utilization: totalLimit > 0 ? Math.round((cardDebt / totalLimit) * 100) : 0,
+        chains: longInstallments,
+        cardsCount: cards.length,
+      },
+      warehouse: { uncategorized: facts.uncategorizedCount, categorized: facts.categorizedCount },
+      constructions: goals,
+      goblins: subscriptions,
+      caravan: { arrived: caravanArrived, lastImportAt: lastImport },
+      streaks: overview.streaks,
+      missions: overview.missions.current,
+    };
+  }
+
   // Novidades desde a última vez (para comemorar); na primeira execução só registra
   getNewUnlocks() {
     const overview = this.getOverview();

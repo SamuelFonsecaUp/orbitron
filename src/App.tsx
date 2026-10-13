@@ -24,6 +24,7 @@ import { OnboardingView } from './views/OnboardingView';
 import { ImportView } from './views/ImportView';
 import { ReserveView } from './views/ReserveView';
 import { JourneyView } from './views/JourneyView';
+import { KingdomView } from './views/KingdomView';
 import { GameCelebration } from './components/GameWidgets';
 import { IntelligenceView } from './views/IntelligenceView';
 
@@ -112,6 +113,7 @@ export const App: React.FC = () => {
             {currentView === 'import' && <ImportView />}
             {currentView === 'reserve' && <ReserveView />}
             {currentView === 'journey' && <JourneyView />}
+            {currentView === 'kingdom' && <KingdomView />}
             {currentView === 'intelligence' && <IntelligenceView />}
           </div>
         </main>

@@ -94,6 +94,10 @@ class FinancialService {
     return this.gamification.getOverview();
   }
 
+  getGameWorld() {
+    return this.gamification.getWorldState();
+  }
+
   getGameUnlocks() {
     return this.gamification.getNewUnlocks();
   }

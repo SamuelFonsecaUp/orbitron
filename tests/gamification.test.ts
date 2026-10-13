@@ -86,4 +86,24 @@ describe('Gamification (Pigo RPG Financeiro)', () => {
     expect(next.unlocks.some((u: any) => u.type === 'achievement' && u.id === 'primeiro_extrato')).toBe(true);
     expect(service.getGameUnlocks().unlocks).toHaveLength(0);
   });
+
+  it('translates finances into the kingdom world state', () => {
+    const acc = service.createAccount({ name: 'Nubank', type: 'checking', initialBalance: 100000, color: '#8b5cf6' });
+    const savings = service.createAccount({ name: 'Caixinha', type: 'savings', initialBalance: 0 });
+    const card = service.createCreditCard({ name: 'Visa', creditLimit: 500000, closingDay: 5, dueDay: 12 });
+    service.createTransaction({ creditCardId: card.id, type: 'expense', description: 'Compra', amount: 50000, transactionDate: new Date().toISOString().slice(0, 10), status: 'completed' });
+    service.createTransaction({ accountId: acc.id, type: 'expense', description: 'Sem categoria', amount: 1000, transactionDate: new Date().toISOString().slice(0, 10), status: 'completed' });
+    service.createGoal({ name: 'Viagem', targetAmount: 100000, currentAmount: 25000 });
+
+    const world = service.getGameWorld();
+    expect(world.buildings.map((b: any) => b.name)).toEqual(['Caixinha', 'Nubank']);
+    expect(world.dragon.present).toBe(true);
+    expect(world.dragon.debt).toBe(50000);
+    expect(world.dragon.utilization).toBe(10);
+    expect(world.warehouse.uncategorized).toBeGreaterThanOrEqual(1);
+    expect(world.constructions[0].progress).toBe(25);
+    expect(['sunny', 'cloudy', 'rain']).toContain(world.weather);
+    expect(world.walls.targetMonths).toBe(6);
+    expect(savings.id).toBeTruthy();
+  });
 });

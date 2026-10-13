@@ -103,6 +103,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Gamificação (Jornada)
   getGameOverview: () => ipcRenderer.invoke('game:getOverview'),
   getGameUnlocks: () => ipcRenderer.invoke('game:getUnlocks'),
+  getGameWorld: () => ipcRenderer.invoke('game:getWorld'),
 
   // Reserva Financeira
   getReserveOverview: (monthKey) => ipcRenderer.invoke('reserve:get', monthKey),
