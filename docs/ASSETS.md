@@ -15,7 +15,8 @@ Arquivos de código relacionados:
 | `src/game/pack.ts` | Carregador do pacote (empacota automaticamente todo PNG da pasta) |
 | `src/game/mobis.tsx` | Mobis desenhados em código (24) e suas conquistas |
 | `src/game/avatar.tsx` | Opções do provador (cabelos, roupas, acessórios) e o que libera cada uma |
-| `src/game/avatarSheet.ts` | Veste o corpo base (`pack/avatar/base.png`) por regiões e gera direções, caminhada e pose sentada |
+| `src/game/avatarLayers.ts` | Empilha as camadas do modelo do avatar (quadros, direções, tingimento) |
+| `design/avatar/modelo_avatar.psd` | **Modelo padrão** para desenhar o avatar no Photoshop |
 | `src/game/room.ts` | Plantas de quarto (mapas de altura) e o nível de cada uma |
 | `src/game/sprites.ts` | Sprites pequenos (Pigo pet, goblins, dragão…) |
 
@@ -69,18 +70,13 @@ src/game/pack/
 
 Depois de adicionar: `npm test` confere se todo arquivo citado existe, e `npm run release` publica para todos.
 
-## Avatar (corpo base)
+## Avatar
 
-O avatar é gerado a partir de **`src/game/pack/avatar/base.png`**: uma folha com as vistas do boneco **lado a lado**, na ordem
-**costas · perfil (olhando para a direita) · frente · 3/4 de frente (olhando para a esquerda) · 3/4 de costas**.
-O app separa as vistas sozinho (colunas vazias entre elas) e espelha para obter as 8 direções.
+O avatar é desenhado no **modelo padrão do Photoshop**: [`design/avatar/modelo_avatar.psd`](../design/avatar/modelo_avatar.psd) — guia completo em [`design/avatar/LEIA-ME.md`](../design/avatar/LEIA-ME.md).
 
-Regras para a arte funcionar:
-- Pele em **uma cor lisa** (cadastrada em `pack.json → avatar.skin`, hoje `#fdc996`) e **contorno escuro** de 1 px.
-- Fundo **transparente** ou branco (`avatar.background`).
-- Todas as vistas com os **pés na mesma linha** e as mesmas proporções da referência (~79 px de altura): a cabeça termina ~54 px acima dos pés, o tronco vai até ~22 px e os sapatos ocupam os 3 px de baixo.
-
-A partir disso o app **veste** o boneco por regiões (camisa/mangas, calça, sapatos), desenha **cabelos e acessórios** com contorno, gera os **passos da caminhada** e a pose **sentada**. As opções do provador (e o que libera cada uma) ficam em `src/game/avatar.tsx`.
+- Grade fixa de 6 quadros (parado, andar 1–4, sentado) × 5 vistas (frente, frente 3/4, perfil, costas 3/4, costas), células de 64 × 112 px, pés na âncora (32, 104).
+- Uma camada por peça (`corpo`, `sapato`, `calca`, `roupa`, `cabelo`, `chapeu`), exportada como PNG para `src/game/pack/avatar/<slot>/<id>.png` e cadastrada em `pack.json → avatar.parts`.
+- Peças em cinza com `"tint": true` são tingidas pela cor escolhida no provador.
 
 ## Resolução e como desenhar
 

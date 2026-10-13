@@ -16,7 +16,9 @@ export interface AvatarLook {
   hairColor: string;
   top: string;
   topColor: string;
+  pants?: string; // id da calça no pacote de avatar
   pantsColor: string;
+  shoes?: string; // id do sapato no pacote de avatar
   shoesColor: string;
   hat: string;
   hatColor: string;
@@ -28,7 +30,9 @@ export const DEFAULT_LOOK: AvatarLook = {
   hairColor: '#5d3a1a',
   top: 'camiseta',
   topColor: '#3b5dc9',
+  pants: 'padrao',
   pantsColor: '#333c57',
+  shoes: 'tenis',
   shoesColor: '#1a1c2c',
   hat: 'nenhum',
   hatColor: '#b13e53',

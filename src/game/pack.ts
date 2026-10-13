@@ -47,11 +47,29 @@ export interface PackOverride {
   offsetY?: number;
 }
 
+export type AvatarSlot = 'roupa' | 'calca' | 'sapato' | 'cabelo' | 'chapeu';
+
+export interface PackAvatarPart {
+  slot: AvatarSlot;
+  id: string;
+  name: string;
+  file: string; // PNG exportado da camada do modelo (mesma grade)
+  tint?: boolean; // desenhada em cinza: o app multiplica pela cor escolhida
+  unlock?: UnlockRule;
+}
+
 export interface PackAvatar {
-  base: string; // folha com as vistas lado a lado
-  views?: ('back' | 'side' | 'front' | 'front34' | 'back34')[];
-  background?: string | null; // cor de fundo a ignorar (ex.: branco)
-  skin?: string; // cor da pele no desenho base (para trocar o tom)
+  grid: {
+    cellW: number;
+    cellH: number;
+    anchorX: number;
+    anchorY: number;
+    views: string[];
+    frames: string[];
+  };
+  body: { file: string; skin?: string };
+  order?: AvatarSlot[]; // ordem de empilhamento acima do corpo
+  parts: PackAvatarPart[];
 }
 
 export interface AssetPack {
