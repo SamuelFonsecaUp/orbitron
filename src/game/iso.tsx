@@ -77,11 +77,31 @@ function strokePolygon(pts: Pt[], color: string, runs: Run[], dashed = false) {
   for (let i = 0; i < pts.length; i++) strokeLine(pts[i], pts[(i + 1) % pts.length], color, runs, dashed);
 }
 
-const Runs: React.FC<{ runs: Run[]; opacity?: number }> = memo(({ runs, opacity }) => (
-  <g opacity={opacity}>
-    {runs.map((r, i) => <rect key={i} x={r.x} y={r.y} width={r.w} height={r.h} fill={r.c} />)}
-  </g>
-));
+// Agrupa as corridas por cor num único <path> cada (muito menos elementos no DOM).
+// A ordem de pintura entre cores é preservada pela primeira aparição de cada cor.
+function runsToPaths(runs: Run[]): { color: string; d: string }[] {
+  const order: string[] = [];
+  const byColor = new Map<string, string[]>();
+  for (const r of runs) {
+    let list = byColor.get(r.c);
+    if (!list) {
+      list = [];
+      byColor.set(r.c, list);
+      order.push(r.c);
+    }
+    list.push(`M${r.x} ${r.y}h${r.w}v${r.h}h${-r.w}z`);
+  }
+  return order.map(color => ({ color, d: byColor.get(color)!.join('') }));
+}
+
+const Runs: React.FC<{ runs: Run[]; opacity?: number }> = memo(({ runs, opacity }) => {
+  const paths = useMemo(() => runsToPaths(runs), [runs]);
+  return (
+    <g opacity={opacity}>
+      {paths.map(p => <path key={p.color} d={p.d} fill={p.color} />)}
+    </g>
+  );
+});
 
 export interface BoxColors {
   top: string;
