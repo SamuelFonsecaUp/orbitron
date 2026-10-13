@@ -329,7 +329,25 @@ export interface Settings {
   reserveCategoryIds?: string[] | null;
   reserveInitialAmount?: number;
   reserveAutoDetect?: boolean;
+  roomLayouts?: RoomLayouts | null;
 }
+
+// --- Quartos isométricos ---
+export interface PlacedMobi {
+  uid: string;
+  mobiId: string;
+  gx: number;
+  gy: number;
+  rot: 0 | 1;
+}
+
+export interface RoomLayout {
+  wallpaper: string;
+  floor: string;
+  items: PlacedMobi[];
+}
+
+export type RoomLayouts = Partial<Record<'finance' | 'life', RoomLayout>>;
 
 export interface DashboardData {
   totalBalance: number;
@@ -777,6 +795,7 @@ export interface ElectronAPI {
   getGoalsIntelligence: () => Promise<GoalIntelligence[]>;
   getGameOverview: () => Promise<GameOverview>;
   getGameUnlocks: () => Promise<GameUnlocksResult>;
+  getGameWorld: () => Promise<GameWorldState>;
   getReserveOverview: (monthKey?: string) => Promise<ReserveStatus>;
   setReserveTransactionExcluded: (transactionId: string, excluded: boolean) => Promise<boolean>;
   registerReserveMovement: (data: {
@@ -891,6 +910,27 @@ export interface GameOverview {
   events: GameEvent[];
   xpByKind: Record<string, number>;
   xpThisWeek: number;
+}
+
+export interface GameWorldState {
+  level: number;
+  title: string;
+  totalXp: number;
+  progressPercent: number;
+  healthScore: number;
+  weather: 'sunny' | 'cloudy' | 'rain';
+  festival: boolean;
+  lastMonthKey: string;
+  treasury: { totalBalance: number };
+  buildings: { id: string; name: string; type: string; color: string; balance: number }[];
+  walls: { layers: number; coverageMonths: number; targetMonths: number; balance: number; status: string };
+  dragon: { present: boolean; debt: number; totalLimit: number; utilization: number; chains: number; cardsCount: number };
+  warehouse: { uncategorized: number; categorized: number };
+  constructions: { id: string; name: string; color: string; progress: number; currentAmount: number; targetAmount: number }[];
+  goblins: { name: string; amount: number; frequency: string }[];
+  caravan: { arrived: boolean; lastImportAt: string | null };
+  streaks: { importWeeks: GameStreak; positiveMonths: GameStreak };
+  missions: GameMission[];
 }
 
 export type GameUnlock =

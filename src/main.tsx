@@ -2,6 +2,8 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { App } from './App';
 import { FinancialProvider } from './context/FinancialContext';
+import '@fontsource/pixelify-sans/400.css';
+import '@fontsource/pixelify-sans/700.css';
 import './index.css';
 
 ReactDOM.createRoot(document.getElementById('root')!).render(

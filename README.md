@@ -54,6 +54,22 @@ Diferente de sistemas web comuns que travam sem internet ou vendem seus dados, o
 - Mostra aporte do mês, média recente, cobertura em meses, previsão para completar e sugere quanto do superávit separar.
 - Fechamento navegável mês a mês, com comparação de cada categoria contra a sua média dos 3 meses anteriores.
 
+### 🛋️ Quarto (estilo quarto isométrico)
+- Cômodo isométrico em pixel art onde você posiciona **mobis** livremente: escolher no inventário, posicionar, **girar** (R), **mover** e **guardar**; tapetes podem ficar sob outros móveis.
+- **24 mobis, 5 papéis de parede e 5 pisos** liberados por **conquistas** e **níveis** da Jornada (ex.: *Cofre de Aço* com 1 mês de reserva, *Estátua Dourada do Pigo* com a reserva completa).
+- O **Pigo** anda pelo quarto (clique no piso) desviando dos móveis.
+- Dois ambientes: **Sala do Tesouro** (finanças) e **Quarto do Herói** (vida, libera na fase de hábitos). O layout sincroniza entre computadores.
+- Arte original no mesmo estilo isométrico — nenhum asset de terceiros.
+
+### 🏰 Reino do Pigo (pixel art)
+Suas finanças viram uma vila em pixel art que reage aos dados reais:
+- **Casas** = contas (moedas no telhado pelo saldo; telhado escuro se negativo) • **Castelo e tesouro** = saldo total
+- **Muralhas** = reserva (cada camada é um mês de custo de vida coberto)
+- **Dragão** = faturas de cartão em aberto (vida = dívida; cresce e cospe fogo com uso alto do limite; correntes = parcelamentos)
+- **Armazém** = lançamentos sem categoria (caixas espalhadas) • **Goblins** = assinaturas detectadas • **Obras** = metas
+- **Caravana** = extrato importado na semana • **Clima** = saúde financeira e último mês fechado (festival quando no azul)
+- Clique em qualquer elemento para ver a analogia, os números reais e ir direto para a tela correspondente.
+
 ### 🏆 Jornada (Gamificação)
 - **XP e níveis** com títulos (Porquinho Curioso → Lenda do Pigo), calculados a partir dos seus dados: extratos importados, lançamentos categorizados, meses no azul, aportes na reserva, orçamentos cumpridos e faturas em dia.
 - **Retroativo e igual em todos os PCs**: o XP é derivado dos dados que já sincronizam, então seu histórico pontua desde o primeiro extrato.

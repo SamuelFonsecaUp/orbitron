@@ -33,6 +33,16 @@ function addMonths(dateStr, monthsToAdd) {
   return `${year}-${formattedMonth}-${formattedDay}`;
 }
 
+function parseJsonObject(value) {
+  if (!value) return null;
+  try {
+    const parsed = JSON.parse(value);
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : null;
+  } catch (e) {
+    return null;
+  }
+}
+
 function parseJsonArray(value) {
   if (!value) return null;
   try {
@@ -94,6 +104,10 @@ class FinancialService {
     return this.gamification.getOverview();
   }
 
+  getGameWorld() {
+    return this.gamification.getWorldState();
+  }
+
   getGameUnlocks() {
     return this.gamification.getNewUnlocks();
   }
@@ -132,6 +146,7 @@ class FinancialService {
       reserveAccountIds: parseJsonArray(row.reserve_account_ids),
       reserveCategoryIds: parseJsonArray(row.reserve_category_ids),
       reserveInitialAmount: row.reserve_initial_amount || 0,
+      roomLayouts: parseJsonObject(row.room_layouts),
       reserveAutoDetect: row.reserve_auto_detect === null || row.reserve_auto_detect === undefined ? true : Boolean(row.reserve_auto_detect),
     };
   }
@@ -159,6 +174,10 @@ class FinancialService {
     if (data.reserveCategoryIds !== undefined) {
       fields.push('reserve_category_ids = ?');
       values.push(Array.isArray(data.reserveCategoryIds) ? JSON.stringify(data.reserveCategoryIds) : null);
+    }
+    if (data.roomLayouts !== undefined) {
+      fields.push('room_layouts = ?');
+      values.push(data.roomLayouts && typeof data.roomLayouts === 'object' ? JSON.stringify(data.roomLayouts) : null);
     }
     if (data.reserveAutoDetect !== undefined) {
       fields.push('reserve_auto_detect = ?');

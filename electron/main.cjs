@@ -376,6 +376,7 @@ app.whenReady().then(() => {
   // Gamificação (Jornada)
   handleIpc('game:getOverview', () => service.getGameOverview());
   handleIpc('game:getUnlocks', () => service.getGameUnlocks());
+  handleIpc('game:getWorld', () => service.getGameWorld());
 
   // Reserva Financeira
   handleIpc('reserve:get', (monthKey) => service.getReserveOverview(monthKey));

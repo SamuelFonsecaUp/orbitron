@@ -8,6 +8,8 @@ import {
   Calendar,
   PiggyBank,
   Trophy,
+  Castle,
+  Sofa,
   ShieldCheck,
   PieChart,
   Settings as SettingsIcon,
@@ -35,6 +37,8 @@ export const Sidebar: React.FC = () => {
   const navItems: { id: AppView; label: string; icon: React.FC<{ className?: string }>; badge?: string }[] = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'intelligence', label: 'Inteligência', icon: Sparkles },
+    { id: 'room', label: 'Quarto', icon: Sofa },
+    { id: 'kingdom', label: 'Reino', icon: Castle },
     { id: 'journey', label: 'Jornada', icon: Trophy },
     { id: 'transactions', label: 'Lançamentos', icon: ReceiptText },
     { id: 'import', label: 'Importar Extrato', icon: FileSpreadsheet, badge: pendingImportSession ? 'Pendente' : undefined },
