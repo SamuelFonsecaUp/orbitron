@@ -27,6 +27,7 @@ const SYNCED_SETTINGS_COLUMNS = [
   'user_name', 'currency', 'theme', 'first_day_of_week', 'date_format',
   'reserve_target_months', 'reserve_account_ids', 'reserve_category_ids',
   'reserve_initial_amount', 'reserve_auto_detect', 'reserve_excluded_tx_ids',
+  'room_layouts',
 ];
 const STATEMENTS_BUCKET = 'statements';
 const MAX_FILE_TRANSFERS_PER_SYNC = 20;

@@ -329,7 +329,25 @@ export interface Settings {
   reserveCategoryIds?: string[] | null;
   reserveInitialAmount?: number;
   reserveAutoDetect?: boolean;
+  roomLayouts?: RoomLayouts | null;
 }
+
+// --- Quartos isométricos ---
+export interface PlacedMobi {
+  uid: string;
+  mobiId: string;
+  gx: number;
+  gy: number;
+  rot: 0 | 1;
+}
+
+export interface RoomLayout {
+  wallpaper: string;
+  floor: string;
+  items: PlacedMobi[];
+}
+
+export type RoomLayouts = Partial<Record<'finance' | 'life', RoomLayout>>;
 
 export interface DashboardData {
   totalBalance: number;

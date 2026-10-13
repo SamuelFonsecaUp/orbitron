@@ -302,6 +302,9 @@ function initDatabase(customPath = null) {
     `ALTER TABLE settings ADD COLUMN reserve_initial_amount INTEGER DEFAULT 0`,
     `ALTER TABLE settings ADD COLUMN reserve_auto_detect INTEGER DEFAULT 1`,
     `ALTER TABLE settings ADD COLUMN reserve_excluded_tx_ids TEXT`,
+
+    // Quartos isométricos (mobis posicionados, parede e piso)
+    `ALTER TABLE settings ADD COLUMN room_layouts TEXT`,
   ];
   for (const m of migrations) {
     try { db.exec(m); } catch (e) {}

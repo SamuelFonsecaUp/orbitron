@@ -28,6 +28,7 @@ export type AppView =
   | 'reserve'
   | 'journey'
   | 'kingdom'
+  | 'room'
   | 'cards'
   | 'budgets'
   | 'calendar'

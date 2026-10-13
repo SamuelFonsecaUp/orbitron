@@ -55,6 +55,7 @@ export const Navbar: React.FC = () => {
     reserve: 'Reserva Financeira',
     journey: 'Jornada & Conquistas',
     kingdom: 'Reino do Pigo',
+    room: 'Quarto & Mobis',
     reports: 'Relatórios & Gráficos',
     settings: 'Configurações do Sistema',
     import: 'Importar Extrato Bancário (OFX / CSV)',
