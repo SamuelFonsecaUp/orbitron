@@ -73,6 +73,8 @@ import {
   MousePointer,
   Edit2,
   X,
+  Printer,
+  FileDown,
 } from 'lucide-react';
 import { useFinancial } from '../context/FinancialContext';
 
@@ -711,23 +713,22 @@ const ToolsViewInner: React.FC = () => {
 
   // Remover conexão entre dois nós
   const handleDisconnect = (sourceId: string, targetId: string) => {
-    if (!selectedMap) return;
+    if (!selectedMap || !Array.isArray(selectedMap.nodes)) return;
     const nextNodes = selectedMap.nodes.map((n) => {
+      let updated = { ...n };
       if (n.id === sourceId) {
-        return {
-          ...n,
-          connections: (n.connections || []).filter((c) => c.targetId !== targetId),
-          parentId: n.parentId === targetId ? null : n.parentId,
-        };
+        updated.connections = (n.connections || []).filter((c) => c.targetId !== targetId);
+        if (n.parentId === targetId) updated.parentId = null;
       }
-      if (n.id === targetId && n.parentId === sourceId) {
-        return { ...n, parentId: null };
+      if (n.id === targetId) {
+        updated.connections = (n.connections || []).filter((c) => c.targetId !== sourceId);
+        if (n.parentId === sourceId) updated.parentId = null;
       }
-      return n;
+      return updated;
     });
     saveMapNodes(selectedMap.id, nextNodes);
     setSelectedEdgeId(null);
-    showToast('Conexão removida.', 'info');
+    showToast('Conexão excluída com sucesso.', 'info');
   };
 
   // Atualizar rótulo de texto na linha de conexão
@@ -949,6 +950,198 @@ const ToolsViewInner: React.FC = () => {
     showToast('Layout do mapa auto-organizado com sucesso!', 'success');
   };
 
+  // Exportar Quadro em PDF de Alta Resolução / Impressão
+  const handleExportPDF = () => {
+    if (!selectedMap || !Array.isArray(selectedMap.nodes) || selectedMap.nodes.length === 0) {
+      showToast('O quadro precisa ter ao menos um elemento para exportar.', 'info');
+      return;
+    }
+
+    const nodes = selectedMap.nodes;
+    const minX = Math.min(...nodes.map((n) => n.x)) - 100;
+    const minY = Math.min(...nodes.map((n) => n.y)) - 100;
+    const maxX = Math.max(...nodes.map((n) => n.x)) + 200;
+    const maxY = Math.max(...nodes.map((n) => n.y)) + 150;
+    const width = Math.max(900, maxX - minX);
+    const height = Math.max(600, maxY - minY);
+
+    const edges = getBoardEdges(nodes);
+
+    const edgesSvg = edges
+      .map((edge) => {
+        const source = nodes.find((n) => n.id === edge.sourceId);
+        const target = nodes.find((n) => n.id === edge.targetId);
+        if (!source || !target) return '';
+        const sx = source.x - minX;
+        const sy = source.y - minY;
+        const tx = target.x - minX;
+        const ty = target.y - minY;
+        const mx = (sx + tx) / 2;
+        const my = (sy + ty) / 2;
+        let d = `M ${sx} ${sy} C ${mx} ${sy}, ${mx} ${ty}, ${tx} ${ty}`;
+        if (connectorStyle === 'straight') d = `M ${sx} ${sy} L ${tx} ${ty}`;
+        else if (connectorStyle === 'elbow') d = `M ${sx} ${sy} L ${mx} ${sy} L ${mx} ${ty} L ${tx} ${ty}`;
+
+        const labelSvg = edge.label
+          ? `<rect x="${mx - 50}" y="${my - 14}" width="100" height="22" rx="6" fill="#1e293b" stroke="#475569" stroke-width="1" />
+             <text x="${mx}" y="${my + 2}" text-anchor="middle" fill="#e2e8f0" font-size="10" font-family="system-ui, sans-serif" font-weight="bold">${edge.label}</text>`
+          : '';
+
+        return `
+          <path d="${d}" stroke="${edge.color || '#6366f1'}" stroke-width="2.5" fill="none" stroke-linecap="round" />
+          ${labelSvg}
+        `;
+      })
+      .join('\n');
+
+    const nodesSvg = nodes
+      .map((node) => {
+        const nx = node.x - minX;
+        const ny = node.y - minY;
+        const shape = node.shape || 'cloud';
+        let shapeSvg = '';
+
+        if (shape === 'sticky') {
+          shapeSvg = `<rect x="${nx - 60}" y="${ny - 40}" width="120" height="80" rx="4" fill="${node.color}" />`;
+        } else if (shape === 'capsule') {
+          shapeSvg = `<rect x="${nx - 70}" y="${ny - 25}" width="140" height="50" rx="25" fill="${node.color}" />`;
+        } else if (shape === 'diamond') {
+          shapeSvg = `<polygon points="${nx},${ny - 35} ${nx + 65},${ny} ${nx},${ny + 35} ${nx - 65},${ny}" fill="${node.color}" />`;
+        } else if (shape === 'octagon') {
+          shapeSvg = `<polygon points="${nx - 35},${ny - 35} ${nx + 35},${ny - 35} ${nx + 65},${ny} ${nx + 35},${ny + 35} ${nx - 35},${ny + 35} ${nx - 65},${ny}" fill="${node.color}" />`;
+        } else if (shape === 'rectangle') {
+          shapeSvg = `<rect x="${nx - 65}" y="${ny - 30}" width="130" height="60" rx="10" fill="${node.color}" />`;
+        } else {
+          shapeSvg = `<rect x="${nx - 75}" y="${ny - 30}" width="150" height="60" rx="24" fill="${node.color}" />`;
+        }
+
+        return `
+          <g>
+            ${shapeSvg}
+            <text x="${nx}" y="${ny + 4}" text-anchor="middle" fill="#ffffff" font-size="12" font-weight="bold" font-family="system-ui, sans-serif">
+              ${node.label}
+            </text>
+          </g>
+        `;
+      })
+      .join('\n');
+
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      showToast('Permita popups para exportar o PDF.', 'info');
+      return;
+    }
+
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>${selectedMap.title} - Lucidspark PDF</title>
+          <style>
+            @page {
+              size: landscape;
+              margin: 1cm;
+            }
+            body {
+              margin: 0;
+              padding: 24px;
+              background: #0b0c10;
+              color: #ffffff;
+              font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+              display: flex;
+              flex-direction: column;
+              align-items: center;
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
+            }
+            .header-bar {
+              width: 100%;
+              max-width: ${width}px;
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              border-bottom: 2px solid rgba(255,255,255,0.1);
+              padding-bottom: 14px;
+              margin-bottom: 20px;
+            }
+            .board-title {
+              font-size: 22px;
+              font-weight: 900;
+              letter-spacing: -0.5px;
+            }
+            .board-meta {
+              font-size: 11px;
+              color: #94a3b8;
+              margin-top: 4px;
+            }
+            svg {
+              background: #0f172a;
+              border: 1px solid rgba(255,255,255,0.12);
+              border-radius: 20px;
+              box-shadow: 0 12px 30px rgba(0,0,0,0.5);
+              max-width: 100%;
+              height: auto;
+            }
+            @media print {
+              body {
+                background: #ffffff !important;
+                color: #0f172a !important;
+                padding: 0;
+              }
+              .header-bar {
+                border-bottom: 2px solid #e2e8f0;
+              }
+              .board-title {
+                color: #0f172a !important;
+              }
+              .board-meta {
+                color: #64748b !important;
+              }
+              svg {
+                background: #f8fafc !important;
+                border: 1px solid #cbd5e1;
+                box-shadow: none;
+              }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="header-bar">
+            <div>
+              <div class="board-title">${selectedMap.title}</div>
+              <div class="board-meta">Pasta: ${selectedMap.description || 'Geral'} • ${nodes.length} nós • ${edges.length} conexões</div>
+            </div>
+            <div style="text-align: right;">
+              <div style="font-weight: bold; font-size: 13px;">PIGO Lucidspark</div>
+              <div class="board-meta">${new Date().toLocaleDateString('pt-BR')} ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</div>
+            </div>
+          </div>
+          <svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <pattern id="dotgrid" width="20" height="20" patternUnits="userSpaceOnUse">
+                <circle cx="2" cy="2" r="1.2" fill="rgba(255,255,255,0.08)" />
+              </pattern>
+            </defs>
+            <rect width="100%" height="100%" fill="url(#dotgrid)" />
+            ${edgesSvg}
+            ${nodesSvg}
+          </svg>
+          <script>
+            window.onload = function() {
+              setTimeout(function() {
+                window.print();
+              }, 300);
+            };
+          </script>
+        </body>
+      </html>
+    `;
+
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
+    showToast('Visualização de impressão aberta! Escolha "Salvar como PDF".', 'success');
+  };
+
   // Keyboard navigation for Mindmap
   useEffect(() => {
     if (activeTool !== 'mindmap') return;
@@ -964,18 +1157,29 @@ const ToolsViewInner: React.FC = () => {
         handleAddSiblingNode();
       } else if (e.key === 'Delete' || e.key === 'Backspace') {
         e.preventDefault();
+        // Se uma conexão estiver selecionada, exclui APENAS a conexão!
+        if (selectedEdgeId) {
+          const edges = getBoardEdges(selectedMap?.nodes || []);
+          const edge = edges.find((ed) => ed.id === selectedEdgeId);
+          if (edge) {
+            handleDisconnect(edge.sourceId, edge.targetId);
+            return;
+          }
+        }
         handleDeleteSelectedNode();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [activeTool, selectedMap, selectedNode]);
+  }, [activeTool, selectedMap, selectedNode, selectedEdgeId]);
 
   // Pan & Drag Handlers
   const handleCanvasMouseDown = (e: React.MouseEvent) => {
     if (e.target === canvasRef.current || (e.target as HTMLElement).tagName === 'svg') {
       setIsPanning(true);
       setPanStart({ x: e.clientX - panOffset.x, y: e.clientY - panOffset.y });
+      setSelectedEdgeId(null);
+      setSelectedNodeId('');
     }
   };
 
@@ -2354,6 +2558,17 @@ const ToolsViewInner: React.FC = () => {
                     )}
                   </div>
 
+                  {/* Botão Exportar PDF */}
+                  <button
+                    type="button"
+                    onClick={handleExportPDF}
+                    className="px-3 py-1.5 rounded-xl bg-slate-800/90 hover:bg-slate-700 text-slate-100 hover:text-white text-xs font-bold flex items-center gap-1.5 border border-slate-700 transition shadow"
+                    title="Exportar Quadro em PDF de Alta Resolução"
+                  >
+                    <Printer className="w-3.5 h-3.5 text-indigo-400" />
+                    <span>Exportar PDF</span>
+                  </button>
+
                   {/* Botão de Compartilhar */}
                   <button
                     type="button"
@@ -2668,34 +2883,62 @@ const ToolsViewInner: React.FC = () => {
 
                       return (
                         <g key={edge.id}>
+                          {/* 1. Trilha invisível larga (28px) para clique fácil em qualquer resolução */}
                           <path
                             d={pathData}
-                            stroke={isEdgeSelected ? '#ffffff' : edge.color || '#6366f1'}
-                            strokeWidth={isEdgeSelected ? 3.5 : 2.5}
-                            strokeOpacity={isEdgeSelected ? 1 : 0.75}
+                            stroke="transparent"
+                            strokeWidth={28}
                             fill="none"
-                            strokeLinecap="round"
                             className="cursor-pointer pointer-events-auto"
                             onClick={(e) => {
                               e.stopPropagation();
                               setSelectedEdgeId(edge.id);
+                              setSelectedNodeId('');
                             }}
                           />
 
-                          {/* Rótulo de Linha e Controles de Conexão */}
-                          {(edge.label || isEdgeSelected) && (
+                          {/* 2. Halo de seleção luminoso */}
+                          {isEdgeSelected && (
+                            <path
+                              d={pathData}
+                              stroke="#818cf8"
+                              strokeWidth={8}
+                              strokeOpacity={0.6}
+                              fill="none"
+                              strokeLinecap="round"
+                              className="pointer-events-none animate-pulse"
+                            />
+                          )}
+
+                          {/* 3. Traço visível da conexão */}
+                          <path
+                            d={pathData}
+                            stroke={isEdgeSelected ? '#ffffff' : edge.color || '#6366f1'}
+                            strokeWidth={isEdgeSelected ? 3.5 : 2.5}
+                            strokeOpacity={isEdgeSelected ? 1 : 0.8}
+                            strokeDasharray={isEdgeSelected ? '6 3' : undefined}
+                            fill="none"
+                            strokeLinecap="round"
+                            className="cursor-pointer pointer-events-auto hover:stroke-white transition-colors"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedEdgeId(edge.id);
+                              setSelectedNodeId('');
+                            }}
+                          />
+
+                          {/* 4. Rótulo da Linha & Barra Flutuante de Exclusão da Conexão */}
+                          {isEdgeSelected ? (
                             <foreignObject
-                              x={midX - 90}
-                              y={midY - 18}
-                              width={180}
-                              height={36}
-                              className="overflow-visible pointer-events-auto"
+                              x={midX - 110}
+                              y={midY - 22}
+                              width={220}
+                              height={44}
+                              className="overflow-visible pointer-events-auto z-40"
                             >
                               <div
                                 onClick={(e) => e.stopPropagation()}
-                                className={`px-2.5 py-1 rounded-xl bg-slate-900 border text-center flex items-center justify-between gap-1 shadow-xl backdrop-blur-md ${
-                                  isEdgeSelected ? 'border-indigo-400 ring-2 ring-indigo-500/40' : 'border-slate-700'
-                                }`}
+                                className="p-1 rounded-2xl bg-slate-900 border-2 border-indigo-400 shadow-2xl flex items-center gap-1.5 backdrop-blur-2xl ring-4 ring-indigo-500/25"
                               >
                                 <input
                                   type="text"
@@ -2704,19 +2947,43 @@ const ToolsViewInner: React.FC = () => {
                                   onChange={(e) =>
                                     handleUpdateEdgeLabel(edge.sourceId, edge.targetId, e.target.value)
                                   }
-                                  className="bg-transparent text-[10px] font-bold text-slate-200 focus:outline-none w-full text-center"
+                                  className="bg-slate-950 border border-slate-700 rounded-xl px-2.5 py-1 text-[11px] font-bold text-white focus:outline-none focus:border-indigo-400 flex-1 min-w-0"
                                 />
                                 <button
                                   type="button"
-                                  onClick={() => handleDisconnect(edge.sourceId, edge.targetId)}
-                                  className="text-slate-500 hover:text-rose-400 p-0.5"
-                                  title="Remover conexão"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDisconnect(edge.sourceId, edge.targetId);
+                                  }}
+                                  className="px-2 py-1 rounded-xl bg-rose-500/20 hover:bg-rose-500 text-rose-300 hover:text-white border border-rose-500/30 text-[10px] font-bold flex items-center gap-1 transition shadow shrink-0"
+                                  title="Excluir somente esta conexão (ou pressione Del)"
                                 >
-                                  <Unlink className="w-3 h-3" />
+                                  <Trash2 className="w-3 h-3" />
+                                  <span>Excluir</span>
                                 </button>
                               </div>
                             </foreignObject>
-                          )}
+                          ) : edge.label ? (
+                            <foreignObject
+                              x={midX - 60}
+                              y={midY - 14}
+                              width={120}
+                              height={28}
+                              className="overflow-visible pointer-events-auto"
+                            >
+                              <div
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedEdgeId(edge.id);
+                                  setSelectedNodeId('');
+                                }}
+                                className="px-2 py-0.5 rounded-lg bg-slate-900/95 border border-slate-700/80 text-[10px] font-bold text-slate-300 shadow cursor-pointer hover:border-indigo-400 hover:text-white transition text-center truncate backdrop-blur-md"
+                                title="Clique para selecionar e editar esta conexão"
+                              >
+                                {edge.label}
+                              </div>
+                            </foreignObject>
+                          ) : null}
                         </g>
                       );
                     })}
@@ -2736,6 +3003,7 @@ const ToolsViewInner: React.FC = () => {
                             handleConnectNodes(connectingFromNodeId, node.id);
                           } else {
                             setSelectedNodeId(node.id);
+                            setSelectedEdgeId(null);
                             setDraggingNodeId(node.id);
                           }
                         }}
@@ -2863,6 +3131,49 @@ const ToolsViewInner: React.FC = () => {
                             >
                               <Link2 className="w-3.5 h-3.5" />
                             </button>
+
+                            {/* Gerenciador de conexões ativas deste nó */}
+                            {(node.connections || []).length > 0 && (
+                              <div className="relative group/conns">
+                                <button
+                                  type="button"
+                                  className="flex items-center gap-1 text-[10px] text-slate-300 bg-slate-950 px-1.5 py-0.5 rounded border border-slate-700 hover:border-indigo-400 transition"
+                                  title="Conexões ativas deste nó (clique no lixo para remover apenas a conexão)"
+                                >
+                                  <Link2 className="w-3 h-3 text-indigo-400" />
+                                  <span>{(node.connections || []).length}</span>
+                                </button>
+                                <div className="absolute left-0 bottom-full mb-2 hidden group-hover/conns:flex flex-col bg-slate-900 border border-slate-700 p-2 rounded-xl shadow-2xl min-w-[170px] z-50 animate-in fade-in duration-100">
+                                  <span className="text-[9px] uppercase font-bold text-slate-400 px-1 mb-1">
+                                    Conectado com:
+                                  </span>
+                                  {(node.connections || []).map((conn) => {
+                                    const targetNode = selectedMap.nodes.find((n) => n.id === conn.targetId);
+                                    return (
+                                      <div
+                                        key={conn.targetId}
+                                        className="flex items-center justify-between text-xs px-2 py-1 rounded-lg hover:bg-slate-800 text-slate-200"
+                                      >
+                                        <span className="truncate max-w-[100px] font-medium">
+                                          {targetNode?.label || 'Nó'}
+                                        </span>
+                                        <button
+                                          type="button"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleDisconnect(node.id, conn.targetId);
+                                          }}
+                                          className="p-1 rounded bg-rose-500/10 hover:bg-rose-500 text-rose-400 hover:text-white transition ml-1"
+                                          title="Excluir somente esta conexão"
+                                        >
+                                          <Trash2 className="w-3 h-3" />
+                                        </button>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            )}
 
                             <button
                               type="button"
