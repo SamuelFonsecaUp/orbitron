@@ -14,13 +14,31 @@ import {
   EyeOff,
   Sparkles,
   Star,
-  Globe,
   RefreshCw,
   ShieldCheck,
   GitBranch,
   Check,
   FolderKanban,
   Lock,
+  Heading1,
+  Heading2,
+  Heading3,
+  List,
+  ListOrdered,
+  Code,
+  Quote,
+  Minus,
+  ZoomIn,
+  ZoomOut,
+  Maximize2,
+  RotateCcw,
+  Layout,
+  Share2,
+  FileText,
+  Sliders,
+  Flame,
+  Target,
+  Download,
 } from 'lucide-react';
 import { useFinancial } from '../context/FinancialContext';
 
@@ -36,6 +54,8 @@ interface NoteItem {
   content: string;
   category: string;
   color: string;
+  icon?: string;
+  cover?: string;
   pinned: boolean;
   checklist: ChecklistItem[];
   createdAt: string;
@@ -49,6 +69,7 @@ interface MindmapNode {
   x: number;
   y: number;
   color: string;
+  icon?: string;
   notes?: string;
 }
 
@@ -57,6 +78,8 @@ interface MindmapBoard {
   title: string;
   description: string;
   nodes: MindmapNode[];
+  theme?: string;
+  connectorStyle?: 'curved' | 'straight' | 'elbow';
   createdAt: string;
   updatedAt: string;
 }
@@ -82,6 +105,16 @@ const NOTE_CATEGORIES = [
   { id: 'pessoal', label: '📌 Pessoal', color: '#ec4899' },
 ];
 
+const NOTE_ICONS = ['📝', '💡', '🚀', '💰', '🎯', '🧠', '🔥', '⭐', '📊', '⚡', '📚', '🛠️', '✨'];
+
+const NOTE_COVERS = [
+  { id: 'cov_purple', label: 'Roxo Cyber', class: 'from-purple-900/60 via-fuchsia-900/30 to-transparent' },
+  { id: 'cov_emerald', label: 'Esmeralda', class: 'from-emerald-900/60 via-teal-900/30 to-transparent' },
+  { id: 'cov_cyan', label: 'Oceano', class: 'from-cyan-900/60 via-blue-900/30 to-transparent' },
+  { id: 'cov_amber', label: 'Pôr do Sol', class: 'from-amber-900/60 via-orange-900/30 to-transparent' },
+  { id: 'cov_rose', label: 'Rosa Neon', class: 'from-rose-900/60 via-pink-900/30 to-transparent' },
+];
+
 const VAULT_CATEGORIES = [
   { id: 'bancos', label: '🏦 Bancos & Corretoras', color: '#10b981' },
   { id: 'cartoes', label: '💳 Cartões & Apps', color: '#8b5cf6' },
@@ -91,7 +124,8 @@ const VAULT_CATEGORIES = [
   { id: 'outros', label: '🔐 Outros', color: '#94a3b8' },
 ];
 
-const NODE_COLORS = ['#a855f7', '#10b981', '#38bdf8', '#f59e0b', '#ec4899', '#ef4444', '#6366f1'];
+const NODE_COLORS = ['#a855f7', '#10b981', '#38bdf8', '#f59e0b', '#ec4899', '#ef4444', '#6366f1', '#14b8a6'];
+const NODE_ICONS = ['', '⭐', '🔥', '✅', '💡', '🎯', '📌', '⚡'];
 
 export const ToolsView: React.FC = () => {
   const { currentView, setCurrentView, showToast, refreshGame } = useFinancial();
@@ -104,26 +138,33 @@ export const ToolsView: React.FC = () => {
       : 'notes';
 
   // =========================================================
-  // 1. NOTES STATE & HANDLERS
+  // 1. ANOTAÇÕES ESTILO NOTION
   // =========================================================
   const [notes, setNotes] = useState<NoteItem[]>([]);
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
   const [noteSearch, setNoteSearch] = useState('');
   const [noteCategoryFilter, setNoteCategoryFilter] = useState<string>('all');
+  const [noteViewMode, setNoteViewMode] = useState<'edit' | 'preview'>('edit');
   const [newCheckItemText, setNewCheckItemText] = useState('');
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
   // =========================================================
-  // 2. MINDMAP STATE & HANDLERS
+  // 2. MAPA MENTAL ESTILO MINDMASTER
   // =========================================================
   const [mindmaps, setMindmaps] = useState<MindmapBoard[]>([]);
   const [selectedMapId, setSelectedMapId] = useState<string | null>(null);
   const [selectedNodeId, setSelectedNodeId] = useState<string>('root');
   const [draggingNodeId, setDraggingNodeId] = useState<string | null>(null);
   const [newMapTitle, setNewMapTitle] = useState('');
+  const [zoom, setZoom] = useState<number>(1);
+  const [panOffset, setPanOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [isPanning, setIsPanning] = useState(false);
+  const [panStart, setPanStart] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [connectorStyle, setConnectorStyle] = useState<'curved' | 'straight' | 'elbow'>('curved');
   const canvasRef = useRef<HTMLDivElement | null>(null);
 
   // =========================================================
-  // 3. PASSWORD VAULT STATE & HANDLERS
+  // 3. COFRE DE SENHAS CRIPTOGRAFADO
   // =========================================================
   const [vaultItems, setVaultItems] = useState<VaultItem[]>([]);
   const [vaultSearch, setVaultSearch] = useState('');
@@ -157,16 +198,18 @@ export const ToolsView: React.FC = () => {
     loadAllTools();
   }, [loadAllTools]);
 
-  // --- NOTES ACTIONS ---
+  // --- NOTION-STYLE NOTES HANDLERS ---
   const selectedNote = notes.find((n) => n.id === selectedNoteId) || null;
 
   const handleCreateNote = async () => {
     if (!window.electronAPI?.createNote) return;
     const created = await window.electronAPI.createNote({
-      title: 'Nova Anotação',
+      title: 'Sem Título',
       content: '',
       category: noteCategoryFilter !== 'all' ? noteCategoryFilter : 'ideias',
       color: '#a855f7',
+      icon: '💡',
+      cover: NOTE_COVERS[0].class,
       pinned: false,
       checklist: [],
     });
@@ -174,7 +217,7 @@ export const ToolsView: React.FC = () => {
     setNotes(updated);
     if (created?.id) setSelectedNoteId(created.id);
     await refreshGame();
-    showToast('Nova anotação criada!', 'success');
+    showToast('Nova página criada no Segundo Cérebro!', 'success');
   };
 
   const handleUpdateNote = async (id: string, patch: Partial<NoteItem>) => {
@@ -191,6 +234,23 @@ export const ToolsView: React.FC = () => {
     setNotes(updated);
     setSelectedNoteId(updated[0]?.id || null);
     showToast('Anotação removida.', 'info');
+  };
+
+  const insertNotionBlock = (prefix: string, suffix: string = '') => {
+    if (!selectedNote || !textareaRef.current) return;
+    const textarea = textareaRef.current;
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const text = selectedNote.content;
+    const selected = text.substring(start, end) || 'Texto do bloco';
+    const replacement = `${prefix}${selected}${suffix}`;
+    const nextContent = text.substring(0, start) + replacement + text.substring(end);
+
+    handleUpdateNote(selectedNote.id, { content: nextContent });
+    setTimeout(() => {
+      textarea.focus();
+      textarea.setSelectionRange(start + prefix.length, start + prefix.length + selected.length);
+    }, 50);
   };
 
   const handleAddChecklistItem = async () => {
@@ -217,36 +277,12 @@ export const ToolsView: React.FC = () => {
     await handleUpdateNote(selectedNote.id, { checklist: nextList });
   };
 
-  // --- MINDMAP ACTIONS ---
+  // --- MINDMASTER MINDMAP HANDLERS ---
   const selectedMap = mindmaps.find((m) => m.id === selectedMapId) || null;
   const selectedNode =
     selectedMap?.nodes.find((n) => n.id === selectedNodeId) ||
     selectedMap?.nodes[0] ||
     null;
-
-  const handleCreateMindmap = async () => {
-    if (!window.electronAPI?.createMindmap) return;
-    const title = newMapTitle.trim() || `Mapa Mental #${mindmaps.length + 1}`;
-    const created = await window.electronAPI.createMindmap({ title });
-    setNewMapTitle('');
-    const updated = await window.electronAPI.getMindmaps();
-    setMindmaps(updated);
-    if (created?.id) {
-      setSelectedMapId(created.id);
-      setSelectedNodeId('root');
-    }
-    await refreshGame();
-    showToast(`Mapa Mental "${title}" criado!`, 'success');
-  };
-
-  const handleDeleteMindmap = async (id: string) => {
-    if (!window.electronAPI?.deleteMindmap) return;
-    await window.electronAPI.deleteMindmap(id);
-    const updated = await window.electronAPI.getMindmaps();
-    setMindmaps(updated);
-    setSelectedMapId(updated[0]?.id || null);
-    showToast('Mapa Mental excluído.', 'info');
-  };
 
   const saveMapNodes = async (mapId: string, nextNodes: MindmapNode[], nextTitle?: string) => {
     if (!window.electronAPI?.updateMindmap) return;
@@ -264,47 +300,101 @@ export const ToolsView: React.FC = () => {
     await refreshGame();
   };
 
-  const handleAddChildNode = async () => {
+  const handleCreateMindmap = async () => {
+    if (!window.electronAPI?.createMindmap) return;
+    const title = newMapTitle.trim() || `Mapa Mental #${mindmaps.length + 1}`;
+    const defaultNodes: MindmapNode[] = [
+      { id: 'root', label: title, parentId: null, x: 450, y: 260, color: '#a855f7', icon: '🎯', notes: 'Tópico Central' },
+      { id: 'b1', label: 'Estratégia 1', parentId: 'root', x: 200, y: 150, color: '#10b981', icon: '⭐', notes: '' },
+      { id: 'b2', label: 'Estratégia 2', parentId: 'root', x: 700, y: 150, color: '#38bdf8', icon: '⚡', notes: '' },
+      { id: 'b3', label: 'Próximos Passos', parentId: 'root', x: 450, y: 440, color: '#f59e0b', icon: '🔥', notes: '' },
+    ];
+    const created = await window.electronAPI.createMindmap({ title, nodes: defaultNodes });
+    setNewMapTitle('');
+    const updated = await window.electronAPI.getMindmaps();
+    setMindmaps(updated);
+    if (created?.id) {
+      setSelectedMapId(created.id);
+      setSelectedNodeId('root');
+      setZoom(1);
+      setPanOffset({ x: 0, y: 0 });
+    }
+    await refreshGame();
+    showToast(`Mapa Mental "${title}" criado!`, 'success');
+  };
+
+  const handleDeleteMindmap = async (id: string) => {
+    if (!window.electronAPI?.deleteMindmap) return;
+    await window.electronAPI.deleteMindmap(id);
+    const updated = await window.electronAPI.getMindmaps();
+    setMindmaps(updated);
+    setSelectedMapId(updated[0]?.id || null);
+    showToast('Mapa Mental excluído.', 'info');
+  };
+
+  // Subtópico (Filho) estilo MindMaster (Tab)
+  const handleAddChildNode = () => {
     if (!selectedMap) return;
     const parent = selectedNode || selectedMap.nodes[0];
     if (!parent) return;
 
-    const siblingsCount = selectedMap.nodes.filter((n) => n.parentId === parent.id).length;
-    const angle = (siblingsCount * 55 - 45) * (Math.PI / 180);
-    const distance = 190;
-    const rawX = Math.round(parent.x + Math.cos(angle) * distance);
-    const rawY = Math.round(parent.y + Math.sin(angle) * distance);
+    const siblings = selectedMap.nodes.filter((n) => n.parentId === parent.id);
+    const count = siblings.length;
+    const isRoot = parent.parentId === null;
+    let newX = parent.x + 220;
+    let newY = parent.y + (count - 1) * 75;
+
+    if (isRoot) {
+      // Distribui radialmente ao redor do nó central
+      const angle = (count * 60 - 30) * (Math.PI / 180);
+      newX = Math.round(parent.x + Math.cos(angle) * 230);
+      newY = Math.round(parent.y + Math.sin(angle) * 160);
+    }
 
     const newNode: MindmapNode = {
       id: `node_${Date.now()}_${Math.random().toString(36).slice(2, 5)}`,
-      label: 'Nova Ideia',
+      label: 'Novo Subtópico',
       parentId: parent.id,
-      x: Math.max(80, Math.min(780, rawX)),
-      y: Math.max(60, Math.min(460, rawY)),
-      color: NODE_COLORS[selectedMap.nodes.length % NODE_COLORS.length],
+      x: newX,
+      y: newY,
+      color: NODE_COLORS[(selectedMap.nodes.length + 1) % NODE_COLORS.length],
       notes: '',
     };
 
-    const nextNodes = [...selectedMap.nodes, newNode];
-    await saveMapNodes(selectedMap.id, nextNodes);
+    saveMapNodes(selectedMap.id, [...selectedMap.nodes, newNode]);
     setSelectedNodeId(newNode.id);
   };
 
-  const handleUpdateSelectedNode = async (patch: Partial<MindmapNode>) => {
-    if (!selectedMap || !selectedNode) return;
-    const nextNodes = selectedMap.nodes.map((n) =>
-      n.id === selectedNode.id ? { ...n, ...patch } : n
-    );
-    await saveMapNodes(selectedMap.id, nextNodes);
-  };
-
-  const handleDeleteSelectedNode = async () => {
+  // Tópico Irmão no mesmo nível estilo MindMaster (Enter)
+  const handleAddSiblingNode = () => {
     if (!selectedMap || !selectedNode) return;
     if (selectedNode.parentId === null) {
-      showToast('O nó central não pode ser removido (você pode renomeá-lo).', 'info');
+      handleAddChildNode();
       return;
     }
-    // Remove node and its direct children
+    const parent = selectedMap.nodes.find((n) => n.id === selectedNode.parentId);
+    if (!parent) return;
+
+    const newNode: MindmapNode = {
+      id: `node_${Date.now()}_${Math.random().toString(36).slice(2, 5)}`,
+      label: 'Novo Tópico',
+      parentId: parent.id,
+      x: selectedNode.x,
+      y: selectedNode.y + 80,
+      color: selectedNode.color,
+      notes: '',
+    };
+
+    saveMapNodes(selectedMap.id, [...selectedMap.nodes, newNode]);
+    setSelectedNodeId(newNode.id);
+  };
+
+  const handleDeleteSelectedNode = () => {
+    if (!selectedMap || !selectedNode) return;
+    if (selectedNode.parentId === null) {
+      showToast('O nó central não pode ser excluído.', 'info');
+      return;
+    }
     const toRemove = new Set<string>([selectedNode.id]);
     let changed = true;
     while (changed) {
@@ -317,21 +407,103 @@ export const ToolsView: React.FC = () => {
       }
     }
     const nextNodes = selectedMap.nodes.filter((n) => !toRemove.has(n.id));
-    await saveMapNodes(selectedMap.id, nextNodes);
+    saveMapNodes(selectedMap.id, nextNodes);
     setSelectedNodeId('root');
   };
 
-  const handleCanvasMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+  const handleAutoLayout = () => {
+    if (!selectedMap) return;
+    const root = selectedMap.nodes.find((n) => n.parentId === null);
+    if (!root) return;
+
+    const rootX = 460;
+    const rootY = 270;
+    const children = selectedMap.nodes.filter((n) => n.parentId === root.id);
+    const leftChildren = children.slice(0, Math.ceil(children.length / 2));
+    const rightChildren = children.slice(Math.ceil(children.length / 2));
+
+    const nextNodes: MindmapNode[] = selectedMap.nodes.map((n) => {
+      if (n.id === root.id) return { ...n, x: rootX, y: rootY };
+      return n;
+    });
+
+    const layoutBranch = (branchList: MindmapNode[], isLeft: boolean) => {
+      const stepY = 110;
+      const startY = rootY - ((branchList.length - 1) * stepY) / 2;
+      branchList.forEach((child, idx) => {
+        const cX = isLeft ? rootX - 250 : rootX + 250;
+        const cY = startY + idx * stepY;
+        const cNodeIdx = nextNodes.findIndex((x) => x.id === child.id);
+        if (cNodeIdx !== -1) nextNodes[cNodeIdx] = { ...nextNodes[cNodeIdx], x: cX, y: cY };
+
+        // Sub-filhos
+        const subChildren = selectedMap.nodes.filter((x) => x.parentId === child.id);
+        subChildren.forEach((sub, sIdx) => {
+          const subX = isLeft ? cX - 220 : cX + 220;
+          const subY = cY + (sIdx - (subChildren.length - 1) / 2) * 60;
+          const sNodeIdx = nextNodes.findIndex((x) => x.id === sub.id);
+          if (sNodeIdx !== -1) nextNodes[sNodeIdx] = { ...nextNodes[sNodeIdx], x: subX, y: subY };
+        });
+      });
+    };
+
+    layoutBranch(leftChildren, true);
+    layoutBranch(rightChildren, false);
+    saveMapNodes(selectedMap.id, nextNodes);
+    showToast('Layout do mapa auto-organizado com sucesso!', 'success');
+  };
+
+  // Keyboard navigation for Mindmap
+  useEffect(() => {
+    if (activeTool !== 'mindmap') return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const activeTag = (document.activeElement?.tagName || '').toLowerCase();
+      if (activeTag === 'input' || activeTag === 'textarea') return;
+
+      if (e.key === 'Tab') {
+        e.preventDefault();
+        handleAddChildNode();
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        handleAddSiblingNode();
+      } else if (e.key === 'Delete' || e.key === 'Backspace') {
+        e.preventDefault();
+        handleDeleteSelectedNode();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [activeTool, selectedMap, selectedNode]);
+
+  // Pan & Drag Handlers
+  const handleCanvasMouseDown = (e: React.MouseEvent) => {
+    if (e.target === canvasRef.current || (e.target as HTMLElement).tagName === 'svg') {
+      setIsPanning(true);
+      setPanStart({ x: e.clientX - panOffset.x, y: e.clientY - panOffset.y });
+    }
+  };
+
+  const handleCanvasMouseMove = (e: React.MouseEvent) => {
+    if (isPanning) {
+      setPanOffset({
+        x: e.clientX - panStart.x,
+        y: e.clientY - panStart.y,
+      });
+      return;
+    }
     if (!draggingNodeId || !selectedMap || !canvasRef.current) return;
     const rect = canvasRef.current.getBoundingClientRect();
-    const x = Math.max(70, Math.min(rect.width - 70, Math.round(e.clientX - rect.left)));
-    const y = Math.max(45, Math.min(rect.height - 45, Math.round(e.clientY - rect.top)));
+    const mouseX = (e.clientX - rect.left - panOffset.x) / zoom;
+    const mouseY = (e.clientY - rect.top - panOffset.y) / zoom;
+
     setMindmaps((prev) =>
       prev.map((m) =>
         m.id === selectedMap.id
           ? {
               ...m,
-              nodes: m.nodes.map((n) => (n.id === draggingNodeId ? { ...n, x, y } : n)),
+              nodes: m.nodes.map((n) =>
+                n.id === draggingNodeId ? { ...n, x: Math.round(mouseX), y: Math.round(mouseY) } : n
+              ),
             }
           : m
       )
@@ -339,6 +511,10 @@ export const ToolsView: React.FC = () => {
   };
 
   const handleCanvasMouseUp = async () => {
+    if (isPanning) {
+      setIsPanning(false);
+      return;
+    }
     if (!draggingNodeId || !selectedMap) return;
     const draggedId = draggingNodeId;
     setDraggingNodeId(null);
@@ -351,16 +527,13 @@ export const ToolsView: React.FC = () => {
     setSelectedNodeId(draggedId);
   };
 
-  // --- PASSWORD VAULT ACTIONS ---
+  // --- PASSWORD VAULT HANDLERS ---
   const generateStrongPassword = () => {
-    const chars =
-      'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%&*+-=?';
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%&*+-=?';
     let pass = '';
-    for (let i = 0; i < 18; i++) {
-      pass += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
+    for (let i = 0; i < 20; i++) pass += chars.charAt(Math.floor(Math.random() * chars.length));
     setEditingVault((prev) => (prev ? { ...prev, password: pass } : prev));
-    showToast('Senha forte de 18 caracteres gerada!', 'info');
+    showToast('Senha forte de 20 caracteres gerada!', 'info');
   };
 
   const handleSaveVaultItem = async (e: React.FormEvent) => {
@@ -404,34 +577,25 @@ export const ToolsView: React.FC = () => {
 
   const copyToClipboard = (text: string, label: string) => {
     navigator.clipboard.writeText(text);
-    showToast(`${label} copiado para a área de transferência!`, 'success');
+    showToast(`${label} copiado!`, 'success');
   };
 
-  // Filtered Lists
+  // Filtered lists
   const filteredNotes = notes.filter((n) => {
     const matchesCat = noteCategoryFilter === 'all' || n.category === noteCategoryFilter;
     const q = noteSearch.toLowerCase().trim();
-    const matchesQuery =
-      !q ||
-      n.title.toLowerCase().includes(q) ||
-      n.content.toLowerCase().includes(q);
-    return matchesCat && matchesQuery;
+    return !q || n.title.toLowerCase().includes(q) || n.content.toLowerCase().includes(q);
   });
 
   const filteredVault = vaultItems.filter((v) => {
     const matchesCat = vaultCategoryFilter === 'all' || v.category === vaultCategoryFilter;
     const q = vaultSearch.toLowerCase().trim();
-    const matchesQuery =
-      !q ||
-      v.title.toLowerCase().includes(q) ||
-      v.username.toLowerCase().includes(q) ||
-      v.url.toLowerCase().includes(q);
-    return matchesCat && matchesQuery;
+    return !q || v.title.toLowerCase().includes(q) || v.username.toLowerCase().includes(q) || v.url.toLowerCase().includes(q);
   });
 
   return (
-    <div className="space-y-6 pb-10">
-      {/* Header & Liquid Glass Sub-Navigation */}
+    <div className="space-y-6 pb-12">
+      {/* Top Header & Liquid Glass Sub-Navigation */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2.5">
@@ -443,7 +607,7 @@ export const ToolsView: React.FC = () => {
                 Pigo Ferramentas & Segundo Cérebro
               </h1>
               <p className="text-xs text-slate-400">
-                Suas anotações, mapas mentais visuais e cofre de senhas criptografado 100% offline.
+                Anotações estilo Notion, mapas mentais no padrão MindMaster e cofre de senhas criptografado localmente.
               </p>
             </div>
           </div>
@@ -452,8 +616,8 @@ export const ToolsView: React.FC = () => {
         {/* Liquid Glass Tool Switcher */}
         <div className="liquid-glass-well p-1.5 rounded-2xl flex items-center gap-1 self-start">
           {[
-            { id: 'tools_notes', key: 'notes', label: 'Anotações', icon: StickyNote, count: notes.length },
-            { id: 'tools_mindmap', key: 'mindmap', label: 'Mapa Mental', icon: Network, count: mindmaps.length },
+            { id: 'tools_notes', key: 'notes', label: 'Anotações (Notion)', icon: StickyNote, count: notes.length },
+            { id: 'tools_mindmap', key: 'mindmap', label: 'Mapas Mentais (MindMaster)', icon: Network, count: mindmaps.length },
             { id: 'tools_vault', key: 'vault', label: 'Cofre de Senhas', icon: KeyRound, count: vaultItems.length },
           ].map((tab) => {
             const Icon = tab.icon;
@@ -464,9 +628,7 @@ export const ToolsView: React.FC = () => {
                 onClick={() => setCurrentView(tab.id as any)}
                 style={{ '--tab-glow': 'rgba(217, 70, 239, 0.35)' } as React.CSSProperties}
                 className={`px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all duration-300 ${
-                  isActive
-                    ? 'liquid-glass-tab-active text-white'
-                    : 'text-slate-400 hover:text-slate-200'
+                  isActive ? 'liquid-glass-tab-active text-white' : 'text-slate-400 hover:text-slate-200'
                 }`}
               >
                 <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-fuchsia-300' : ''}`} />
@@ -481,18 +643,18 @@ export const ToolsView: React.FC = () => {
       </div>
 
       {/* =========================================================
-          ABA 1: ANOTAÇÕES & SEGUNDO CÉREBRO
+          ABA 1: ANOTAÇÕES ESTILO NOTION
          ========================================================= */}
       {activeTool === 'notes' && (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 min-h-[560px]">
-          {/* Left Column: Notes List & Filters */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 min-h-[620px]">
+          {/* Left Column: Notion Pages Sidebar */}
           <div className="lg:col-span-4 bg-slate-900/80 border border-white/[0.07] rounded-3xl p-4 flex flex-col gap-3">
             <div className="flex items-center justify-between gap-2">
               <div className="relative flex-1">
                 <Search className="w-3.5 h-3.5 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
                 <input
                   type="text"
-                  placeholder="Buscar anotação..."
+                  placeholder="Buscar páginas e notas..."
                   value={noteSearch}
                   onChange={(e) => setNoteSearch(e.target.value)}
                   className="w-full bg-slate-950/90 border border-slate-800 rounded-xl pl-8 pr-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-fuchsia-400"
@@ -503,7 +665,7 @@ export const ToolsView: React.FC = () => {
                 className="liquid-glass-cta px-3.5 py-2 rounded-xl bg-gradient-to-r from-fuchsia-600 to-purple-500 text-white text-xs font-extrabold flex items-center gap-1.5 shrink-0"
               >
                 <Plus className="w-3.5 h-3.5" />
-                <span>Nova Nota</span>
+                <span>+ Página</span>
               </button>
             </div>
 
@@ -517,7 +679,7 @@ export const ToolsView: React.FC = () => {
                     : 'bg-slate-950/60 text-slate-400 hover:text-slate-200 border border-slate-800'
                 }`}
               >
-                Todas
+                Todas ({notes.length})
               </button>
               {NOTE_CATEGORIES.map((cat) => (
                 <button
@@ -535,38 +697,34 @@ export const ToolsView: React.FC = () => {
             </div>
 
             {/* Notes List */}
-            <div className="flex-1 space-y-2 overflow-y-auto max-h-[460px] pr-1 custom-scrollbar">
+            <div className="flex-1 space-y-1.5 overflow-y-auto max-h-[500px] pr-1 custom-scrollbar">
               {filteredNotes.length === 0 ? (
                 <div className="h-64 flex flex-col items-center justify-center text-center p-4">
                   <StickyNote className="w-8 h-8 text-slate-600 mb-2" />
-                  <p className="text-xs font-bold text-slate-300">Nenhuma anotação encontrada</p>
+                  <p className="text-xs font-bold text-slate-300">Nenhuma página encontrada</p>
                   <p className="text-[11px] text-slate-500 mt-1">
-                    Clique em "+ Nova Nota" para registrar ideias, planejamentos ou listas.
+                    Crie notas financeiras, resumos de livros, atas de reunião e planos no Notion do Pigo.
                   </p>
                 </div>
               ) : (
                 filteredNotes.map((note) => {
                   const isSelected = note.id === selectedNoteId;
-                  const catObj =
-                    NOTE_CATEGORIES.find((c) => c.id === note.category) || NOTE_CATEGORIES[0];
+                  const catObj = NOTE_CATEGORIES.find((c) => c.id === note.category) || NOTE_CATEGORIES[0];
                   const doneCount = (note.checklist || []).filter((c) => c.done).length;
                   const totalCheck = (note.checklist || []).length;
                   return (
                     <button
                       key={note.id}
                       onClick={() => setSelectedNoteId(note.id)}
-                      className={`w-full text-left p-3.5 rounded-2xl border transition-all ${
+                      className={`w-full text-left p-3 rounded-2xl border transition-all ${
                         isSelected
                           ? 'bg-slate-800/90 border-fuchsia-500/50 shadow-lg'
                           : 'bg-slate-950/60 border-slate-800/80 hover:border-slate-700'
                       }`}
                     >
-                      <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center justify-between gap-2">
                         <div className="flex items-center gap-2 min-w-0">
-                          <span
-                            className="w-2.5 h-2.5 rounded-full shrink-0"
-                            style={{ backgroundColor: note.color || catObj.color }}
-                          />
+                          <span className="text-sm shrink-0">{note.icon || '📝'}</span>
                           <h3 className="text-xs font-extrabold text-white truncate">
                             {note.title || 'Sem título'}
                           </h3>
@@ -575,14 +733,14 @@ export const ToolsView: React.FC = () => {
                           <Pin className="w-3.5 h-3.5 text-amber-400 shrink-0 fill-amber-400/20" />
                         )}
                       </div>
-                      <p className="text-[11px] text-slate-400 line-clamp-2 mt-1.5 min-h-[16px]">
-                        {note.content || 'Sem texto adicional...'}
+                      <p className="text-[11px] text-slate-400 line-clamp-1 mt-1">
+                        {note.content ? note.content.slice(0, 90) : 'Página em branco...'}
                       </p>
-                      <div className="flex items-center justify-between mt-2.5 pt-2 border-t border-white/[0.04] text-[10px] text-slate-500">
+                      <div className="flex items-center justify-between mt-2 pt-1.5 border-t border-white/[0.04] text-[10px] text-slate-500">
                         <span>{catObj.label}</span>
                         {totalCheck > 0 && (
                           <span className="text-emerald-400 font-bold">
-                            ✓ {doneCount}/{totalCheck} itens
+                            ✓ {doneCount}/{totalCheck}
                           </span>
                         )}
                       </div>
@@ -593,101 +751,303 @@ export const ToolsView: React.FC = () => {
             </div>
           </div>
 
-          {/* Right Column: Note Editor */}
-          <div className="lg:col-span-8 bg-slate-900/80 border border-white/[0.07] rounded-3xl p-6 flex flex-col">
+          {/* Right Column: Notion-Style Full Editor & Viewer */}
+          <div className="lg:col-span-8 bg-slate-900/80 border border-white/[0.07] rounded-3xl p-6 flex flex-col overflow-hidden relative">
             {!selectedNote ? (
               <div className="flex-1 flex flex-col items-center justify-center text-center p-8">
                 <div className="w-14 h-14 rounded-2xl bg-fuchsia-500/10 border border-fuchsia-500/25 flex items-center justify-center text-fuchsia-400 mb-3">
                   <StickyNote className="w-7 h-7" />
                 </div>
-                <h3 className="text-base font-black text-white">Seu Segundo Cérebro</h3>
+                <h3 className="text-base font-black text-white">Segundo Cérebro Estilo Notion</h3>
                 <p className="text-xs text-slate-400 max-w-md mt-1 mb-4">
-                  Guarde anotações financeiras, ideias de projetos, resumos de livros e listas de tarefas em um só lugar.
+                  Crie documentos ricos com blocos, cabeçalhos, destaques e listas de tarefas organizadas.
                 </p>
                 <button
                   onClick={handleCreateNote}
                   className="liquid-glass-cta px-5 py-2.5 rounded-xl bg-gradient-to-r from-fuchsia-600 to-purple-500 text-white text-xs font-extrabold flex items-center gap-2"
                 >
                   <Plus className="w-4 h-4" />
-                  <span>Criar Primeira Anotação</span>
+                  <span>Criar Primeira Página</span>
                 </button>
               </div>
             ) : (
               <div className="flex-1 flex flex-col gap-4">
-                {/* Top Editor Controls */}
-                <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-white/[0.07]">
-                  <input
-                    type="text"
-                    value={selectedNote.title}
-                    onChange={(e) => handleUpdateNote(selectedNote.id, { title: e.target.value })}
-                    placeholder="Título da anotação..."
-                    className="flex-1 min-w-[200px] bg-transparent text-lg font-black text-white focus:outline-none"
-                  />
+                {/* Notion Cover Banner */}
+                <div
+                  className={`h-24 -mx-6 -mt-6 bg-gradient-to-r ${selectedNote.cover || NOTE_COVERS[0].class} p-4 flex items-end justify-between border-b border-white/[0.07]`}
+                >
                   <div className="flex items-center gap-2">
-                    <select
-                      value={selectedNote.category}
-                      onChange={(e) =>
-                        handleUpdateNote(selectedNote.id, { category: e.target.value })
-                      }
-                      className="bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none"
-                    >
-                      {NOTE_CATEGORIES.map((c) => (
-                        <option key={c.id} value={c.id}>
-                          {c.label}
-                        </option>
-                      ))}
-                    </select>
+                    {NOTE_COVERS.map((cov) => (
+                      <button
+                        key={cov.id}
+                        type="button"
+                        onClick={() => handleUpdateNote(selectedNote.id, { cover: cov.class })}
+                        title={`Capa ${cov.label}`}
+                        className={`w-4 h-4 rounded-full border border-white/40 bg-gradient-to-r ${cov.class} transition hover:scale-125`}
+                      />
+                    ))}
+                  </div>
 
+                  <div className="flex items-center gap-1.5">
                     <button
-                      onClick={() =>
-                        handleUpdateNote(selectedNote.id, { pinned: !selectedNote.pinned })
-                      }
-                      title={selectedNote.pinned ? 'Desafixar do topo' : 'Fixar no topo'}
-                      className={`p-2 rounded-xl border transition ${
-                        selectedNote.pinned
-                          ? 'bg-amber-500/15 border-amber-500/40 text-amber-300'
-                          : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-white'
-                      }`}
+                      onClick={() => setNoteViewMode(noteViewMode === 'edit' ? 'preview' : 'edit')}
+                      className="px-2.5 py-1 rounded-lg bg-black/40 hover:bg-black/60 border border-white/20 text-[11px] font-bold text-white flex items-center gap-1 backdrop-blur-md"
                     >
-                      <Pin className="w-4 h-4" />
+                      <FileText className="w-3.5 h-3.5 text-fuchsia-300" />
+                      <span>{noteViewMode === 'edit' ? 'Visualizar' : 'Editar'}</span>
                     </button>
-
+                    <button
+                      onClick={() => copyToClipboard(selectedNote.content, 'Conteúdo')}
+                      className="p-1 rounded-lg bg-black/40 hover:bg-black/60 border border-white/20 text-slate-300 hover:text-white backdrop-blur-md"
+                      title="Copiar texto"
+                    >
+                      <Copy className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={() => handleUpdateNote(selectedNote.id, { pinned: !selectedNote.pinned })}
+                      className={`p-1 rounded-lg border backdrop-blur-md ${
+                        selectedNote.pinned
+                          ? 'bg-amber-500/25 border-amber-400 text-amber-300'
+                          : 'bg-black/40 border-white/20 text-slate-300'
+                      }`}
+                      title="Fixar no topo"
+                    >
+                      <Pin className="w-3.5 h-3.5" />
+                    </button>
                     <button
                       onClick={() => handleDeleteNote(selectedNote.id)}
-                      title="Excluir anotação"
-                      className="p-2 rounded-xl bg-slate-950 border border-slate-800 text-slate-400 hover:text-rose-400 hover:border-rose-500/30 transition"
+                      className="p-1 rounded-lg bg-black/40 hover:bg-rose-500/20 border border-white/20 text-slate-400 hover:text-rose-300 backdrop-blur-md"
+                      title="Excluir página"
                     >
-                      <Trash2 className="w-4 h-4" />
+                      <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   </div>
                 </div>
 
-                {/* Main Free-Form Note Content */}
-                <textarea
-                  rows={8}
-                  value={selectedNote.content}
-                  onChange={(e) => handleUpdateNote(selectedNote.id, { content: e.target.value })}
-                  placeholder="Escreva suas ideias, metas, reflexões ou planejamentos aqui..."
-                  className="w-full flex-1 bg-slate-950/60 border border-slate-800/80 rounded-2xl p-4 text-xs text-slate-100 leading-relaxed placeholder-slate-500 focus:outline-none focus:border-fuchsia-500/50 resize-none"
-                />
+                {/* Notion Title & Emoji Picker */}
+                <div className="flex items-center gap-3 pt-1">
+                  <div className="relative group">
+                    <button
+                      type="button"
+                      className="text-3xl p-1.5 rounded-xl hover:bg-white/10 transition"
+                      title="Alterar emoji da página"
+                    >
+                      {selectedNote.icon || '📝'}
+                    </button>
+                    <div className="absolute left-0 top-full mt-1 z-30 hidden group-hover:flex bg-slate-900 border border-slate-700 p-2 rounded-xl shadow-2xl gap-1">
+                      {NOTE_ICONS.map((ico) => (
+                        <button
+                          key={ico}
+                          type="button"
+                          onClick={() => handleUpdateNote(selectedNote.id, { icon: ico })}
+                          className="text-lg hover:scale-125 p-1 transition"
+                        >
+                          {ico}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
 
-                {/* Interactive Checklist Section */}
-                <div className="p-4 rounded-2xl bg-slate-950/75 border border-slate-800/90 space-y-3">
+                  <input
+                    type="text"
+                    value={selectedNote.title}
+                    onChange={(e) => handleUpdateNote(selectedNote.id, { title: e.target.value })}
+                    placeholder="Sem título..."
+                    className="flex-1 bg-transparent text-2xl font-black text-white focus:outline-none"
+                  />
+
+                  <select
+                    value={selectedNote.category}
+                    onChange={(e) => handleUpdateNote(selectedNote.id, { category: e.target.value })}
+                    className="bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-1.5 text-xs text-slate-300 focus:outline-none"
+                  >
+                    {NOTE_CATEGORIES.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Notion Block Inserter Toolbar */}
+                <div className="flex flex-wrap items-center gap-1 p-1.5 rounded-xl bg-slate-950/70 border border-slate-800/80">
+                  <span className="text-[10px] uppercase font-bold text-slate-500 px-1.5">Blocos Notion:</span>
+                  <button
+                    type="button"
+                    onClick={() => insertNotionBlock('# ')}
+                    className="px-2 py-1 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 text-[11px] font-bold flex items-center gap-1"
+                    title="Título Grande (H1)"
+                  >
+                    <Heading1 className="w-3.5 h-3.5 text-fuchsia-400" />
+                    <span>H1</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => insertNotionBlock('## ')}
+                    className="px-2 py-1 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 text-[11px] font-bold flex items-center gap-1"
+                    title="Subtítulo (H2)"
+                  >
+                    <Heading2 className="w-3.5 h-3.5 text-purple-400" />
+                    <span>H2</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => insertNotionBlock('### ')}
+                    className="px-2 py-1 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 text-[11px] font-bold flex items-center gap-1"
+                    title="Seção (H3)"
+                  >
+                    <Heading3 className="w-3.5 h-3.5 text-cyan-400" />
+                    <span>H3</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => insertNotionBlock('[ ] ')}
+                    className="px-2 py-1 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 text-[11px] font-bold flex items-center gap-1"
+                    title="Lista de Tarefas To-Do"
+                  >
+                    <CheckSquare className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>To-Do</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => insertNotionBlock('• ')}
+                    className="px-2 py-1 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 text-[11px] font-bold flex items-center gap-1"
+                    title="Lista com Marcadores"
+                  >
+                    <List className="w-3.5 h-3.5 text-amber-400" />
+                    <span>Lista</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => insertNotionBlock('> 💡 ')}
+                    className="px-2 py-1 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 text-[11px] font-bold flex items-center gap-1"
+                    title="Caixa Callout / Destaque"
+                  >
+                    <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+                    <span>Callout</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => insertNotionBlock('> ')}
+                    className="px-2 py-1 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 text-[11px] font-bold flex items-center gap-1"
+                    title="Citação"
+                  >
+                    <Quote className="w-3.5 h-3.5 text-slate-400" />
+                    <span>Citação</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => insertNotionBlock('```\n', '\n```')}
+                    className="px-2 py-1 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 text-[11px] font-bold flex items-center gap-1"
+                    title="Bloco de Código"
+                  >
+                    <Code className="w-3.5 h-3.5 text-cyan-300" />
+                    <span>Código</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => insertNotionBlock('\n---\n')}
+                    className="px-2 py-1 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 text-[11px] font-bold flex items-center gap-1"
+                    title="Divisor de Linha"
+                  >
+                    <Minus className="w-3.5 h-3.5 text-slate-500" />
+                    <span>Divisor</span>
+                  </button>
+                </div>
+
+                {/* Editor vs. Rendered Preview Mode */}
+                {noteViewMode === 'edit' ? (
+                  <textarea
+                    ref={textareaRef}
+                    rows={12}
+                    value={selectedNote.content}
+                    onChange={(e) => handleUpdateNote(selectedNote.id, { content: e.target.value })}
+                    placeholder="Digite suas ideias, aperte nos botões de bloco acima ou escreva em Markdown (# Título, [ ] To-Do, • Lista)..."
+                    className="w-full flex-1 bg-slate-950/70 border border-slate-800/80 rounded-2xl p-4 text-xs font-mono text-slate-100 leading-relaxed placeholder-slate-500 focus:outline-none focus:border-fuchsia-500/50 resize-none custom-scrollbar"
+                  />
+                ) : (
+                  <div className="w-full flex-1 bg-slate-950/70 border border-slate-800/80 rounded-2xl p-5 overflow-y-auto max-h-[380px] space-y-3 custom-scrollbar text-xs leading-relaxed text-slate-200">
+                    {selectedNote.content.split('\n').map((line, idx) => {
+                      if (line.startsWith('# ')) {
+                        return (
+                          <h1 key={idx} className="text-xl font-black text-white pt-2 border-b border-white/10 pb-1">
+                            {line.slice(2)}
+                          </h1>
+                        );
+                      }
+                      if (line.startsWith('## ')) {
+                        return (
+                          <h2 key={idx} className="text-base font-extrabold text-fuchsia-300 pt-2">
+                            {line.slice(3)}
+                          </h2>
+                        );
+                      }
+                      if (line.startsWith('### ')) {
+                        return (
+                          <h3 key={idx} className="text-sm font-bold text-cyan-300 pt-1">
+                            {line.slice(4)}
+                          </h3>
+                        );
+                      }
+                      if (line.startsWith('> 💡 ') || line.startsWith('> ')) {
+                        return (
+                          <div
+                            key={idx}
+                            className="p-3 rounded-xl bg-amber-500/10 border-l-4 border-amber-400 text-amber-200 text-xs my-2 flex items-start gap-2"
+                          >
+                            <Sparkles className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                            <span>{line.replace(/^> (💡 )?/, '')}</span>
+                          </div>
+                        );
+                      }
+                      if (line.startsWith('[ ] ') || line.startsWith('[x] ')) {
+                        const isDone = line.startsWith('[x] ');
+                        return (
+                          <div key={idx} className="flex items-center gap-2 text-xs">
+                            {isDone ? (
+                              <CheckSquare className="w-4 h-4 text-emerald-400 shrink-0" />
+                            ) : (
+                              <Square className="w-4 h-4 text-slate-500 shrink-0" />
+                            )}
+                            <span className={isDone ? 'line-through text-slate-500' : 'text-slate-200'}>
+                              {line.slice(4)}
+                            </span>
+                          </div>
+                        );
+                      }
+                      if (line.startsWith('• ')) {
+                        return (
+                          <li key={idx} className="ml-4 list-disc text-slate-300">
+                            {line.slice(2)}
+                          </li>
+                        );
+                      }
+                      if (line.trim() === '---') {
+                        return <hr key={idx} className="border-white/10 my-3" />;
+                      }
+                      if (!line.trim()) return <div key={idx} className="h-2" />;
+                      return <p key={idx}>{line}</p>;
+                    })}
+                  </div>
+                )}
+
+                {/* Interactive Notion Checklist Footer */}
+                <div className="p-3.5 rounded-2xl bg-slate-950/80 border border-slate-800/90 space-y-2.5">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-extrabold text-white flex items-center gap-1.5">
                       <CheckSquare className="w-4 h-4 text-fuchsia-400" />
-                      <span>Checklist & Tarefas da Nota</span>
+                      <span>Tarefas Rápidas da Página</span>
                     </span>
                     <span className="text-[11px] text-slate-400">
                       {(selectedNote.checklist || []).filter((i) => i.done).length}/
-                      {(selectedNote.checklist || []).length} concluídos
+                      {(selectedNote.checklist || []).length} concluídas
                     </span>
                   </div>
 
                   <div className="flex items-center gap-2">
                     <input
                       type="text"
-                      placeholder="Adicionar item ao checklist e pressionar Enter..."
+                      placeholder="Adicionar tarefa e pressionar Enter..."
                       value={newCheckItemText}
                       onChange={(e) => setNewCheckItemText(e.target.value)}
                       onKeyDown={(e) => {
@@ -708,36 +1068,32 @@ export const ToolsView: React.FC = () => {
                   </div>
 
                   {(selectedNote.checklist || []).length > 0 && (
-                    <div className="space-y-1.5 max-h-40 overflow-y-auto pr-1 custom-scrollbar">
+                    <div className="flex flex-wrap gap-2 pt-1 max-h-32 overflow-y-auto custom-scrollbar">
                       {(selectedNote.checklist || []).map((item) => (
                         <div
                           key={item.id}
-                          className="flex items-center justify-between gap-2 px-3 py-1.5 rounded-xl bg-slate-900/80 border border-slate-800/70"
+                          className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800 text-xs"
                         >
                           <button
                             type="button"
                             onClick={() => handleToggleChecklistItem(item.id)}
-                            className="flex items-center gap-2 text-left flex-1 text-xs"
+                            className="flex items-center gap-1.5 text-left"
                           >
                             {item.done ? (
-                              <CheckSquare className="w-4 h-4 text-emerald-400 shrink-0" />
+                              <CheckSquare className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
                             ) : (
-                              <Square className="w-4 h-4 text-slate-500 shrink-0" />
+                              <Square className="w-3.5 h-3.5 text-slate-500 shrink-0" />
                             )}
-                            <span
-                              className={
-                                item.done ? 'line-through text-slate-500' : 'text-slate-200'
-                              }
-                            >
+                            <span className={item.done ? 'line-through text-slate-500' : 'text-slate-200'}>
                               {item.text}
                             </span>
                           </button>
                           <button
                             type="button"
                             onClick={() => handleRemoveChecklistItem(item.id)}
-                            className="text-slate-500 hover:text-rose-400 p-1"
+                            className="text-slate-500 hover:text-rose-400 ml-1"
                           >
-                            <Trash2 className="w-3.5 h-3.5" />
+                            <Trash2 className="w-3 h-3" />
                           </button>
                         </div>
                       ))}
@@ -751,20 +1107,27 @@ export const ToolsView: React.FC = () => {
       )}
 
       {/* =========================================================
-          ABA 2: MAPAS MENTAIS INTERATIVOS
+          ABA 2: MAPA MENTAL ESTILO MINDMASTER / XMIND
          ========================================================= */}
       {activeTool === 'mindmap' && (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
-          {/* Left Panel: Boards & Node Inspector */}
+          {/* Left Panel: Boards & Inspector */}
           <div className="lg:col-span-4 space-y-4">
+            {/* Mindmaps List */}
             <div className="bg-slate-900/80 border border-white/[0.07] rounded-3xl p-4 space-y-3">
-              <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-400">
-                Meus Quadros de Mapa Mental
-              </h3>
+              <div className="flex items-center justify-between">
+                <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-400">
+                  Quadros de Mapas Mentais
+                </h3>
+                <span className="text-[10px] text-fuchsia-300 font-bold bg-fuchsia-500/10 px-2 py-0.5 rounded-md border border-fuchsia-500/25">
+                  MindMaster
+                </span>
+              </div>
+
               <div className="flex items-center gap-2">
                 <input
                   type="text"
-                  placeholder="Nome do novo mapa mental..."
+                  placeholder="Nome do novo mapa..."
                   value={newMapTitle}
                   onChange={(e) => setNewMapTitle(e.target.value)}
                   onKeyDown={(e) => {
@@ -777,32 +1140,32 @@ export const ToolsView: React.FC = () => {
                 />
                 <button
                   onClick={handleCreateMindmap}
-                  className="liquid-glass-cta px-3 py-2 rounded-xl bg-gradient-to-r from-fuchsia-600 to-purple-500 text-white text-xs font-extrabold flex items-center gap-1 shrink-0"
+                  className="liquid-glass-cta px-3.5 py-2 rounded-xl bg-gradient-to-r from-fuchsia-600 to-purple-500 text-white text-xs font-extrabold flex items-center gap-1 shrink-0"
                 >
                   <Plus className="w-3.5 h-3.5" />
                   <span>Criar</span>
                 </button>
               </div>
 
-              <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1 custom-scrollbar">
+              <div className="space-y-1.5 max-h-44 overflow-y-auto pr-1 custom-scrollbar">
                 {mindmaps.map((m) => (
                   <div
                     key={m.id}
                     onClick={() => {
                       setSelectedMapId(m.id);
                       setSelectedNodeId('root');
+                      setZoom(1);
+                      setPanOffset({ x: 0, y: 0 });
                     }}
                     className={`p-2.5 rounded-xl border flex items-center justify-between cursor-pointer transition ${
                       m.id === selectedMapId
-                        ? 'bg-fuchsia-500/15 border-fuchsia-500/40 text-white'
+                        ? 'bg-fuchsia-500/15 border-fuchsia-500/40 text-white shadow-md'
                         : 'bg-slate-950/60 border-slate-800 text-slate-300 hover:border-slate-700'
                     }`}
                   >
                     <div className="min-w-0">
                       <p className="text-xs font-bold truncate">{m.title}</p>
-                      <span className="text-[10px] text-slate-400">
-                        {m.nodes.length} nós conectados
-                      </span>
+                      <span className="text-[10px] text-slate-400">{m.nodes.length} tópicos</span>
                     </div>
                     <button
                       type="button"
@@ -819,44 +1182,76 @@ export const ToolsView: React.FC = () => {
               </div>
             </div>
 
-            {/* Node Inspector */}
+            {/* MindMaster Inspector for the Selected Node */}
             {selectedMap && selectedNode && (
               <div className="bg-slate-900/80 border border-white/[0.07] rounded-3xl p-4 space-y-3">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-extrabold text-white flex items-center gap-1.5">
-                    <GitBranch className="w-4 h-4 text-fuchsia-400" />
-                    <span>Editar Nó Selecionado</span>
+                    <Sliders className="w-4 h-4 text-fuchsia-400" />
+                    <span>Propriedades do Tópico</span>
                   </span>
-                  <button
-                    type="button"
-                    onClick={handleAddChildNode}
-                    className="px-2.5 py-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 text-emerald-300 text-[11px] font-extrabold flex items-center gap-1 transition"
-                  >
-                    <Plus className="w-3 h-3" />
-                    <span>Puxar Ramificação</span>
-                  </button>
+                  <span className="text-[10px] text-slate-400">
+                    {selectedNode.parentId === null ? 'Tópico Central' : 'Subtópico'}
+                  </span>
                 </div>
 
                 <div>
-                  <label className="block text-[11px] text-slate-400 mb-1">Texto do Nó:</label>
+                  <label className="block text-[11px] text-slate-400 mb-1">Texto do Tópico:</label>
                   <input
                     type="text"
                     value={selectedNode.label}
-                    onChange={(e) => handleUpdateSelectedNode({ label: e.target.value })}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-fuchsia-400"
+                    onChange={(e) => {
+                      const nextNodes = selectedMap.nodes.map((n) =>
+                        n.id === selectedNode.id ? { ...n, label: e.target.value } : n
+                      );
+                      saveMapNodes(selectedMap.id, nextNodes);
+                    }}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-fuchsia-400 font-bold"
                   />
                 </div>
 
+                {/* Icon Marker / Badge */}
                 <div>
-                  <label className="block text-[11px] text-slate-400 mb-1">Cor do Nó:</label>
+                  <label className="block text-[11px] text-slate-400 mb-1">Ícone / Marcador:</label>
+                  <div className="flex items-center gap-1.5">
+                    {NODE_ICONS.map((ico, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => {
+                          const nextNodes = selectedMap.nodes.map((n) =>
+                            n.id === selectedNode.id ? { ...n, icon: ico } : n
+                          );
+                          saveMapNodes(selectedMap.id, nextNodes);
+                        }}
+                        className={`w-7 h-7 rounded-lg border text-sm flex items-center justify-center transition ${
+                          selectedNode.icon === ico
+                            ? 'bg-fuchsia-500/20 border-fuchsia-400 text-white'
+                            : 'bg-slate-950 border-slate-800 hover:border-slate-700'
+                        }`}
+                      >
+                        {ico || '∅'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Node Color Swatches */}
+                <div>
+                  <label className="block text-[11px] text-slate-400 mb-1">Cor do Ramo:</label>
                   <div className="flex items-center gap-2">
                     {NODE_COLORS.map((c) => (
                       <button
                         key={c}
                         type="button"
-                        onClick={() => handleUpdateSelectedNode({ color: c })}
+                        onClick={() => {
+                          const nextNodes = selectedMap.nodes.map((n) =>
+                            n.id === selectedNode.id ? { ...n, color: c } : n
+                          );
+                          saveMapNodes(selectedMap.id, nextNodes);
+                        }}
                         className={`w-6 h-6 rounded-full transition-transform ${
-                          selectedNode.color === c ? 'scale-125 ring-2 ring-white' : 'opacity-75'
+                          selectedNode.color === c ? 'scale-125 ring-2 ring-white' : 'opacity-70 hover:opacity-100'
                         }`}
                         style={{ backgroundColor: c }}
                       />
@@ -864,139 +1259,266 @@ export const ToolsView: React.FC = () => {
                   </div>
                 </div>
 
+                {/* Node Notes */}
                 <div>
-                  <label className="block text-[11px] text-slate-400 mb-1">
-                    Notas / Detalhes deste Nó:
-                  </label>
+                  <label className="block text-[11px] text-slate-400 mb-1">Notas / Detalhes Adicionais:</label>
                   <textarea
-                    rows={3}
+                    rows={2}
                     value={selectedNode.notes || ''}
-                    onChange={(e) => handleUpdateSelectedNode({ notes: e.target.value })}
-                    placeholder="Anote detalhes específicos deste ponto..."
+                    onChange={(e) => {
+                      const nextNodes = selectedMap.nodes.map((n) =>
+                        n.id === selectedNode.id ? { ...n, notes: e.target.value } : n
+                      );
+                      saveMapNodes(selectedMap.id, nextNodes);
+                    }}
+                    placeholder="Adicione notas rápidas sobre esta ideia..."
                     className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-slate-200 focus:outline-none resize-none"
                   />
+                </div>
+
+                {/* Fast Action Buttons */}
+                <div className="grid grid-cols-2 gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={handleAddChildNode}
+                    className="py-2 px-2.5 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/35 text-emerald-300 text-xs font-bold flex items-center justify-center gap-1.5 transition"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Filho (Tab)</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleAddSiblingNode}
+                    className="py-2 px-2.5 rounded-xl bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-500/35 text-cyan-300 text-xs font-bold flex items-center justify-center gap-1.5 transition"
+                  >
+                    <GitBranch className="w-3.5 h-3.5" />
+                    <span>Irmão (Enter)</span>
+                  </button>
                 </div>
 
                 {selectedNode.parentId !== null && (
                   <button
                     type="button"
                     onClick={handleDeleteSelectedNode}
-                    className="w-full py-2 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-300 text-xs font-bold flex items-center justify-center gap-1.5 transition"
+                    className="w-full py-2 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-300 text-xs font-bold flex items-center justify-center gap-1.5 transition mt-1"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
-                    <span>Excluir este Nó</span>
+                    <span>Excluir Tópico (Del)</span>
                   </button>
                 )}
               </div>
             )}
           </div>
 
-          {/* Right Panel: Interactive Visual Mindmap Canvas */}
+          {/* Right Panel: Interactive MindMaster Infinite Canvas */}
           <div className="lg:col-span-8 bg-slate-900/80 border border-white/[0.07] rounded-3xl p-4 flex flex-col">
             {!selectedMap ? (
-              <div className="h-[520px] flex flex-col items-center justify-center text-center p-6">
+              <div className="h-[560px] flex flex-col items-center justify-center text-center p-6">
                 <Network className="w-12 h-12 text-fuchsia-400 mb-3" />
-                <h3 className="text-base font-black text-white">Crie seu Primeiro Mapa Mental</h3>
+                <h3 className="text-base font-black text-white">Criador de Mapas Mentais (MindMaster)</h3>
                 <p className="text-xs text-slate-400 max-w-md mt-1 mb-4">
-                  Conecte ideias visualmente, estruture metas financeiras, projetos ou estudos arrastando os nós na tela.
+                  Planeje projetos, estratégias financeiras e estudos com navegação por teclado (Tab e Enter), zoom e conexões visuais.
                 </p>
                 <button
                   onClick={handleCreateMindmap}
                   className="liquid-glass-cta px-5 py-2.5 rounded-xl bg-gradient-to-r from-fuchsia-600 to-purple-500 text-white text-xs font-extrabold flex items-center gap-2"
                 >
                   <Plus className="w-4 h-4" />
-                  <span>Criar Mapa Mental Inicial</span>
+                  <span>Criar Primeiro Mapa Mental</span>
                 </button>
               </div>
             ) : (
               <>
-                <div className="flex items-center justify-between pb-3 mb-2 border-b border-white/[0.06]">
-                  <div>
+                {/* MindMaster Toolbar: Zoom, Style & Auto-Layout */}
+                <div className="flex flex-wrap items-center justify-between gap-3 pb-3 mb-2 border-b border-white/[0.06]">
+                  <div className="flex items-center gap-2">
                     <h3 className="text-sm font-black text-white">{selectedMap.title}</h3>
-                    <p className="text-[11px] text-slate-400">
-                      Arraste qualquer bloco para mover • Clique em um nó e depois em &ldquo;+ Puxar Ramificação&rdquo;
-                    </p>
+                    <span className="text-[10px] text-slate-400 bg-slate-800/80 px-2 py-0.5 rounded-md border border-slate-700">
+                      {Math.round(zoom * 100)}%
+                    </span>
                   </div>
-                  <button
-                    type="button"
-                    onClick={handleAddChildNode}
-                    className="liquid-glass-cta px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 text-white text-xs font-extrabold flex items-center gap-1.5"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    <span>Nova Ramificação</span>
-                  </button>
+
+                  <div className="flex items-center gap-1.5">
+                    {/* Connector Style Switcher */}
+                    <div className="flex items-center rounded-xl bg-slate-950 p-0.5 border border-slate-800">
+                      <button
+                        type="button"
+                        onClick={() => setConnectorStyle('curved')}
+                        className={`px-2 py-1 text-[10px] font-bold rounded-lg transition ${
+                          connectorStyle === 'curved' ? 'bg-fuchsia-500 text-white' : 'text-slate-400'
+                        }`}
+                        title="Conexões Curvas"
+                      >
+                        Curva
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setConnectorStyle('elbow')}
+                        className={`px-2 py-1 text-[10px] font-bold rounded-lg transition ${
+                          connectorStyle === 'elbow' ? 'bg-fuchsia-500 text-white' : 'text-slate-400'
+                        }`}
+                        title="Conexões Angulares"
+                      >
+                        Angular
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setConnectorStyle('straight')}
+                        className={`px-2 py-1 text-[10px] font-bold rounded-lg transition ${
+                          connectorStyle === 'straight' ? 'bg-fuchsia-500 text-white' : 'text-slate-400'
+                        }`}
+                        title="Conexões Retas"
+                      >
+                        Reta
+                      </button>
+                    </div>
+
+                    {/* Auto Layout */}
+                    <button
+                      type="button"
+                      onClick={handleAutoLayout}
+                      title="Organizar layout automaticamente"
+                      className="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold flex items-center gap-1 transition"
+                    >
+                      <Layout className="w-3.5 h-3.5 text-cyan-300" />
+                      <span className="hidden sm:inline">Auto-Organizar</span>
+                    </button>
+
+                    {/* Zoom Buttons */}
+                    <button
+                      type="button"
+                      onClick={() => setZoom((z) => Math.min(1.8, z + 0.15))}
+                      className="p-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300"
+                      title="Aproximar (+)"
+                    >
+                      <ZoomIn className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setZoom((z) => Math.max(0.5, z - 0.15))}
+                      className="p-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300"
+                      title="Afastar (-)"
+                    >
+                      <ZoomOut className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setZoom(1);
+                        setPanOffset({ x: 0, y: 0 });
+                      }}
+                      className="p-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300"
+                      title="Resetar Zoom e Centralizar"
+                    >
+                      <RotateCcw className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 </div>
 
+                {/* Canvas Container */}
                 <div
                   ref={canvasRef}
+                  onMouseDown={handleCanvasMouseDown}
                   onMouseMove={handleCanvasMouseMove}
                   onMouseUp={handleCanvasMouseUp}
                   onMouseLeave={handleCanvasMouseUp}
-                  className="relative w-full h-[500px] rounded-2xl bg-[#09090b] border border-white/[0.06] overflow-hidden select-none"
+                  className={`relative w-full h-[520px] rounded-2xl bg-[#0a0a0c] border border-white/[0.06] overflow-hidden select-none ${
+                    isPanning ? 'cursor-grabbing' : 'cursor-grab'
+                  }`}
                   style={{
                     backgroundImage:
-                      'radial-gradient(rgba(255,255,255,0.07) 1px, transparent 1px)',
-                    backgroundSize: '22px 22px',
+                      'radial-gradient(rgba(255,255,255,0.08) 1px, transparent 1px)',
+                    backgroundSize: '24px 24px',
                   }}
                 >
-                  {/* SVG Curved Connectors */}
-                  <svg className="absolute inset-0 w-full h-full pointer-events-none">
+                  <div
+                    style={{
+                      transform: `translate(${panOffset.x}px, ${panOffset.y}px) scale(${zoom})`,
+                      transformOrigin: '0 0',
+                      width: '100%',
+                      height: '100%',
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                    }}
+                  >
+                    {/* SVG Connector Lines */}
+                    <svg className="absolute inset-0 w-[2000px] h-[2000px] pointer-events-none">
+                      {selectedMap.nodes.map((node) => {
+                        if (!node.parentId) return null;
+                        const parent = selectedMap.nodes.find((p) => p.id === node.parentId);
+                        if (!parent) return null;
+
+                        let pathData = '';
+                        if (connectorStyle === 'straight') {
+                          pathData = `M ${parent.x} ${parent.y} L ${node.x} ${node.y}`;
+                        } else if (connectorStyle === 'elbow') {
+                          const midX = (parent.x + node.x) / 2;
+                          pathData = `M ${parent.x} ${parent.y} L ${midX} ${parent.y} L ${midX} ${node.y} L ${node.x} ${node.y}`;
+                        } else {
+                          // Curved Bézier
+                          const midX = (parent.x + node.x) / 2;
+                          pathData = `M ${parent.x} ${parent.y} C ${midX} ${parent.y}, ${midX} ${node.y}, ${node.x} ${node.y}`;
+                        }
+
+                        return (
+                          <path
+                            key={`edge_${parent.id}_${node.id}`}
+                            d={pathData}
+                            stroke={node.color || '#a855f7'}
+                            strokeWidth={3}
+                            strokeOpacity={0.65}
+                            fill="none"
+                            strokeLinecap="round"
+                          />
+                        );
+                      })}
+                    </svg>
+
+                    {/* Interactive Nodes */}
                     {selectedMap.nodes.map((node) => {
-                      if (!node.parentId) return null;
-                      const parent = selectedMap.nodes.find((p) => p.id === node.parentId);
-                      if (!parent) return null;
-                      const midX = (parent.x + node.x) / 2;
-                      const pathData = `M ${parent.x} ${parent.y} C ${midX} ${parent.y}, ${midX} ${node.y}, ${node.x} ${node.y}`;
+                      const isSelected = node.id === selectedNode?.id;
+                      const isRoot = node.parentId === null;
                       return (
-                        <path
-                          key={`edge_${parent.id}_${node.id}`}
-                          d={pathData}
-                          stroke={node.color || '#a855f7'}
-                          strokeWidth={2.5}
-                          strokeOpacity={0.65}
-                          fill="none"
-                        />
+                        <div
+                          key={node.id}
+                          onMouseDown={(e) => {
+                            e.stopPropagation();
+                            setSelectedNodeId(node.id);
+                            setDraggingNodeId(node.id);
+                          }}
+                          style={{
+                            left: `${node.x}px`,
+                            top: `${node.y}px`,
+                            transform: 'translate(-50%, -50%)',
+                            borderColor: isSelected ? '#ffffff' : `${node.color}90`,
+                            boxShadow: isSelected
+                              ? `0 0 26px -2px ${node.color}`
+                              : '0 8px 22px -4px rgba(0,0,0,0.65)',
+                          }}
+                          className={`absolute px-4 py-2.5 rounded-2xl cursor-grab active:cursor-grabbing border-2 transition-shadow select-none ${
+                            isRoot
+                              ? 'bg-slate-900 font-black text-sm text-white ring-2 ring-fuchsia-500/50'
+                              : 'bg-slate-900/95 font-bold text-xs text-slate-100 hover:scale-[1.02]'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2 whitespace-nowrap">
+                            {node.icon && <span className="text-sm">{node.icon}</span>}
+                            <span
+                              className="w-2.5 h-2.5 rounded-full shrink-0"
+                              style={{ backgroundColor: node.color }}
+                            />
+                            <span>{node.label}</span>
+                          </div>
+                        </div>
                       );
                     })}
-                  </svg>
+                  </div>
+                </div>
 
-                  {/* Interactive Draggable Nodes */}
-                  {selectedMap.nodes.map((node) => {
-                    const isSelected = node.id === selectedNode?.id;
-                    const isRoot = node.parentId === null;
-                    return (
-                      <div
-                        key={node.id}
-                        onMouseDown={(e) => {
-                          e.stopPropagation();
-                          setSelectedNodeId(node.id);
-                          setDraggingNodeId(node.id);
-                        }}
-                        style={{
-                          left: `${node.x}px`,
-                          top: `${node.y}px`,
-                          transform: 'translate(-50%, -50%)',
-                          borderColor: isSelected ? '#ffffff' : node.color,
-                          boxShadow: isSelected
-                            ? `0 0 24px -2px ${node.color}90`
-                            : '0 8px 20px -4px rgba(0,0,0,0.6)',
-                        }}
-                        className={`absolute px-4 py-2.5 rounded-2xl cursor-grab active:cursor-grabbing border-2 transition-shadow ${
-                          isRoot
-                            ? 'bg-slate-900 font-black text-sm text-white'
-                            : 'bg-slate-900/95 font-bold text-xs text-slate-100'
-                        }`}
-                      >
-                        <div className="flex items-center gap-2 whitespace-nowrap">
-                          <span
-                            className="w-2.5 h-2.5 rounded-full shrink-0"
-                            style={{ backgroundColor: node.color }}
-                          />
-                          <span>{node.label}</span>
-                        </div>
-                      </div>
-                    );
-                  })}
+                <div className="flex items-center justify-between text-[11px] text-slate-500 pt-2 px-1">
+                  <span>💡 Atalhos MindMaster: <strong>Tab</strong> (novo filho) • <strong>Enter</strong> (novo irmão) • <strong>Del</strong> (excluir)</span>
+                  <span>Arraste o fundo para mover a tela</span>
                 </div>
               </>
             )}
@@ -1084,7 +1606,7 @@ export const ToolsView: React.FC = () => {
             </div>
           </div>
 
-          {/* Modal / Drawer Form for Creating or Editing a Password */}
+          {/* Modal / Form for Creating or Editing a Password */}
           {editingVault && (
             <form
               onSubmit={handleSaveVaultItem}
@@ -1093,9 +1615,7 @@ export const ToolsView: React.FC = () => {
               <div className="flex items-center justify-between border-b border-white/[0.07] pb-3">
                 <h4 className="text-sm font-black text-white flex items-center gap-2">
                   <Lock className="w-4 h-4 text-emerald-400" />
-                  <span>
-                    {editingVault.id ? 'Editar Credencial' : 'Guardar Nova Senha no Cofre'}
-                  </span>
+                  <span>{editingVault.id ? 'Editar Credencial' : 'Guardar Nova Senha no Cofre'}</span>
                 </h4>
                 <button
                   type="button"
@@ -1116,22 +1636,16 @@ export const ToolsView: React.FC = () => {
                     required
                     placeholder="Ex: Nubank, Gov.br, Gmail..."
                     value={editingVault.title || ''}
-                    onChange={(e) =>
-                      setEditingVault((p) => ({ ...p, title: e.target.value }))
-                    }
+                    onChange={(e) => setEditingVault((p) => ({ ...p, title: e.target.value }))}
                     className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-400"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-300 mb-1">
-                    Categoria
-                  </label>
+                  <label className="block text-[11px] font-bold text-slate-300 mb-1">Categoria</label>
                   <select
                     value={editingVault.category || 'bancos'}
-                    onChange={(e) =>
-                      setEditingVault((p) => ({ ...p, category: e.target.value }))
-                    }
+                    onChange={(e) => setEditingVault((p) => ({ ...p, category: e.target.value }))}
                     className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-400"
                   >
                     {VAULT_CATEGORIES.map((c) => (
@@ -1150,9 +1664,7 @@ export const ToolsView: React.FC = () => {
                     type="text"
                     placeholder="seu@email.com ou CPF"
                     value={editingVault.username || ''}
-                    onChange={(e) =>
-                      setEditingVault((p) => ({ ...p, username: e.target.value }))
-                    }
+                    onChange={(e) => setEditingVault((p) => ({ ...p, username: e.target.value }))}
                     className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-400"
                   />
                 </div>
@@ -1169,16 +1681,14 @@ export const ToolsView: React.FC = () => {
                       required
                       placeholder="Digite ou gere uma senha forte"
                       value={editingVault.password || ''}
-                      onChange={(e) =>
-                        setEditingVault((p) => ({ ...p, password: e.target.value }))
-                      }
+                      onChange={(e) => setEditingVault((p) => ({ ...p, password: e.target.value }))}
                       className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs font-mono text-emerald-300 focus:outline-none focus:border-emerald-400"
                     />
                     <button
                       type="button"
                       onClick={generateStrongPassword}
                       className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-cyan-300 flex items-center gap-1 shrink-0 transition"
-                      title="Gerar senha aleatória de 18 caracteres"
+                      title="Gerar senha aleatória de 20 caracteres"
                     >
                       <RefreshCw className="w-3.5 h-3.5" />
                       <span>Gerar Forte</span>
@@ -1187,16 +1697,12 @@ export const ToolsView: React.FC = () => {
                 </div>
 
                 <div className="sm:col-span-4">
-                  <label className="block text-[11px] font-bold text-slate-300 mb-1">
-                    Site / URL (Opcional)
-                  </label>
+                  <label className="block text-[11px] font-bold text-slate-300 mb-1">Site / URL (Opcional)</label>
                   <input
                     type="text"
                     placeholder="https://..."
                     value={editingVault.url || ''}
-                    onChange={(e) =>
-                      setEditingVault((p) => ({ ...p, url: e.target.value }))
-                    }
+                    onChange={(e) => setEditingVault((p) => ({ ...p, url: e.target.value }))}
                     className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-400"
                   />
                 </div>
@@ -1227,8 +1733,7 @@ export const ToolsView: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {filteredVault.map((item) => {
                 const isRevealed = Boolean(revealedIds[item.id]);
-                const catObj =
-                  VAULT_CATEGORIES.find((c) => c.id === item.category) || VAULT_CATEGORIES[5];
+                const catObj = VAULT_CATEGORIES.find((c) => c.id === item.category) || VAULT_CATEGORIES[5];
                 return (
                   <div
                     key={item.id}
@@ -1237,9 +1742,7 @@ export const ToolsView: React.FC = () => {
                     <div>
                       <div className="flex items-start justify-between gap-2">
                         <div>
-                          <span className="text-[10px] font-bold text-slate-400 block">
-                            {catObj.label}
-                          </span>
+                          <span className="text-[10px] font-bold text-slate-400 block">{catObj.label}</span>
                           <h4 className="text-sm font-black text-white mt-0.5">{item.title}</h4>
                         </div>
                         <button
@@ -1247,11 +1750,7 @@ export const ToolsView: React.FC = () => {
                           onClick={() => handleToggleFavoriteVault(item)}
                           className="p-1 text-slate-500 hover:text-amber-400 transition"
                         >
-                          <Star
-                            className={`w-4 h-4 ${
-                              item.favorite ? 'text-amber-400 fill-amber-400' : ''
-                            }`}
-                          />
+                          <Star className={`w-4 h-4 ${item.favorite ? 'text-amber-400 fill-amber-400' : ''}`} />
                         </button>
                       </div>
 
@@ -1261,9 +1760,7 @@ export const ToolsView: React.FC = () => {
                             <span className="text-[9px] uppercase font-bold text-slate-500 block">
                               Usuário / Login
                             </span>
-                            <span className="text-xs text-slate-200 truncate block">
-                              {item.username}
-                            </span>
+                            <span className="text-xs text-slate-200 truncate block">{item.username}</span>
                           </div>
                           <button
                             type="button"
@@ -1288,17 +1785,11 @@ export const ToolsView: React.FC = () => {
                         <div className="flex items-center gap-1">
                           <button
                             type="button"
-                            onClick={() =>
-                              setRevealedIds((p) => ({ ...p, [item.id]: !p[item.id] }))
-                            }
+                            onClick={() => setRevealedIds((p) => ({ ...p, [item.id]: !p[item.id] }))}
                             className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg"
                             title={isRevealed ? 'Ocultar senha' : 'Revelar senha'}
                           >
-                            {isRevealed ? (
-                              <EyeOff className="w-3.5 h-3.5" />
-                            ) : (
-                              <Eye className="w-3.5 h-3.5" />
-                            )}
+                            {isRevealed ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                           </button>
                           <button
                             type="button"

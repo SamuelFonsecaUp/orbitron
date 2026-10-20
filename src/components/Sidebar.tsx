@@ -301,7 +301,7 @@ export const Sidebar: React.FC = () => {
   ];
 
   return (
-    <aside className="w-64 bg-slate-950/85 border-r border-white/[0.07] flex flex-col justify-between select-none shrink-0 h-full backdrop-blur-2xl relative overflow-hidden">
+    <aside className="w-72 bg-slate-950/85 border-r border-white/[0.07] flex flex-col justify-between select-none shrink-0 h-full backdrop-blur-2xl relative overflow-hidden">
       {/* Subtle ambient light refraction in the sidebar corner */}
       <div
         className="pointer-events-none absolute -top-16 -left-16 w-48 h-48 rounded-full blur-3xl opacity-30 transition-all duration-700"
@@ -348,7 +348,7 @@ export const Sidebar: React.FC = () => {
           <div className="liquid-glass-well p-1.5 rounded-2xl relative overflow-hidden">
             {/* Ambient background glow shifting behind the active lens */}
             <div
-              className="pointer-events-none absolute top-1 bottom-1 w-[calc((100%-12px)/3)] rounded-xl blur-md opacity-60 transition-transform duration-500 ease-out"
+              className="pointer-events-none absolute top-1 bottom-1 w-[calc((100%-12px)/4)] rounded-xl blur-md opacity-60 transition-transform duration-500 ease-out"
               style={{
                 transform: `translateX(${meta.index * 100}%)`,
                 background: meta.lensGlow,
@@ -357,7 +357,7 @@ export const Sidebar: React.FC = () => {
 
             {/* Sliding Liquid Glass Lens */}
             <div
-              className="liquid-glass-lens absolute top-1.5 bottom-1.5 left-1.5 w-[calc((100%-12px)/3)] rounded-xl pointer-events-none z-10"
+              className="liquid-glass-lens absolute top-1.5 bottom-1.5 left-1.5 w-[calc((100%-12px)/4)] rounded-xl pointer-events-none z-10"
               style={{
                 transform: `translateX(${meta.index * 100}%)`,
                 background: meta.lensTint,
@@ -365,8 +365,8 @@ export const Sidebar: React.FC = () => {
               }}
             />
 
-            {/* 3 Interactive Module Buttons */}
-            <div className="grid grid-cols-3 relative z-20">
+            {/* 4 Interactive Module Buttons side by side */}
+            <div className="grid grid-cols-4 relative z-20">
               {modules.map(({ id, label, Icon, glowColor }) => {
                 const isSelected = activeModule === id;
                 return (
@@ -374,7 +374,8 @@ export const Sidebar: React.FC = () => {
                     key={id}
                     type="button"
                     onClick={() => setActiveModule(id)}
-                    className={`flex flex-col items-center justify-center gap-1 py-2 px-1 rounded-xl text-[10px] transition-all duration-300 ${
+                    title={label}
+                    className={`flex flex-col items-center justify-center gap-1 py-2 px-0.5 rounded-xl text-[9px] transition-all duration-300 ${
                       isSelected
                         ? 'text-white font-extrabold scale-[1.02]'
                         : 'text-slate-400 hover:text-slate-200 font-semibold opacity-75 hover:opacity-100'
@@ -385,7 +386,7 @@ export const Sidebar: React.FC = () => {
                         isSelected ? `${glowColor} scale-110 drop-shadow-[0_0_8px_rgba(255,255,255,0.4)]` : 'text-slate-400'
                       }`}
                     />
-                    <span className="tracking-tight leading-none">{label}</span>
+                    <span className="tracking-tight leading-none truncate max-w-full">{label}</span>
                   </button>
                 );
               })}
