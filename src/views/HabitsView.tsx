@@ -198,8 +198,8 @@ export const HabitsView: React.FC = () => {
       </div>
 
       {/* Sub-navigation bar + Period Filter */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-slate-800/80">
-        <div className="flex items-center gap-1 bg-slate-950/80 p-1 rounded-xl border border-slate-800/80">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-white/[0.06]">
+        <div className="liquid-glass-well flex items-center gap-1 p-1.5 rounded-2xl">
           {([
             ['habits', 'Hoje (Check-in)', ListTodo],
             ['habits_week', 'Grade 7 Dias', Calendar],
@@ -211,13 +211,14 @@ export const HabitsView: React.FC = () => {
               <button
                 key={viewId}
                 onClick={() => setCurrentView(viewId)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                style={active ? ({ ['--tab-glow' as any]: 'rgba(6, 182, 212, 0.45)' } as React.CSSProperties) : undefined}
+                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs transition-all duration-300 ${
                   active
-                    ? 'bg-cyan-500 text-slate-950 font-bold shadow-sm'
-                    : 'text-slate-400 hover:text-slate-200'
+                    ? 'liquid-glass-tab-active text-white font-bold'
+                    : 'text-slate-400 hover:text-slate-200 font-medium'
                 }`}
               >
-                <Icon className="w-3.5 h-3.5" />
+                <Icon className={`w-3.5 h-3.5 ${active ? 'text-cyan-300 drop-shadow-[0_0_6px_rgba(34,211,238,0.6)]' : ''}`} />
                 <span>{label}</span>
               </button>
             );
