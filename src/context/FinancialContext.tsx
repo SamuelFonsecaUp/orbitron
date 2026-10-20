@@ -17,6 +17,7 @@ import {
   GameUnlock,
   GameUnlocksResult,
 } from '../types';
+import { isPrivacyModeEnabled, setPrivacyModeFlag } from '../utils/formatters';
 
 // Intervalo da sincronização automática em segundo plano
 const AUTO_SYNC_INTERVAL_MS = 3 * 60 * 1000;
@@ -94,6 +95,8 @@ interface FinancialContextType {
   // Theme (Dark / Light)
   theme: 'dark' | 'light';
   toggleTheme: () => Promise<void>;
+  privacyMode: boolean;
+  togglePrivacyMode: () => void;
 
   // Gamificação (Jornada)
   game: GameOverview | null;
@@ -159,6 +162,26 @@ export const FinancialProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [toasts, setToasts] = useState<ToastInfo[]>([]);
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
+  const [privacyMode, setPrivacyMode] = useState<boolean>(() => isPrivacyModeEnabled());
+
+  const togglePrivacyMode = useCallback(() => {
+    setPrivacyMode((prev) => {
+      const next = !prev;
+      setPrivacyModeFlag(next);
+      return next;
+    });
+  }, []);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.altKey && (e.key === 'p' || e.key === 'P')) {
+        e.preventDefault();
+        togglePrivacyMode();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [togglePrivacyMode]);
 
   const applyTheme = (t: 'dark' | 'light') => {
     setTheme(t);
@@ -534,6 +557,8 @@ export const FinancialProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         navigateToAccountTransactions,
         theme,
         toggleTheme,
+        privacyMode,
+        togglePrivacyMode,
         game,
         refreshGame,
         celebrations,

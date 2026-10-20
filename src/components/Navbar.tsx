@@ -12,6 +12,8 @@ import {
   Moon,
   ChevronRight,
   CheckSquare,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 import { useFinancial, AppModule } from '../context/FinancialContext';
 import { useHabits } from '../context/HabitsContext';
@@ -45,6 +47,8 @@ export const Navbar: React.FC = () => {
     pendingImportSession,
     theme,
     toggleTheme,
+    privacyMode,
+    togglePrivacyMode,
   } = useFinancial();
   const { overview } = useHabits();
   const [isMaximized, setIsMaximized] = useState(false);
@@ -145,6 +149,30 @@ export const Navbar: React.FC = () => {
         <XpPill />
 
         <SyncStatusBadge />
+
+        {/* Privacy Mode (Olho Mágico) Toggle */}
+        <button
+          onClick={togglePrivacyMode}
+          title={
+            privacyMode
+              ? 'Mostrar valores financeiros (Alt + P)'
+              : 'Modo Privacidade: ocultar valores em R$ (Alt + P)'
+          }
+          className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-[11px] font-semibold transition-all ${
+            privacyMode
+              ? 'bg-amber-500/15 border-amber-500/35 text-amber-300 hover:bg-amber-500/25'
+              : 'p-1.5 text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 border-transparent'
+          }`}
+        >
+          {privacyMode ? (
+            <>
+              <EyeOff className="w-3.5 h-3.5 text-amber-400" />
+              <span className="hidden md:inline">Valores Ocultos</span>
+            </>
+          ) : (
+            <Eye className="w-3.5 h-3.5" />
+          )}
+        </button>
 
         <button
           onClick={() => window.print()}
