@@ -162,10 +162,7 @@ export const FinancialProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   const applyTheme = (t: 'dark' | 'light') => {
     setTheme(t);
-    if (t === 'light') {
-      document.documentElement.classList.remove('dark');
-      document.documentElement.classList.add('light');
-    } else {
+    if (false) {} else {
       document.documentElement.classList.remove('light');
       document.documentElement.classList.add('dark');
     }

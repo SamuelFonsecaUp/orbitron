@@ -147,18 +147,6 @@ export const Navbar: React.FC = () => {
         <SyncStatusBadge />
 
         <button
-          onClick={toggleTheme}
-          title={theme === 'dark' ? 'Mudar para Modo Claro' : 'Mudar para Modo Escuro'}
-          className="p-1.5 text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 rounded-lg transition-all"
-        >
-          {theme === 'dark' ? (
-            <Sun className="w-3.5 h-3.5 text-amber-400" />
-          ) : (
-            <Moon className="w-3.5 h-3.5 text-slate-600" />
-          )}
-        </button>
-
-        <button
           onClick={() => window.print()}
           title="Imprimir / Salvar PDF"
           className="p-1.5 text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 rounded-lg transition-all"

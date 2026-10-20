@@ -149,7 +149,7 @@ export const OnboardingView: React.FC = () => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#090d16] p-6">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0c0c0e] p-6">
       <div className="w-full max-w-lg bg-slate-900 border border-slate-800 rounded-3xl p-8 shadow-2xl relative overflow-hidden">
         {/* Glow effect */}
         <div className="absolute -top-24 -left-24 w-48 h-48 bg-brand-500/20 rounded-full blur-3xl pointer-events-none" />

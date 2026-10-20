@@ -43,7 +43,7 @@ export const App: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="flex h-screen w-screen items-center justify-center bg-[#090d16] text-white">
+      <div className="flex h-screen w-screen items-center justify-center bg-[#0c0c0e] text-white">
         <div className="flex flex-col items-center gap-3">
           <div className="w-8 h-8 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" />
           <span className="text-xs text-slate-400 font-medium">Carregando Pigo...</span>
@@ -71,7 +71,7 @@ export const App: React.FC = () => {
       : 'from-brand-500/[0.06] via-emerald-500/[0.02] to-transparent';
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-[#090d16] text-slate-100 font-sans">
+    <div className="flex h-screen w-screen overflow-hidden bg-[#0c0c0e] text-slate-100 font-sans">
       {/* PIN Security Modal */}
       {isLocked && <PinLockModal />}
 
