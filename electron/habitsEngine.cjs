@@ -195,9 +195,10 @@ class HabitsEngine {
   createHabit(data) {
     const id = uuidv4();
     const now = new Date().toISOString();
-    const frequencyDaysJson = Array.isArray(data.frequencyDays)
-      ? JSON.stringify(data.frequencyDays)
-      : data.frequencyDays || null;
+    const rawFreqDays = data.frequencyDays ?? data.frequency_days ?? [0, 1, 2, 3, 4, 5, 6];
+    const frequencyDaysJson = Array.isArray(rawFreqDays)
+      ? JSON.stringify(rawFreqDays)
+      : rawFreqDays || null;
 
     const stmt = this.db.prepare(`
       INSERT INTO habits (
@@ -219,12 +220,12 @@ class HabitsEngine {
       data.color || '#38bdf8',
       data.icon || 'CheckCircle',
       data.type || 'boolean',
-      data.targetValue ?? 1,
-      data.targetUnit?.trim() || null,
-      data.frequencyType || 'daily',
+      data.targetValue ?? data.target_value ?? 1,
+      (data.targetUnit ?? data.target_unit)?.trim() || null,
+      data.frequencyType || data.frequency_type || 'daily',
       frequencyDaysJson,
-      data.frequencyTimes ?? 7,
-      data.periodOfDay || 'anytime',
+      data.frequencyTimes ?? data.frequency_times ?? 7,
+      data.periodOfDay || data.period_of_day || 'anytime',
       now,
       now
     );

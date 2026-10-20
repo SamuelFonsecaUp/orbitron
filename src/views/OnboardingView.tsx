@@ -183,10 +183,57 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({ onComplete }) =>
   const [dedicatedReserveBalance, setDedicatedReserveBalance] = useState('0,00');
   const [selectedReserveAccTempId, setSelectedReserveAccTempId] = useState<string>('acc_1');
 
-  // Step 5: Starter Habit Packs & Custom Habit
+  // Step 5: Starter Habit Packs & Custom Specific Habits
   const [installFinanceHabits, setInstallFinanceHabits] = useState(true);
   const [installMorningHabits, setInstallMorningHabits] = useState(true);
   const [customHabitName, setCustomHabitName] = useState('');
+  const [customHabitCategory, setCustomHabitCategory] = useState<string>('saude');
+  const [customHabitPeriod, setCustomHabitPeriod] = useState<string>('anytime');
+  const [customHabits, setCustomHabits] = useState<
+    Array<{
+      tempId: string;
+      name: string;
+      category: string;
+      period_of_day: string;
+      color: string;
+    }>
+  >([]);
+
+  const handleAddCustomHabit = () => {
+    const trimmed = customHabitName.trim();
+    if (!trimmed) {
+      showToast('Digite o nome do hábito para adicionar.', 'info');
+      return;
+    }
+    if (customHabits.some((h) => h.name.toLowerCase() === trimmed.toLowerCase())) {
+      showToast('Esse hábito já foi adicionado na sua lista.', 'info');
+      return;
+    }
+    const categoryColors: Record<string, string> = {
+      saude: '#38bdf8',
+      financas: '#10b981',
+      mente: '#a855f7',
+      produtividade: '#6366f1',
+      rotina: '#f59e0b',
+      geral: '#ec4899',
+    };
+    setCustomHabits((prev) => [
+      ...prev,
+      {
+        tempId: `hab_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+        name: trimmed,
+        category: customHabitCategory,
+        period_of_day: customHabitPeriod,
+        color: categoryColors[customHabitCategory] || '#a855f7',
+      },
+    ]);
+    setCustomHabitName('');
+    showToast(`Hábito "${trimmed}" adicionado!`, 'success');
+  };
+
+  const removeCustomHabit = (tempId: string) => {
+    setCustomHabits((prev) => prev.filter((h) => h.tempId !== tempId));
+  };
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
@@ -379,6 +426,18 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({ onComplete }) =>
       }
     }
 
+    if (
+      !installFinanceHabits &&
+      !installMorningHabits &&
+      customHabits.length === 0 &&
+      !customHabitName.trim()
+    ) {
+      setErrorMsg(
+        'Etapa 5 obrigatória: selecione pelo menos um pacote de hábitos ou adicione um hábito específico seu.'
+      );
+      return;
+    }
+
     setErrorMsg('');
     setIsSubmitting(true);
 
@@ -521,12 +580,22 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({ onComplete }) =>
           );
         }
 
+        for (const ch of customHabits) {
+          starterHabits.push({
+            name: ch.name.trim(),
+            description: 'Hábito personalizado criado no tutorial inicial',
+            category: ch.category,
+            period_of_day: ch.period_of_day,
+            color: ch.color,
+          });
+        }
+
         if (customHabitName.trim()) {
           starterHabits.push({
             name: customHabitName.trim(),
-            description: 'Hábito criado no tutorial inicial',
-            category: 'geral',
-            period_of_day: 'anytime',
+            description: 'Hábito personalizado criado no tutorial inicial',
+            category: customHabitCategory,
+            period_of_day: customHabitPeriod,
             color: '#a855f7',
           });
         }
@@ -535,12 +604,18 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({ onComplete }) =>
           if (!existingHabitNames.has(h.name.toLowerCase())) {
             await window.electronAPI.createHabit({
               ...h,
+              periodOfDay: h.period_of_day,
               type: 'boolean',
+              targetValue: 1,
               target_value: 1,
+              frequencyType: 'daily',
               frequency_type: 'daily',
+              frequencyDays: [0, 1, 2, 3, 4, 5, 6],
               frequency_days: [0, 1, 2, 3, 4, 5, 6],
+              frequencyTimes: 7,
               frequency_times: 7,
             });
+            existingHabitNames.add(h.name.toLowerCase());
           }
         }
         await loadHabits();
@@ -1334,17 +1409,96 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({ onComplete }) =>
                   </button>
                 </div>
 
-                <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1">
-                    Quer adicionar mais algum hábito pessoal específico? (Opcional)
+                {/* Custom Specific Habit Builder */}
+                <div className="p-3.5 rounded-2xl bg-slate-950/75 border border-slate-800 space-y-2.5">
+                  <label className="block text-xs font-bold text-white">
+                    Cadastrar Hábito Específico Personalizado:
                   </label>
-                  <input
-                    type="text"
-                    placeholder="Ex: Ler 10 páginas, Estudar Inglês, Meditar..."
-                    value={customHabitName}
-                    onChange={(e) => setCustomHabitName(e.target.value)}
-                    className="w-full bg-slate-950/80 border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500"
-                  />
+                  <div className="grid grid-cols-1 sm:grid-cols-12 gap-2">
+                    <input
+                      type="text"
+                      placeholder="Ex: Ler 10 páginas, Academia, Estudar Inglês..."
+                      value={customHabitName}
+                      onChange={(e) => setCustomHabitName(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleAddCustomHabit();
+                        }
+                      }}
+                      className="sm:col-span-5 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400"
+                    />
+                    <select
+                      value={customHabitCategory}
+                      onChange={(e) => setCustomHabitCategory(e.target.value)}
+                      className="sm:col-span-3 bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-2 text-xs text-slate-200 focus:outline-none focus:border-cyan-400"
+                    >
+                      <option value="saude">🍏 Saúde & Corpo</option>
+                      <option value="financas">💰 Finanças</option>
+                      <option value="mente">🧠 Mente & Foco</option>
+                      <option value="produtividade">💼 Produtividade</option>
+                      <option value="rotina">⚡ Rotina</option>
+                      <option value="geral">✨ Geral</option>
+                    </select>
+                    <select
+                      value={customHabitPeriod}
+                      onChange={(e) => setCustomHabitPeriod(e.target.value)}
+                      className="sm:col-span-2 bg-slate-900 border border-slate-700 rounded-xl px-2 py-2 text-xs text-slate-200 focus:outline-none focus:border-cyan-400"
+                    >
+                      <option value="anytime">⏰ Livre</option>
+                      <option value="morning">🌅 Manhã</option>
+                      <option value="afternoon">☀️ Tarde</option>
+                      <option value="evening">🌙 Noite</option>
+                    </select>
+                    <button
+                      type="button"
+                      onClick={handleAddCustomHabit}
+                      className="sm:col-span-2 px-3 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-extrabold text-xs flex items-center justify-center gap-1 transition shadow-md"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>Adicionar</span>
+                    </button>
+                  </div>
+
+                  {/* List of added specific habits */}
+                  {customHabits.length > 0 && (
+                    <div className="pt-2 space-y-1.5">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-cyan-300 block">
+                        Seus hábitos específicos adicionados ({customHabits.length}):
+                      </span>
+                      <div className="flex flex-wrap gap-1.5">
+                        {customHabits.map((h) => (
+                          <div
+                            key={h.tempId}
+                            className="inline-flex items-center gap-2 px-2.5 py-1.5 rounded-xl bg-cyan-500/15 border border-cyan-500/35 text-xs text-white"
+                          >
+                            <span
+                              className="w-2 h-2 rounded-full"
+                              style={{ backgroundColor: h.color }}
+                            />
+                            <span className="font-semibold">{h.name}</span>
+                            <span className="text-[10px] text-cyan-300/80">
+                              ({h.period_of_day === 'morning'
+                                ? 'Manhã'
+                                : h.period_of_day === 'afternoon'
+                                ? 'Tarde'
+                                : h.period_of_day === 'evening'
+                                ? 'Noite'
+                                : 'Livre'})
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => removeCustomHabit(h.tempId)}
+                              className="text-slate-400 hover:text-rose-400 transition ml-0.5"
+                              title="Remover hábito"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Final Summary Card */}
@@ -1376,6 +1530,7 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({ onComplete }) =>
                       <strong className="text-cyan-300">
                         {(installFinanceHabits ? 3 : 0) +
                           (installMorningHabits ? 2 : 0) +
+                          customHabits.length +
                           (customHabitName.trim() ? 1 : 0)}{' '}
                         ativos
                       </strong>
