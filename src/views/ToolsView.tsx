@@ -39,8 +39,108 @@ import {
   Flame,
   Target,
   Download,
+  ChevronDown,
+  MoveUp,
+  MoveDown,
+  GripVertical,
 } from 'lucide-react';
 import { useFinancial } from '../context/FinancialContext';
+
+export type BlockType =
+  | 'text'
+  | 'h1'
+  | 'h2'
+  | 'h3'
+  | 'todo'
+  | 'bullet'
+  | 'numbered'
+  | 'callout'
+  | 'quote'
+  | 'code'
+  | 'divider';
+
+export interface NoteBlock {
+  id: string;
+  type: BlockType;
+  content: string;
+  checked?: boolean;
+  icon?: string;
+  color?: string;
+}
+
+function parseContentToBlocks(raw: string): NoteBlock[] {
+  if (!raw || !raw.trim()) {
+    return [{ id: 'b_1', type: 'text', content: '' }];
+  }
+  try {
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed) && parsed.length > 0 && parsed[0]?.type) {
+      return parsed;
+    }
+  } catch {}
+
+  // Parse legacy plain text / markdown into structured blocks
+  const lines = raw.split('\n');
+  const blocks: NoteBlock[] = [];
+  lines.forEach((line, idx) => {
+    const id = `b_leg_${idx}_${Date.now()}`;
+    if (line.startsWith('# ')) {
+      blocks.push({ id, type: 'h1', content: line.slice(2) });
+    } else if (line.startsWith('## ')) {
+      blocks.push({ id, type: 'h2', content: line.slice(3) });
+    } else if (line.startsWith('### ')) {
+      blocks.push({ id, type: 'h3', content: line.slice(4) });
+    } else if (line.startsWith('[ ] ') || line.startsWith('[x] ')) {
+      blocks.push({ id, type: 'todo', content: line.slice(4), checked: line.startsWith('[x] ') });
+    } else if (line.startsWith('• ') || line.startsWith('- ')) {
+      blocks.push({ id, type: 'bullet', content: line.replace(/^[•-]\s*/, '') });
+    } else if (/^\d+\.\s/.test(line)) {
+      blocks.push({ id, type: 'numbered', content: line.replace(/^\d+\.\s*/, '') });
+    } else if (line.startsWith('> 💡 ') || line.startsWith('> ')) {
+      blocks.push({ id, type: 'callout', content: line.replace(/^>\s*(💡\s*)?/, ''), icon: '💡' });
+    } else if (line.startsWith('> ')) {
+      blocks.push({ id, type: 'quote', content: line.slice(2) });
+    } else if (line.trim() === '---') {
+      blocks.push({ id, type: 'divider', content: '' });
+    } else {
+      blocks.push({ id, type: 'text', content: line });
+    }
+  });
+  return blocks.length > 0 ? blocks : [{ id: 'b_1', type: 'text', content: '' }];
+}
+
+function serializeBlocksToText(blocks: NoteBlock[]): string {
+  return blocks
+    .map((b) => {
+      switch (b.type) {
+        case 'h1':
+          return `# ${b.content}`;
+        case 'h2':
+          return `## ${b.content}`;
+        case 'h3':
+          return `### ${b.content}`;
+        case 'todo':
+          return `[${b.checked ? 'x' : ' '}] ${b.content}`;
+        case 'bullet':
+          return `• ${b.content}`;
+        case 'numbered':
+          return `1. ${b.content}`;
+        case 'callout':
+          return `> ${b.icon || '💡'} ${b.content}`;
+        case 'quote':
+          return `> ${b.content}`;
+        case 'code':
+          return `\`\`\`\n${b.content}\n\`\`\``;
+        case 'divider':
+          return `---`;
+        default:
+          return b.content;
+      }
+    })
+    .join('\n');
+}
+
+const CALLOUT_EMOJIS = ['💡', '🔥', '⚠️', '📌', '🎯', '⭐', '🚀', '✅'];
 
 interface ChecklistItem {
   id: string;
@@ -144,9 +244,7 @@ export const ToolsView: React.FC = () => {
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
   const [noteSearch, setNoteSearch] = useState('');
   const [noteCategoryFilter, setNoteCategoryFilter] = useState<string>('all');
-  const [noteViewMode, setNoteViewMode] = useState<'edit' | 'preview'>('edit');
   const [newCheckItemText, setNewCheckItemText] = useState('');
-  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
   // =========================================================
   // 2. MAPA MENTAL ESTILO MINDMASTER
@@ -205,7 +303,7 @@ export const ToolsView: React.FC = () => {
     if (!window.electronAPI?.createNote) return;
     const created = await window.electronAPI.createNote({
       title: 'Sem Título',
-      content: '',
+      content: JSON.stringify([{ id: `b_${Date.now()}_1`, type: 'text', content: '' }]),
       category: noteCategoryFilter !== 'all' ? noteCategoryFilter : 'ideias',
       color: '#a855f7',
       icon: '💡',
@@ -236,21 +334,69 @@ export const ToolsView: React.FC = () => {
     showToast('Anotação removida.', 'info');
   };
 
-  const insertNotionBlock = (prefix: string, suffix: string = '') => {
-    if (!selectedNote || !textareaRef.current) return;
-    const textarea = textareaRef.current;
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-    const text = selectedNote.content;
-    const selected = text.substring(start, end) || 'Texto do bloco';
-    const replacement = `${prefix}${selected}${suffix}`;
-    const nextContent = text.substring(0, start) + replacement + text.substring(end);
+  const currentBlocks: NoteBlock[] = selectedNote
+    ? parseContentToBlocks(selectedNote.content)
+    : [];
 
-    handleUpdateNote(selectedNote.id, { content: nextContent });
-    setTimeout(() => {
-      textarea.focus();
-      textarea.setSelectionRange(start + prefix.length, start + prefix.length + selected.length);
-    }, 50);
+  const handleUpdateBlocks = (nextBlocks: NoteBlock[]) => {
+    if (!selectedNote) return;
+    handleUpdateNote(selectedNote.id, { content: JSON.stringify(nextBlocks) });
+  };
+
+  const handleBlockChange = (blockId: string, patch: Partial<NoteBlock>) => {
+    const next = currentBlocks.map((b) => (b.id === blockId ? { ...b, ...patch } : b));
+    handleUpdateBlocks(next);
+  };
+
+  const handleAddBlockBelow = (afterId?: string, type: BlockType = 'text') => {
+    const newBlock: NoteBlock = {
+      id: `b_${Date.now()}_${Math.random().toString(36).slice(2, 5)}`,
+      type,
+      content: '',
+      checked: false,
+      icon: type === 'callout' ? '💡' : undefined,
+    };
+    if (!afterId) {
+      handleUpdateBlocks([...currentBlocks, newBlock]);
+      return newBlock.id;
+    }
+    const idx = currentBlocks.findIndex((b) => b.id === afterId);
+    if (idx === -1) {
+      handleUpdateBlocks([...currentBlocks, newBlock]);
+    } else {
+      const next = [...currentBlocks];
+      next.splice(idx + 1, 0, newBlock);
+      handleUpdateBlocks(next);
+    }
+    return newBlock.id;
+  };
+
+  const handleRemoveBlock = (blockId: string) => {
+    if (currentBlocks.length <= 1) {
+      handleBlockChange(blockId, { content: '', type: 'text' });
+      return;
+    }
+    const next = currentBlocks.filter((b) => b.id !== blockId);
+    handleUpdateBlocks(next);
+  };
+
+  const handleMoveBlock = (blockId: string, dir: 'up' | 'down') => {
+    const idx = currentBlocks.findIndex((b) => b.id === blockId);
+    if (idx === -1) return;
+    const targetIdx = dir === 'up' ? idx - 1 : idx + 1;
+    if (targetIdx < 0 || targetIdx >= currentBlocks.length) return;
+    const next = [...currentBlocks];
+    const [moved] = next.splice(idx, 1);
+    next.splice(targetIdx, 0, moved);
+    handleUpdateBlocks(next);
+  };
+
+  const handleChangeBlockType = (blockId: string, type: BlockType) => {
+    handleBlockChange(blockId, {
+      type,
+      icon: type === 'callout' ? '💡' : undefined,
+      checked: type === 'todo' ? false : undefined,
+    });
   };
 
   const handleAddChecklistItem = async () => {
@@ -790,18 +936,12 @@ export const ToolsView: React.FC = () => {
 
                   <div className="flex items-center gap-1.5">
                     <button
-                      onClick={() => setNoteViewMode(noteViewMode === 'edit' ? 'preview' : 'edit')}
-                      className="px-2.5 py-1 rounded-lg bg-black/40 hover:bg-black/60 border border-white/20 text-[11px] font-bold text-white flex items-center gap-1 backdrop-blur-md"
+                      onClick={() => copyToClipboard(serializeBlocksToText(currentBlocks), 'Conteúdo formatado')}
+                      className="px-2.5 py-1 rounded-lg bg-black/40 hover:bg-black/60 border border-white/20 text-[11px] font-bold text-slate-200 flex items-center gap-1 backdrop-blur-md transition"
+                      title="Copiar texto formatado"
                     >
-                      <FileText className="w-3.5 h-3.5 text-fuchsia-300" />
-                      <span>{noteViewMode === 'edit' ? 'Visualizar' : 'Editar'}</span>
-                    </button>
-                    <button
-                      onClick={() => copyToClipboard(selectedNote.content, 'Conteúdo')}
-                      className="p-1 rounded-lg bg-black/40 hover:bg-black/60 border border-white/20 text-slate-300 hover:text-white backdrop-blur-md"
-                      title="Copiar texto"
-                    >
-                      <Copy className="w-3.5 h-3.5" />
+                      <Copy className="w-3.5 h-3.5 text-fuchsia-300" />
+                      <span>Copiar</span>
                     </button>
                     <button
                       onClick={() => handleUpdateNote(selectedNote.id, { pinned: !selectedNote.pinned })}
@@ -869,167 +1009,403 @@ export const ToolsView: React.FC = () => {
                   </select>
                 </div>
 
-                {/* Notion Block Inserter Toolbar */}
-                <div className="flex flex-wrap items-center gap-1 p-1.5 rounded-xl bg-slate-950/70 border border-slate-800/80">
-                  <span className="text-[10px] uppercase font-bold text-slate-500 px-1.5">Blocos Notion:</span>
-                  <button
-                    type="button"
-                    onClick={() => insertNotionBlock('# ')}
-                    className="px-2 py-1 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 text-[11px] font-bold flex items-center gap-1"
-                    title="Título Grande (H1)"
-                  >
-                    <Heading1 className="w-3.5 h-3.5 text-fuchsia-400" />
-                    <span>H1</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => insertNotionBlock('## ')}
-                    className="px-2 py-1 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 text-[11px] font-bold flex items-center gap-1"
-                    title="Subtítulo (H2)"
-                  >
-                    <Heading2 className="w-3.5 h-3.5 text-purple-400" />
-                    <span>H2</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => insertNotionBlock('### ')}
-                    className="px-2 py-1 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 text-[11px] font-bold flex items-center gap-1"
-                    title="Seção (H3)"
-                  >
-                    <Heading3 className="w-3.5 h-3.5 text-cyan-400" />
-                    <span>H3</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => insertNotionBlock('[ ] ')}
-                    className="px-2 py-1 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 text-[11px] font-bold flex items-center gap-1"
-                    title="Lista de Tarefas To-Do"
-                  >
-                    <CheckSquare className="w-3.5 h-3.5 text-emerald-400" />
-                    <span>To-Do</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => insertNotionBlock('• ')}
-                    className="px-2 py-1 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 text-[11px] font-bold flex items-center gap-1"
-                    title="Lista com Marcadores"
-                  >
-                    <List className="w-3.5 h-3.5 text-amber-400" />
-                    <span>Lista</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => insertNotionBlock('> 💡 ')}
-                    className="px-2 py-1 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 text-[11px] font-bold flex items-center gap-1"
-                    title="Caixa Callout / Destaque"
-                  >
-                    <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-                    <span>Callout</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => insertNotionBlock('> ')}
-                    className="px-2 py-1 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 text-[11px] font-bold flex items-center gap-1"
-                    title="Citação"
-                  >
-                    <Quote className="w-3.5 h-3.5 text-slate-400" />
-                    <span>Citação</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => insertNotionBlock('```\n', '\n```')}
-                    className="px-2 py-1 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 text-[11px] font-bold flex items-center gap-1"
-                    title="Bloco de Código"
-                  >
-                    <Code className="w-3.5 h-3.5 text-cyan-300" />
-                    <span>Código</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => insertNotionBlock('\n---\n')}
-                    className="px-2 py-1 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 text-[11px] font-bold flex items-center gap-1"
-                    title="Divisor de Linha"
-                  >
-                    <Minus className="w-3.5 h-3.5 text-slate-500" />
-                    <span>Divisor</span>
-                  </button>
-                </div>
+                {/* Visual Block Editor (Estilo Notion WYSIWYG) */}
+                <div className="w-full flex-1 min-h-[360px] max-h-[460px] bg-slate-950/70 border border-slate-800/80 rounded-2xl p-4 overflow-y-auto space-y-2.5 custom-scrollbar">
+                  {currentBlocks.map((block, idx) => (
+                    <div
+                      key={block.id}
+                      className="group relative flex items-start gap-2 p-1.5 rounded-xl hover:bg-slate-900/60 transition border border-transparent hover:border-slate-800/80"
+                    >
+                      {/* Left Block Controls (Hover) */}
+                      <div className="opacity-0 group-hover:opacity-100 flex items-center gap-0.5 shrink-0 pt-1 transition select-none">
+                        <select
+                          value={block.type}
+                          onChange={(e) => handleChangeBlockType(block.id, e.target.value as BlockType)}
+                          className="text-[10px] bg-slate-900 border border-slate-700 text-slate-300 rounded px-1 py-0.5 focus:outline-none cursor-pointer"
+                          title="Alterar tipo de bloco"
+                        >
+                          <option value="text">Texto</option>
+                          <option value="h1">Título 1</option>
+                          <option value="h2">Título 2</option>
+                          <option value="h3">Título 3</option>
+                          <option value="todo">To-Do</option>
+                          <option value="bullet">Marcador</option>
+                          <option value="numbered">Numerada</option>
+                          <option value="callout">Destaque</option>
+                          <option value="quote">Citação</option>
+                          <option value="code">Código</option>
+                          <option value="divider">Divisor</option>
+                        </select>
+                        <button
+                          type="button"
+                          onClick={() => handleMoveBlock(block.id, 'up')}
+                          disabled={idx === 0}
+                          className="p-1 text-slate-500 hover:text-slate-200 disabled:opacity-20 transition"
+                          title="Mover acima"
+                        >
+                          <MoveUp className="w-3 h-3" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleMoveBlock(block.id, 'down')}
+                          disabled={idx === currentBlocks.length - 1}
+                          className="p-1 text-slate-500 hover:text-slate-200 disabled:opacity-20 transition"
+                          title="Mover abaixo"
+                        >
+                          <MoveDown className="w-3 h-3" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveBlock(block.id)}
+                          className="p-1 text-slate-500 hover:text-rose-400 transition"
+                          title="Excluir bloco"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      </div>
 
-                {/* Editor vs. Rendered Preview Mode */}
-                {noteViewMode === 'edit' ? (
-                  <textarea
-                    ref={textareaRef}
-                    rows={12}
-                    value={selectedNote.content}
-                    onChange={(e) => handleUpdateNote(selectedNote.id, { content: e.target.value })}
-                    placeholder="Digite suas ideias, aperte nos botões de bloco acima ou escreva em Markdown (# Título, [ ] To-Do, • Lista)..."
-                    className="w-full flex-1 bg-slate-950/70 border border-slate-800/80 rounded-2xl p-4 text-xs font-mono text-slate-100 leading-relaxed placeholder-slate-500 focus:outline-none focus:border-fuchsia-500/50 resize-none custom-scrollbar"
-                  />
-                ) : (
-                  <div className="w-full flex-1 bg-slate-950/70 border border-slate-800/80 rounded-2xl p-5 overflow-y-auto max-h-[380px] space-y-3 custom-scrollbar text-xs leading-relaxed text-slate-200">
-                    {selectedNote.content.split('\n').map((line, idx) => {
-                      if (line.startsWith('# ')) {
-                        return (
-                          <h1 key={idx} className="text-xl font-black text-white pt-2 border-b border-white/10 pb-1">
-                            {line.slice(2)}
-                          </h1>
-                        );
-                      }
-                      if (line.startsWith('## ')) {
-                        return (
-                          <h2 key={idx} className="text-base font-extrabold text-fuchsia-300 pt-2">
-                            {line.slice(3)}
-                          </h2>
-                        );
-                      }
-                      if (line.startsWith('### ')) {
-                        return (
-                          <h3 key={idx} className="text-sm font-bold text-cyan-300 pt-1">
-                            {line.slice(4)}
-                          </h3>
-                        );
-                      }
-                      if (line.startsWith('> 💡 ') || line.startsWith('> ')) {
-                        return (
-                          <div
-                            key={idx}
-                            className="p-3 rounded-xl bg-amber-500/10 border-l-4 border-amber-400 text-amber-200 text-xs my-2 flex items-start gap-2"
-                          >
-                            <Sparkles className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
-                            <span>{line.replace(/^> (💡 )?/, '')}</span>
+                      {/* Visual Block Content */}
+                      <div className="flex-1 min-w-0">
+                        {block.type === 'h1' && (
+                          <input
+                            type="text"
+                            value={block.content}
+                            onChange={(e) => handleBlockChange(block.id, { content: e.target.value })}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                handleAddBlockBelow(block.id, 'text');
+                              } else if (e.key === 'Backspace' && block.content === '' && currentBlocks.length > 1) {
+                                e.preventDefault();
+                                handleRemoveBlock(block.id);
+                              }
+                            }}
+                            placeholder="Título Grande (H1)..."
+                            className="w-full bg-transparent text-xl font-black text-white focus:outline-none placeholder-slate-600 pb-1 border-b border-white/10"
+                          />
+                        )}
+
+                        {block.type === 'h2' && (
+                          <input
+                            type="text"
+                            value={block.content}
+                            onChange={(e) => handleBlockChange(block.id, { content: e.target.value })}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                handleAddBlockBelow(block.id, 'text');
+                              } else if (e.key === 'Backspace' && block.content === '' && currentBlocks.length > 1) {
+                                e.preventDefault();
+                                handleRemoveBlock(block.id);
+                              }
+                            }}
+                            placeholder="Subtítulo (H2)..."
+                            className="w-full bg-transparent text-base font-extrabold text-fuchsia-300 focus:outline-none placeholder-fuchsia-400/40"
+                          />
+                        )}
+
+                        {block.type === 'h3' && (
+                          <input
+                            type="text"
+                            value={block.content}
+                            onChange={(e) => handleBlockChange(block.id, { content: e.target.value })}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                handleAddBlockBelow(block.id, 'text');
+                              } else if (e.key === 'Backspace' && block.content === '' && currentBlocks.length > 1) {
+                                e.preventDefault();
+                                handleRemoveBlock(block.id);
+                              }
+                            }}
+                            placeholder="Seção (H3)..."
+                            className="w-full bg-transparent text-sm font-bold text-cyan-300 focus:outline-none placeholder-cyan-400/40"
+                          />
+                        )}
+
+                        {block.type === 'todo' && (
+                          <div className="flex items-center gap-2.5 w-full">
+                            <button
+                              type="button"
+                              onClick={() => handleBlockChange(block.id, { checked: !block.checked })}
+                              className="shrink-0 text-slate-400 hover:text-emerald-400 transition"
+                            >
+                              {block.checked ? (
+                                <CheckSquare className="w-4 h-4 text-emerald-400" />
+                              ) : (
+                                <Square className="w-4 h-4 text-slate-500 hover:text-slate-300" />
+                              )}
+                            </button>
+                            <input
+                              type="text"
+                              value={block.content}
+                              onChange={(e) => handleBlockChange(block.id, { content: e.target.value })}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  e.preventDefault();
+                                  handleAddBlockBelow(block.id, 'todo');
+                                } else if (e.key === 'Backspace' && block.content === '' && currentBlocks.length > 1) {
+                                  e.preventDefault();
+                                  handleRemoveBlock(block.id);
+                                }
+                              }}
+                              placeholder="Item de tarefa To-Do..."
+                              className={`w-full bg-transparent text-xs focus:outline-none transition ${
+                                block.checked ? 'line-through text-slate-500' : 'text-slate-200'
+                              }`}
+                            />
                           </div>
-                        );
-                      }
-                      if (line.startsWith('[ ] ') || line.startsWith('[x] ')) {
-                        const isDone = line.startsWith('[x] ');
-                        return (
-                          <div key={idx} className="flex items-center gap-2 text-xs">
-                            {isDone ? (
-                              <CheckSquare className="w-4 h-4 text-emerald-400 shrink-0" />
-                            ) : (
-                              <Square className="w-4 h-4 text-slate-500 shrink-0" />
-                            )}
-                            <span className={isDone ? 'line-through text-slate-500' : 'text-slate-200'}>
-                              {line.slice(4)}
+                        )}
+
+                        {block.type === 'bullet' && (
+                          <div className="flex items-center gap-2.5 w-full">
+                            <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0 ml-1" />
+                            <input
+                              type="text"
+                              value={block.content}
+                              onChange={(e) => handleBlockChange(block.id, { content: e.target.value })}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  e.preventDefault();
+                                  handleAddBlockBelow(block.id, 'bullet');
+                                } else if (e.key === 'Backspace' && block.content === '' && currentBlocks.length > 1) {
+                                  e.preventDefault();
+                                  handleRemoveBlock(block.id);
+                                }
+                              }}
+                              placeholder="Item de lista com marcador..."
+                              className="w-full bg-transparent text-xs text-slate-200 focus:outline-none placeholder-slate-600"
+                            />
+                          </div>
+                        )}
+
+                        {block.type === 'numbered' && (
+                          <div className="flex items-center gap-2.5 w-full">
+                            <span className="text-[11px] font-bold text-pink-400 shrink-0 w-4 text-right font-mono">
+                              {idx + 1}.
                             </span>
+                            <input
+                              type="text"
+                              value={block.content}
+                              onChange={(e) => handleBlockChange(block.id, { content: e.target.value })}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  e.preventDefault();
+                                  handleAddBlockBelow(block.id, 'numbered');
+                                } else if (e.key === 'Backspace' && block.content === '' && currentBlocks.length > 1) {
+                                  e.preventDefault();
+                                  handleRemoveBlock(block.id);
+                                }
+                              }}
+                              placeholder="Item de lista numerada..."
+                              className="w-full bg-transparent text-xs text-slate-200 focus:outline-none placeholder-slate-600"
+                            />
                           </div>
-                        );
-                      }
-                      if (line.startsWith('• ')) {
-                        return (
-                          <li key={idx} className="ml-4 list-disc text-slate-300">
-                            {line.slice(2)}
-                          </li>
-                        );
-                      }
-                      if (line.trim() === '---') {
-                        return <hr key={idx} className="border-white/10 my-3" />;
-                      }
-                      if (!line.trim()) return <div key={idx} className="h-2" />;
-                      return <p key={idx}>{line}</p>;
-                    })}
+                        )}
+
+                        {block.type === 'callout' && (
+                          <div className="flex items-start gap-3 w-full p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const nextEmoji = CALLOUT_EMOJIS[(CALLOUT_EMOJIS.indexOf(block.icon || '💡') + 1) % CALLOUT_EMOJIS.length];
+                                handleBlockChange(block.id, { icon: nextEmoji });
+                              }}
+                              className="text-base shrink-0 select-none hover:scale-125 transition"
+                              title="Clique para alternar o ícone"
+                            >
+                              {block.icon || '💡'}
+                            </button>
+                            <textarea
+                              value={block.content}
+                              onChange={(e) => {
+                                handleBlockChange(block.id, { content: e.target.value });
+                                e.target.style.height = 'auto';
+                                e.target.style.height = `${e.target.scrollHeight}px`;
+                              }}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter' && !e.shiftKey) {
+                                  e.preventDefault();
+                                  handleAddBlockBelow(block.id, 'text');
+                                } else if (e.key === 'Backspace' && block.content === '' && currentBlocks.length > 1) {
+                                  e.preventDefault();
+                                  handleRemoveBlock(block.id);
+                                }
+                              }}
+                              placeholder="Destaque ou insight importante..."
+                              rows={1}
+                              className="w-full bg-transparent text-amber-100 text-xs focus:outline-none resize-none overflow-hidden placeholder-amber-200/40 leading-relaxed"
+                            />
+                          </div>
+                        )}
+
+                        {block.type === 'quote' && (
+                          <div className="flex items-start gap-3 w-full pl-3 border-l-2 border-fuchsia-500/80 my-0.5">
+                            <textarea
+                              value={block.content}
+                              onChange={(e) => {
+                                handleBlockChange(block.id, { content: e.target.value });
+                                e.target.style.height = 'auto';
+                                e.target.style.height = `${e.target.scrollHeight}px`;
+                              }}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter' && !e.shiftKey) {
+                                  e.preventDefault();
+                                  handleAddBlockBelow(block.id, 'text');
+                                } else if (e.key === 'Backspace' && block.content === '' && currentBlocks.length > 1) {
+                                  e.preventDefault();
+                                  handleRemoveBlock(block.id);
+                                }
+                              }}
+                              placeholder="Citação ou reflexão inspiradora..."
+                              rows={1}
+                              className="w-full bg-transparent italic text-slate-300 text-xs focus:outline-none resize-none overflow-hidden placeholder-slate-600 leading-relaxed"
+                            />
+                          </div>
+                        )}
+
+                        {block.type === 'code' && (
+                          <div className="w-full p-2.5 rounded-xl bg-slate-950 border border-slate-800 font-mono text-xs">
+                            <div className="flex items-center justify-between text-[10px] text-slate-500 pb-1.5 border-b border-slate-800/80 mb-1.5">
+                              <span className="flex items-center gap-1.5"><Code className="w-3 h-3 text-cyan-400" /> Bloco de Código</span>
+                              <button
+                                type="button"
+                                onClick={() => copyToClipboard(block.content, 'Código')}
+                                className="hover:text-white transition"
+                              >
+                                Copiar
+                              </button>
+                            </div>
+                            <textarea
+                              value={block.content}
+                              onChange={(e) => {
+                                handleBlockChange(block.id, { content: e.target.value });
+                                e.target.style.height = 'auto';
+                                e.target.style.height = `${e.target.scrollHeight}px`;
+                              }}
+                              placeholder="// Digite ou cole seu código ou script..."
+                              rows={2}
+                              className="w-full bg-transparent text-cyan-200 font-mono text-xs focus:outline-none resize-none placeholder-slate-600"
+                            />
+                          </div>
+                        )}
+
+                        {block.type === 'divider' && (
+                          <div className="w-full py-2">
+                            <hr className="border-t border-slate-800" />
+                          </div>
+                        )}
+
+                        {block.type === 'text' && (
+                          <textarea
+                            value={block.content}
+                            onChange={(e) => {
+                              handleBlockChange(block.id, { content: e.target.value });
+                              e.target.style.height = 'auto';
+                              e.target.style.height = `${e.target.scrollHeight}px`;
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' && !e.shiftKey) {
+                                e.preventDefault();
+                                handleAddBlockBelow(block.id, 'text');
+                              } else if (e.key === 'Backspace' && block.content === '' && currentBlocks.length > 1) {
+                                e.preventDefault();
+                                handleRemoveBlock(block.id);
+                              }
+                            }}
+                            placeholder="Digite algo ou aperte Enter para nova linha..."
+                            rows={1}
+                            className="w-full bg-transparent text-slate-100 text-xs leading-relaxed focus:outline-none resize-none overflow-hidden placeholder-slate-600/70"
+                          />
+                        )}
+                      </div>
+                    </div>
+                  ))}
+
+                  {/* Quick Add Block Bar */}
+                  <div className="flex flex-wrap items-center gap-1.5 pt-3 border-t border-slate-800/80">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mr-1 flex items-center gap-1">
+                      <Plus className="w-3 h-3" /> Adicionar:
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleAddBlockBelow(undefined, 'text')}
+                      className="px-2 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 text-slate-300 hover:text-white text-[11px] font-semibold flex items-center gap-1 transition"
+                    >
+                      <span>¶</span> <span>Texto</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleAddBlockBelow(undefined, 'h1')}
+                      className="px-2 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 text-slate-300 hover:text-white text-[11px] font-semibold flex items-center gap-1 transition"
+                    >
+                      <Heading1 className="w-3 h-3 text-fuchsia-400" /> <span>H1</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleAddBlockBelow(undefined, 'h2')}
+                      className="px-2 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 text-slate-300 hover:text-white text-[11px] font-semibold flex items-center gap-1 transition"
+                    >
+                      <Heading2 className="w-3 h-3 text-purple-400" /> <span>H2</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleAddBlockBelow(undefined, 'h3')}
+                      className="px-2 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 text-slate-300 hover:text-white text-[11px] font-semibold flex items-center gap-1 transition"
+                    >
+                      <Heading3 className="w-3 h-3 text-cyan-400" /> <span>H3</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleAddBlockBelow(undefined, 'todo')}
+                      className="px-2 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 text-slate-300 hover:text-white text-[11px] font-semibold flex items-center gap-1 transition"
+                    >
+                      <CheckSquare className="w-3 h-3 text-emerald-400" /> <span>To-Do</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleAddBlockBelow(undefined, 'bullet')}
+                      className="px-2 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 text-slate-300 hover:text-white text-[11px] font-semibold flex items-center gap-1 transition"
+                    >
+                      <List className="w-3 h-3 text-amber-400" /> <span>Marcador</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleAddBlockBelow(undefined, 'numbered')}
+                      className="px-2 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 text-slate-300 hover:text-white text-[11px] font-semibold flex items-center gap-1 transition"
+                    >
+                      <ListOrdered className="w-3 h-3 text-pink-400" /> <span>Numerada</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleAddBlockBelow(undefined, 'callout')}
+                      className="px-2 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 text-slate-300 hover:text-white text-[11px] font-semibold flex items-center gap-1 transition"
+                    >
+                      <Sparkles className="w-3 h-3 text-amber-300" /> <span>Destaque</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleAddBlockBelow(undefined, 'quote')}
+                      className="px-2 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 text-slate-300 hover:text-white text-[11px] font-semibold flex items-center gap-1 transition"
+                    >
+                      <Quote className="w-3 h-3 text-slate-400" /> <span>Citação</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleAddBlockBelow(undefined, 'code')}
+                      className="px-2 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 text-slate-300 hover:text-white text-[11px] font-semibold flex items-center gap-1 transition"
+                    >
+                      <Code className="w-3 h-3 text-cyan-300" /> <span>Código</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleAddBlockBelow(undefined, 'divider')}
+                      className="px-2 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 text-slate-300 hover:text-white text-[11px] font-semibold flex items-center gap-1 transition"
+                    >
+                      <Minus className="w-3 h-3 text-slate-500" /> <span>Divisor</span>
+                    </button>
                   </div>
-                )}
+                </div>
 
                 {/* Interactive Notion Checklist Footer */}
                 <div className="p-3.5 rounded-2xl bg-slate-950/80 border border-slate-800/90 space-y-2.5">
