@@ -5,6 +5,7 @@ import {
   Flame,
   Hourglass,
   Lock,
+  Search,
   Swords,
   Trophy,
   XCircle,
@@ -44,24 +45,80 @@ const MISSION_STATUS: Record<GameMission['status'], { label: string; color: stri
   awaiting_data: { label: 'Aguardando extrato', color: '#fbbf24', Icon: Hourglass },
 };
 
+
+const CATEGORY_LABELS: Record<string, string> = {
+  imports: 'Extratos',
+  categorization: 'Categorização',
+  positive_months: 'Meses no Azul',
+  reserve: 'Reserva',
+  invoices: 'Cartões',
+  budgets: 'Orçamentos',
+  missions: 'Missões',
+  intelligence: 'Inteligência',
+  habits: 'Hábitos',
+  goals: 'Metas',
+};
+
+const CATEGORIES_LIST = [
+  { id: 'all', label: 'Todas' },
+  { id: 'imports', label: 'Extratos' },
+  { id: 'categorization', label: 'Categorização' },
+  { id: 'positive_months', label: 'No Azul' },
+  { id: 'reserve', label: 'Reserva' },
+  { id: 'invoices', label: 'Cartões' },
+  { id: 'budgets', label: 'Orçamentos' },
+  { id: 'missions', label: 'Missões' },
+  { id: 'intelligence', label: 'Inteligência' },
+  { id: 'habits', label: 'Hábitos' },
+  { id: 'goals', label: 'Metas' },
+];
+
 type AchievementFilter = 'all' | 'unlocked' | 'locked';
 
 export const JourneyView: React.FC = () => {
   const { game, refreshGame } = useFinancial();
   const [filter, setFilter] = useState<AchievementFilter>('all');
+  const [categoryFilter, setCategoryFilter] = useState<string>('all');
+  const [searchQuery, setSearchQuery] = useState<string>('');
 
   useEffect(() => {
     refreshGame();
   }, [refreshGame]);
 
+  const categoryStats = useMemo(() => {
+    if (!game) return {};
+    const stats: Record<string, { total: number; unlocked: number }> = {};
+    for (const a of game.achievements) {
+      const cat = a.category || 'geral';
+      if (!stats[cat]) stats[cat] = { total: 0, unlocked: 0 };
+      stats[cat].total++;
+      if (a.unlocked) stats[cat].unlocked++;
+    }
+    return stats;
+  }, [game]);
+
   const achievements = useMemo(() => {
     if (!game) return [];
-    const list = filter === 'unlocked' ? game.achievements.filter(a => a.unlocked)
-      : filter === 'locked' ? game.achievements.filter(a => !a.unlocked)
-      : game.achievements;
+    let list = game.achievements;
+
+    if (filter === 'unlocked') {
+      list = list.filter(a => a.unlocked);
+    } else if (filter === 'locked') {
+      list = list.filter(a => !a.unlocked);
+    }
+
+    if (categoryFilter !== 'all') {
+      list = list.filter(a => a.category === categoryFilter);
+    }
+
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim();
+      list = list.filter(a => a.name.toLowerCase().includes(q) || a.description.toLowerCase().includes(q));
+    }
+
     // Desbloqueadas primeiro; bloqueadas pelas mais próximas de completar
     return [...list].sort((a, b) => Number(b.unlocked) - Number(a.unlocked) || b.progress - a.progress);
-  }, [game, filter]);
+  }, [game, filter, categoryFilter, searchQuery]);
 
   if (!game) {
     return (
@@ -154,27 +211,83 @@ export const JourneyView: React.FC = () => {
 
         {/* Achievements */}
         <div className="p-5 rounded-2xl bg-slate-900/60 border border-slate-850">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
-            <h2 className="text-sm font-bold text-white flex items-center gap-2">
-              <Trophy className="w-4 h-4 text-amber-400" />
-              Conquistas
-              <span className="text-xs font-semibold text-slate-400">{unlockedCount}/{game.achievements.length}</span>
-            </h2>
-            <div className="flex bg-slate-950/80 p-1 rounded-lg border border-slate-850">
-              {([['all', 'Todas'], ['unlocked', 'Desbloqueadas'], ['locked', 'Bloqueadas']] as const).map(([key, label]) => (
-                <button
-                  key={key}
-                  onClick={() => setFilter(key)}
-                  className={`px-3 py-1 text-[11px] font-semibold rounded-md transition-all ${filter === key ? 'bg-slate-800 text-white' : 'text-slate-400 hover:text-white'}`}
-                >
-                  {label}
-                </button>
-              ))}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
+            <div>
+              <h2 className="text-sm font-bold text-white flex items-center gap-2">
+                <Trophy className="w-4 h-4 text-amber-400" />
+                Conquistas
+                <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-300 border border-amber-500/20">
+                  {unlockedCount} / {game.achievements.length}
+                </span>
+              </h2>
+              <p className="text-[11px] text-slate-400 mt-0.5">
+                Progresso geral: {Math.round((unlockedCount / Math.max(1, game.achievements.length)) * 100)}% desbloqueadas
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2 flex-wrap">
+              <div className="relative">
+                <Search className="w-3.5 h-3.5 text-slate-500 absolute left-2.5 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  placeholder="Buscar conquista..."
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  className="pl-8 pr-3 py-1 text-xs rounded-lg bg-slate-950/80 border border-slate-800 text-slate-200 placeholder-slate-500 focus:outline-none focus:border-amber-500/50 w-40 sm:w-48"
+                />
+              </div>
+
+              <div className="flex bg-slate-950/80 p-1 rounded-lg border border-slate-850">
+                {([['all', 'Todas'], ['unlocked', 'Desbloqueadas'], ['locked', 'Bloqueadas']] as const).map(([key, label]) => (
+                  <button
+                    key={key}
+                    onClick={() => setFilter(key)}
+                    className={`px-3 py-1 text-[11px] font-semibold rounded-md transition-all ${filter === key ? 'bg-slate-800 text-white shadow' : 'text-slate-400 hover:text-white'}`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {achievements.map(a => <AchievementCard key={a.id} achievement={a} />)}
+
+          {/* Category filter pills */}
+          <div className="flex gap-1.5 overflow-x-auto pb-2 mb-4 scrollbar-thin">
+            {CATEGORIES_LIST.map(cat => {
+              const active = categoryFilter === cat.id;
+              const count = cat.id === 'all'
+                ? { total: game.achievements.length, unlocked: unlockedCount }
+                : (categoryStats[cat.id] || { total: 0, unlocked: 0 });
+              if (cat.id !== 'all' && count.total === 0) return null;
+
+              return (
+                <button
+                  key={cat.id}
+                  onClick={() => setCategoryFilter(cat.id)}
+                  className={`px-2.5 py-1 text-[11px] font-semibold rounded-lg whitespace-nowrap transition-all flex items-center gap-1.5 shrink-0 ${
+                    active
+                      ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-sm'
+                      : 'bg-slate-950/50 text-slate-400 hover:text-slate-200 border border-slate-850'
+                  }`}
+                >
+                  <span>{cat.label}</span>
+                  <span className={`text-[9px] px-1 py-0.2 rounded ${active ? 'bg-amber-500/30 text-amber-200' : 'bg-slate-800 text-slate-500'}`}>
+                    {count.unlocked}/{count.total}
+                  </span>
+                </button>
+              );
+            })}
           </div>
+
+          {achievements.length === 0 ? (
+            <div className="text-center py-8 text-slate-500 text-xs">
+              Nenhuma conquista encontrada com os filtros selecionados.
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {achievements.map(a => <AchievementCard key={a.id} achievement={a} />)}
+            </div>
+          )}
         </div>
 
         {/* XP sources + history */}

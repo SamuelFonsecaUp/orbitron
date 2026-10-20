@@ -455,6 +455,16 @@ app.whenReady().then(() => {
   handleIpc('demo:seed', () => service.seedDemoData());
   handleIpc('demo:clear', () => service.clearDemoData());
 
+  // Habits Module
+  handleIpc('habits:get', (includeArchived) => service.getHabits(includeArchived));
+  handleIpc('habits:create', (data) => service.createHabit(data));
+  handleIpc('habits:update', (id, data) => service.updateHabit(id, data));
+  handleIpc('habits:delete', (id) => service.deleteHabit(id));
+  handleIpc('habits:toggleDay', (habitId, date, value, notes) => service.toggleHabitDay(habitId, date, value, notes));
+  handleIpc('habits:getHeatmap', (habitId, year) => service.getHabitHeatmap(habitId, year));
+  handleIpc('habits:getOverview', () => service.getHabitsOverview());
+
+
   createWindow();
   setupAutoUpdater();
 

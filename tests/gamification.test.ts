@@ -87,6 +87,35 @@ describe('Gamification (Pigo RPG Financeiro)', () => {
     expect(service.getGameUnlocks().unlocks).toHaveLength(0);
   });
 
+
+  it('has calibrated XP and a comprehensive catalog of achievements', () => {
+    const o = service.getGameOverview();
+    expect(o.achievements.length).toBeGreaterThanOrEqual(70);
+    
+    // Check rarity XP values
+    const comum = o.achievements.filter((a: any) => a.rarity === 'comum');
+    const raro = o.achievements.filter((a: any) => a.rarity === 'raro');
+    const epico = o.achievements.filter((a: any) => a.rarity === 'epico');
+    const lendario = o.achievements.filter((a: any) => a.rarity === 'lendario');
+
+    expect(comum.length).toBeGreaterThan(0);
+    expect(raro.length).toBeGreaterThan(0);
+    expect(epico.length).toBeGreaterThan(0);
+    expect(lendario.length).toBeGreaterThan(0);
+
+    expect(comum[0].xp).toBe(15);
+    expect(raro[0].xp).toBe(35);
+    expect(epico[0].xp).toBe(75);
+    expect(lendario[0].xp).toBe(150);
+
+    // Verify categories are present
+    const categories = new Set(o.achievements.map((a: any) => a.category));
+    expect(categories.has('imports')).toBe(true);
+    expect(categories.has('categorization')).toBe(true);
+    expect(categories.has('habits')).toBe(true);
+    expect(categories.has('goals')).toBe(true);
+    expect(categories.has('positive_months')).toBe(true);
+  });
   it('translates finances into the kingdom world state', () => {
     const acc = service.createAccount({ name: 'Nubank', type: 'checking', initialBalance: 100000, color: '#8b5cf6' });
     const savings = service.createAccount({ name: 'Caixinha', type: 'savings', initialBalance: 0 });

@@ -27,8 +27,7 @@ export type AppView =
   | 'accounts'
   | 'reserve'
   | 'journey'
-  | 'kingdom'
-  | 'room'
+  | 'habits'
   | 'cards'
   | 'budgets'
   | 'calendar'
@@ -118,6 +117,26 @@ const FinancialContext = createContext<FinancialContextType | undefined>(undefin
 
 export const FinancialProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [currentView, setCurrentView] = useState<AppView>('dashboard');
+  const [activeModule, setActiveModuleState] = useState<'finance' | 'habits'>('finance');
+
+  const setActiveModule = useCallback((mod: 'finance' | 'habits') => {
+    setActiveModuleState(mod);
+    if (mod === 'habits') {
+      setCurrentView('habits');
+    } else if (currentView === 'habits') {
+      setCurrentView('dashboard');
+    }
+  }, [currentView]);
+
+  const handleSetCurrentView = useCallback((view: AppView) => {
+    setCurrentView(view);
+    if (view === 'habits') {
+      setActiveModuleState('habits');
+    } else {
+      setActiveModuleState('finance');
+    }
+  }, []);
+
   const [isLocked, setIsLocked] = useState<boolean>(false);
   const [settings, setSettings] = useState<Settings | null>(null);
   const [accounts, setAccounts] = useState<Account[]>([]);

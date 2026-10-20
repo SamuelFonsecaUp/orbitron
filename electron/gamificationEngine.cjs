@@ -18,7 +18,7 @@ const XP = {
   invoiceOnTime: 80,
 };
 
-const RARITY_XP = { comum: 100, raro: 250, epico: 500, lendario: 1000 };
+const RARITY_XP = { comum: 15, raro: 35, epico: 75, lendario: 150 };
 
 const LEVEL_TITLES = [
   { from: 1, title: 'Porquinho Curioso' },
@@ -476,31 +476,108 @@ class GamificationEngine {
   // ==========================================
   // Conquistas
   // ==========================================
-  getAchievementDefinitions() {
+    getAchievementDefinitions() {
     return [
-      { id: 'primeiro_extrato', name: 'Primeiro Extrato', description: 'Importe seu primeiro extrato OFX/CSV.', rarity: 'comum', icon: 'FileUp', metric: 'statements', target: 1 },
-      { id: 'extratos_10', name: 'Arquivista', description: 'Importe 10 extratos.', rarity: 'raro', icon: 'FolderArchive', metric: 'statements', target: 10 },
-      { id: 'extratos_50', name: 'Guardião do Histórico', description: 'Importe 50 extratos.', rarity: 'epico', icon: 'Library', metric: 'statements', target: 50 },
-      { id: 'categorizador_100', name: 'Organizador', description: 'Tenha 100 lançamentos categorizados.', rarity: 'comum', icon: 'Tags', metric: 'categorized', target: 100 },
-      { id: 'categorizador_500', name: 'Taxonomista', description: 'Tenha 500 lançamentos categorizados.', rarity: 'raro', icon: 'Tags', metric: 'categorized', target: 500 },
-      { id: 'categorizador_2000', name: 'Professor do Pigo', description: '2.000 lançamentos categorizados treinando a inteligência.', rarity: 'epico', icon: 'GraduationCap', metric: 'categorized', target: 2000 },
-      { id: 'caixa_zero', name: 'Caixa de Entrada Zero', description: 'Nenhum lançamento sem categoria (com pelo menos 50 lançamentos).', rarity: 'raro', icon: 'Inbox', metric: 'inboxZero', target: 1 },
-      { id: 'mes_azul', name: 'No Azul', description: 'Feche um mês com resultado positivo.', rarity: 'comum', icon: 'TrendingUp', metric: 'positiveMonths', target: 1 },
-      { id: 'azul_3', name: 'Trimestre Azul', description: '3 meses seguidos no azul.', rarity: 'raro', icon: 'Flame', metric: 'positiveStreak', target: 3 },
-      { id: 'azul_6', name: 'Semestre Impecável', description: '6 meses seguidos no azul.', rarity: 'epico', icon: 'Flame', metric: 'positiveStreak', target: 6 },
-      { id: 'azul_12', name: 'Ano de Ouro', description: '12 meses seguidos no azul.', rarity: 'lendario', icon: 'Crown', metric: 'positiveStreak', target: 12 },
-      { id: 'primeira_reserva', name: 'Primeiro Tijolo', description: 'Faça seu primeiro aporte na reserva.', rarity: 'comum', icon: 'PiggyBank', metric: 'reserveAportes', target: 1 },
-      { id: 'aportes_12', name: 'Aportador Constante', description: 'Faça 12 aportes na reserva.', rarity: 'raro', icon: 'PiggyBank', metric: 'reserveAportes', target: 12 },
-      { id: 'reserva_1', name: 'Um Mês de Paz', description: 'Reserva cobrindo 1 mês de custo de vida.', rarity: 'raro', icon: 'Shield', metric: 'reserveCoverage', target: 1 },
-      { id: 'reserva_3', name: 'Colchão Seguro', description: 'Reserva cobrindo 3 meses de custo de vida.', rarity: 'epico', icon: 'ShieldCheck', metric: 'reserveCoverage', target: 3 },
-      { id: 'reserva_completa', name: 'Fortaleza', description: 'Atinja a meta completa da reserva.', rarity: 'lendario', icon: 'Castle', metric: 'reserveComplete', target: 1 },
-      { id: 'semanas_4', name: 'Ritmo Semanal', description: '4 semanas seguidas importando extratos.', rarity: 'raro', icon: 'CalendarCheck', metric: 'importStreak', target: 4 },
-      { id: 'semanas_12', name: 'Relógio Suíço', description: '12 semanas seguidas importando extratos.', rarity: 'epico', icon: 'CalendarCheck', metric: 'importStreak', target: 12 },
-      { id: 'fatura_3', name: 'Pagador Pontual', description: 'Pague 3 faturas de cartão até o vencimento.', rarity: 'comum', icon: 'CreditCard', metric: 'invoicesOnTime', target: 3 },
-      { id: 'fatura_12', name: 'Crédito de Ouro', description: 'Pague 12 faturas até o vencimento.', rarity: 'epico', icon: 'CreditCard', metric: 'invoicesOnTime', target: 12 },
-      { id: 'orcamento_5', name: 'Dentro do Teto', description: 'Cumpra 5 tetos de orçamento mensais.', rarity: 'raro', icon: 'Target', metric: 'budgetsKept', target: 5 },
-      { id: 'missoes_10', name: 'Caçador de Missões', description: 'Conclua 10 missões semanais.', rarity: 'raro', icon: 'Swords', metric: 'missionsCompleted', target: 10 },
-      { id: 'detetive', name: 'Detetive de Assinaturas', description: 'O Pigo identificou 5 despesas recorrentes nos seus extratos.', rarity: 'comum', icon: 'Search', metric: 'recurringDetected', target: 5 },
+      // --- 1. Extratos e Importações ---
+      { id: 'primeiro_extrato', name: 'Primeiro Extrato', description: 'Importe seu primeiro extrato OFX/CSV.', rarity: 'comum', icon: 'FileUp', category: 'imports', metric: 'statements', target: 1 },
+      { id: 'extratos_3', name: 'Iniciando a Jornada', description: 'Importe 3 extratos bancários.', rarity: 'comum', icon: 'FileUp', category: 'imports', metric: 'statements', target: 3 },
+      { id: 'extratos_5', name: 'Colecionador de Extratos', description: 'Importe 5 extratos bancários.', rarity: 'comum', icon: 'FolderArchive', category: 'imports', metric: 'statements', target: 5 },
+      { id: 'extratos_10', name: 'Arquivista', description: 'Importe 10 extratos.', rarity: 'raro', icon: 'FolderArchive', category: 'imports', metric: 'statements', target: 10 },
+      { id: 'extratos_25', name: 'Historiador Financeiro', description: 'Importe 25 extratos.', rarity: 'raro', icon: 'Library', category: 'imports', metric: 'statements', target: 25 },
+      { id: 'extratos_50', name: 'Guardião do Histórico', description: 'Importe 50 extratos.', rarity: 'epico', icon: 'Library', category: 'imports', metric: 'statements', target: 50 },
+      { id: 'extratos_100', name: 'Biblioteca Central', description: 'Importe 100 extratos.', rarity: 'lendario', icon: 'Library', category: 'imports', metric: 'statements', target: 100 },
+      { id: 'semanas_2', name: 'Ritmo Semanal', description: '2 semanas seguidas importando extratos.', rarity: 'comum', icon: 'CalendarCheck', category: 'imports', metric: 'importStreak', target: 2 },
+      { id: 'semanas_4', name: 'Disciplina de Ferro', description: '4 semanas seguidas importando extratos.', rarity: 'raro', icon: 'CalendarCheck', category: 'imports', metric: 'importStreak', target: 4 },
+      { id: 'semanas_8', name: 'Hábito Inquebrável', description: '8 semanas seguidas importando extratos.', rarity: 'raro', icon: 'CalendarCheck', category: 'imports', metric: 'importStreak', target: 8 },
+      { id: 'semanas_12', name: 'Relógio Suíço', description: '12 semanas seguidas importando extratos.', rarity: 'epico', icon: 'CalendarCheck', category: 'imports', metric: 'importStreak', target: 12 },
+      { id: 'semanas_24', name: 'Pontualidade Suprema', description: '24 semanas seguidas com importações ativas.', rarity: 'lendario', icon: 'Crown', category: 'imports', metric: 'importStreak', target: 24 },
+
+      // --- 2. Categorização e Caixa Zero ---
+      { id: 'categorizador_10', name: 'Primeiros Lançamentos', description: 'Tenha 10 lançamentos categorizados.', rarity: 'comum', icon: 'Tags', category: 'categorization', metric: 'categorized', target: 10 },
+      { id: 'categorizador_50', name: 'Aprendiz da Classificação', description: 'Tenha 50 lançamentos categorizados.', rarity: 'comum', icon: 'Tags', category: 'categorization', metric: 'categorized', target: 50 },
+      { id: 'categorizador_100', name: 'Organizador', description: 'Tenha 100 lançamentos categorizados.', rarity: 'comum', icon: 'Tags', category: 'categorization', metric: 'categorized', target: 100 },
+      { id: 'categorizador_250', name: 'Mestre da Ordem', description: 'Tenha 250 lançamentos categorizados.', rarity: 'raro', icon: 'Tags', category: 'categorization', metric: 'categorized', target: 250 },
+      { id: 'categorizador_500', name: 'Taxonomista', description: 'Tenha 500 lançamentos categorizados.', rarity: 'raro', icon: 'Tags', category: 'categorization', metric: 'categorized', target: 500 },
+      { id: 'categorizador_1000', name: 'Big Data Pessoal', description: '1.000 lançamentos categorizados.', rarity: 'epico', icon: 'GraduationCap', category: 'categorization', metric: 'categorized', target: 1000 },
+      { id: 'categorizador_2000', name: 'Professor do Pigo', description: '2.000 lançamentos categorizados treinando o app.', rarity: 'epico', icon: 'GraduationCap', category: 'categorization', metric: 'categorized', target: 2000 },
+      { id: 'categorizador_5000', name: 'Oráculo das Contas', description: '5.000 lançamentos categorizados com maestria.', rarity: 'lendario', icon: 'Crown', category: 'categorization', metric: 'categorized', target: 5000 },
+      { id: 'caixa_zero_20', name: 'Mesa Organizada', description: 'Nenhum lançamento sem categoria (com pelo menos 20 transações).', rarity: 'comum', icon: 'Inbox', category: 'categorization', metric: 'inboxZero20', target: 1 },
+      { id: 'caixa_zero', name: 'Caixa de Entrada Zero', description: 'Nenhum lançamento sem categoria (com pelo menos 50 lançamentos).', rarity: 'raro', icon: 'Inbox', category: 'categorization', metric: 'inboxZero', target: 1 },
+      { id: 'caixa_zero_100', name: 'Perfeccionismo Total', description: 'Nenhum lançamento sem categoria (com pelo menos 100 transações).', rarity: 'epico', icon: 'Inbox', category: 'categorization', metric: 'inboxZero100', target: 1 },
+      { id: 'caixa_zero_250', name: 'Mestre da Limpeza', description: 'Nenhum lançamento sem categoria (com pelo menos 250 transações).', rarity: 'lendario', icon: 'Crown', category: 'categorization', metric: 'inboxZero250', target: 1 },
+
+      // --- 3. Meses no Azul & Saúde Financeira ---
+      { id: 'mes_azul', name: 'No Azul', description: 'Feche um mês com resultado positivo.', rarity: 'comum', icon: 'TrendingUp', category: 'positive_months', metric: 'positiveMonths', target: 1 },
+      { id: 'azul_2', name: 'Caminho Seguro', description: '2 meses seguidos no azul.', rarity: 'comum', icon: 'TrendingUp', category: 'positive_months', metric: 'positiveStreak', target: 2 },
+      { id: 'azul_3', name: 'Trimestre Azul', description: '3 meses seguidos no azul.', rarity: 'raro', icon: 'Flame', category: 'positive_months', metric: 'positiveStreak', target: 3 },
+      { id: 'azul_6', name: 'Semestre Impecável', description: '6 meses seguidos no azul.', rarity: 'epico', icon: 'Flame', category: 'positive_months', metric: 'positiveStreak', target: 6 },
+      { id: 'azul_9', name: 'Nove Meses Invictos', description: '9 meses seguidos no azul.', rarity: 'epico', icon: 'Flame', category: 'positive_months', metric: 'positiveStreak', target: 9 },
+      { id: 'azul_12', name: 'Ano de Ouro', description: '12 meses seguidos no azul.', rarity: 'lendario', icon: 'Crown', category: 'positive_months', metric: 'positiveStreak', target: 12 },
+      { id: 'azul_18', name: 'Lenda da Consistência', description: '18 meses seguidos no azul.', rarity: 'lendario', icon: 'Crown', category: 'positive_months', metric: 'positiveStreak', target: 18 },
+      { id: 'total_meses_azul_3', name: 'Três Vitórias', description: 'Acumule 3 meses no azul no histórico.', rarity: 'comum', icon: 'TrendingUp', category: 'positive_months', metric: 'positiveMonths', target: 3 },
+      { id: 'total_meses_azul_6', name: 'Meio Ano Vitorioso', description: 'Acumule 6 meses no azul no histórico.', rarity: 'raro', icon: 'TrendingUp', category: 'positive_months', metric: 'positiveMonths', target: 6 },
+      { id: 'total_meses_azul_12', name: 'Doze Meses Positivos', description: 'Acumule 12 meses no azul no histórico.', rarity: 'epico', icon: 'Trophy', category: 'positive_months', metric: 'positiveMonths', target: 12 },
+      { id: 'total_meses_azul_24', name: 'Dois Anos de Sucesso', description: 'Acumule 24 meses no azul no histórico.', rarity: 'lendario', icon: 'Trophy', category: 'positive_months', metric: 'positiveMonths', target: 24 },
+
+      // --- 4. Reserva de Emergência ---
+      { id: 'primeira_reserva', name: 'Primeiro Tijolo', description: 'Faça seu primeiro aporte na reserva.', rarity: 'comum', icon: 'PiggyBank', category: 'reserve', metric: 'reserveAportes', target: 1 },
+      { id: 'aportes_3', name: 'Hábito de Guardar', description: 'Faça 3 aportes na reserva de emergência.', rarity: 'comum', icon: 'PiggyBank', category: 'reserve', metric: 'reserveAportes', target: 3 },
+      { id: 'aportes_6', name: 'Poupança Ativa', description: 'Faça 6 aportes na reserva de emergência.', rarity: 'raro', icon: 'PiggyBank', category: 'reserve', metric: 'reserveAportes', target: 6 },
+      { id: 'aportes_12', name: 'Aportador Constante', description: 'Faça 12 aportes na reserva de emergência.', rarity: 'raro', icon: 'PiggyBank', category: 'reserve', metric: 'reserveAportes', target: 12 },
+      { id: 'aportes_24', name: 'Muralha de Aportes', description: 'Faça 24 aportes na reserva de emergência.', rarity: 'epico', icon: 'PiggyBank', category: 'reserve', metric: 'reserveAportes', target: 24 },
+      { id: 'reserva_meio_mes', name: 'Primeiro Fôlego', description: 'Reserva cobrindo metade (0.5) de um mês de custo de vida.', rarity: 'comum', icon: 'Shield', category: 'reserve', metric: 'reserveCoverage', target: 0.5 },
+      { id: 'reserva_1', name: 'Um Mês de Paz', description: 'Reserva cobrindo 1 mês de custo de vida.', rarity: 'raro', icon: 'Shield', category: 'reserve', metric: 'reserveCoverage', target: 1 },
+      { id: 'reserva_2', name: 'Duplo Escudo', description: 'Reserva cobrindo 2 meses de custo de vida.', rarity: 'raro', icon: 'ShieldCheck', category: 'reserve', metric: 'reserveCoverage', target: 2 },
+      { id: 'reserva_3', name: 'Colchão Seguro', description: 'Reserva cobrindo 3 meses de custo de vida.', rarity: 'epico', icon: 'ShieldCheck', category: 'reserve', metric: 'reserveCoverage', target: 3 },
+      { id: 'reserva_6', name: 'Escudo Blindado', description: 'Reserva cobrindo 6 meses de custo de vida.', rarity: 'epico', icon: 'Castle', category: 'reserve', metric: 'reserveCoverage', target: 6 },
+      { id: 'reserva_completa', name: 'Fortaleza', description: 'Atinja a meta completa estabelecida para sua reserva.', rarity: 'lendario', icon: 'Castle', category: 'reserve', metric: 'reserveComplete', target: 1 },
+
+      // --- 5. Faturas de Cartão de Crédito ---
+      { id: 'fatura_1', name: 'Primeira Fatura Paga', description: 'Pague sua primeira fatura de cartão em dia.', rarity: 'comum', icon: 'CreditCard', category: 'invoices', metric: 'invoicesOnTime', target: 1 },
+      { id: 'fatura_3', name: 'Pagador Pontual', description: 'Pague 3 faturas de cartão até o vencimento.', rarity: 'comum', icon: 'CreditCard', category: 'invoices', metric: 'invoicesOnTime', target: 3 },
+      { id: 'fatura_6', name: 'Cartão Sob Controle', description: 'Pague 6 faturas de cartão até o vencimento.', rarity: 'raro', icon: 'CreditCard', category: 'invoices', metric: 'invoicesOnTime', target: 6 },
+      { id: 'fatura_12', name: 'Crédito de Ouro', description: 'Pague 12 faturas até o vencimento.', rarity: 'epico', icon: 'CreditCard', category: 'invoices', metric: 'invoicesOnTime', target: 12 },
+      { id: 'fatura_18', name: 'Mestre dos Vencimentos', description: 'Pague 18 faturas até o vencimento.', rarity: 'epico', icon: 'CreditCard', category: 'invoices', metric: 'invoicesOnTime', target: 18 },
+      { id: 'fatura_24', name: 'Score Perfeito', description: 'Pague 24 faturas até o vencimento.', rarity: 'lendario', icon: 'Crown', category: 'invoices', metric: 'invoicesOnTime', target: 24 },
+
+      // --- 6. Tetos de Orçamento ---
+      { id: 'orcamento_1', name: 'Primeiro Teto Cumprido', description: 'Cumpra seu primeiro teto de orçamento mensal.', rarity: 'comum', icon: 'Target', category: 'budgets', metric: 'budgetsKept', target: 1 },
+      { id: 'orcamento_3', name: 'Disciplina Orçamentária', description: 'Cumpra 3 tetos de orçamento mensais.', rarity: 'comum', icon: 'Target', category: 'budgets', metric: 'budgetsKept', target: 3 },
+      { id: 'orcamento_5', name: 'Dentro do Teto', description: 'Cumpra 5 tetos de orçamento mensais.', rarity: 'raro', icon: 'Target', category: 'budgets', metric: 'budgetsKept', target: 5 },
+      { id: 'orcamento_10', name: 'Mestre do Orçamento', description: 'Cumpra 10 tetos de orçamento mensais.', rarity: 'epico', icon: 'Target', category: 'budgets', metric: 'budgetsKept', target: 10 },
+      { id: 'orcamento_15', name: 'Guardião dos Gastos', description: 'Cumpra 15 tetos de orçamento mensais.', rarity: 'epico', icon: 'Target', category: 'budgets', metric: 'budgetsKept', target: 15 },
+      { id: 'orcamento_25', name: 'Controle Absoluto', description: 'Cumpra 25 tetos de orçamento mensais.', rarity: 'lendario', icon: 'Crown', category: 'budgets', metric: 'budgetsKept', target: 25 },
+
+      // --- 7. Missões Semanais ---
+      { id: 'missoes_1', name: 'Primeira Missão', description: 'Conclua sua primeira missão semanal.', rarity: 'comum', icon: 'Swords', category: 'missions', metric: 'missionsCompleted', target: 1 },
+      { id: 'missoes_3', name: 'Desbravador de Desafios', description: 'Conclua 3 missões semanais.', rarity: 'comum', icon: 'Swords', category: 'missions', metric: 'missionsCompleted', target: 3 },
+      { id: 'missoes_5', name: 'Foco Semanal', description: 'Conclua 5 missões semanais.', rarity: 'comum', icon: 'Swords', category: 'missions', metric: 'missionsCompleted', target: 5 },
+      { id: 'missoes_10', name: 'Caçador de Missões', description: 'Conclua 10 missões semanais.', rarity: 'raro', icon: 'Swords', category: 'missions', metric: 'missionsCompleted', target: 10 },
+      { id: 'missoes_25', name: 'Veterano de Missões', description: 'Conclua 25 missões semanais.', rarity: 'epico', icon: 'Trophy', category: 'missions', metric: 'missionsCompleted', target: 25 },
+      { id: 'missoes_50', name: 'Campeão do Pigo', description: 'Conclua 50 missões semanais.', rarity: 'lendario', icon: 'Crown', category: 'missions', metric: 'missionsCompleted', target: 50 },
+
+      // --- 8. Detecção Inteligente e Assinaturas ---
+      { id: 'detetive_1', name: 'Olho Clínico', description: 'O Pigo identificou 1 despesa recorrente nos seus lançamentos.', rarity: 'comum', icon: 'Search', category: 'intelligence', metric: 'recurringDetected', target: 1 },
+      { id: 'detetive_3', name: 'Radar de Assinaturas', description: '3 despesas recorrentes identificadas.', rarity: 'comum', icon: 'Search', category: 'intelligence', metric: 'recurringDetected', target: 3 },
+      { id: 'detetive', name: 'Detetive de Assinaturas', description: 'O Pigo identificou 5 despesas recorrentes nos seus extratos.', rarity: 'raro', icon: 'Search', category: 'intelligence', metric: 'recurringDetected', target: 5 },
+      { id: 'detetive_10', name: 'Inspetor Implacável', description: '10 despesas recorrentes mapeadas no sistema.', rarity: 'epico', icon: 'Search', category: 'intelligence', metric: 'recurringDetected', target: 10 },
+
+      // --- 9. Hábitos e Rotina Diária ---
+      { id: 'habito_primeiro', name: 'O Começo de Tudo', description: 'Crie seu primeiro hábito diário no Pigo Hábitos.', rarity: 'comum', icon: 'Sparkles', category: 'habits', metric: 'activeHabits', target: 1 },
+      { id: 'habito_checkin_1', name: 'Primeiro Check-in', description: 'Conclua seu primeiro hábito no dia.', rarity: 'comum', icon: 'CalendarCheck', category: 'habits', metric: 'habitCheckins', target: 1 },
+      { id: 'habito_checkin_7', name: 'Semana de Hábitos', description: '7 check-ins de hábitos concluídos.', rarity: 'comum', icon: 'CalendarCheck', category: 'habits', metric: 'habitCheckins', target: 7 },
+      { id: 'habito_checkin_21', name: 'Regra dos 21 Dias', description: '21 check-ins de hábitos acumulados.', rarity: 'raro', icon: 'Flame', category: 'habits', metric: 'habitCheckins', target: 21 },
+      { id: 'habito_checkin_50', name: 'Mente Focada', description: '50 check-ins de hábitos completados.', rarity: 'raro', icon: 'Trophy', category: 'habits', metric: 'habitCheckins', target: 50 },
+      { id: 'habito_checkin_100', name: 'Centenário da Disciplina', description: '100 check-ins de hábitos completados.', rarity: 'epico', icon: 'Trophy', category: 'habits', metric: 'habitCheckins', target: 100 },
+      { id: 'habito_checkin_250', name: 'Mestre da Rotina', description: '250 check-ins de hábitos completados.', rarity: 'lendario', icon: 'Crown', category: 'habits', metric: 'habitCheckins', target: 250 },
+      { id: 'habito_streak_7', name: 'Fogo Sagrado', description: 'Mantenha 7 dias consecutivos cumprindo hábitos.', rarity: 'raro', icon: 'Flame', category: 'habits', metric: 'habitStreak', target: 7 },
+      { id: 'habito_streak_21', name: 'Inabalável', description: 'Mantenha 21 dias consecutivos cumprindo hábitos.', rarity: 'epico', icon: 'Flame', category: 'habits', metric: 'habitStreak', target: 21 },
+
+      // --- 10. Metas Financeiras ---
+      { id: 'meta_criada', name: 'Sonhador Estratégico', description: 'Crie sua primeira meta financeira no Pigo.', rarity: 'comum', icon: 'Target', category: 'goals', metric: 'goalsCount', target: 1 },
+      { id: 'meta_concluida_1', name: 'Sonho Realizado', description: 'Atinja 100% de uma meta financeira.', rarity: 'raro', icon: 'Trophy', category: 'goals', metric: 'goalsCompleted', target: 1 },
+      { id: 'meta_concluida_3', name: 'Conquistador de Sonhos', description: 'Atinja 100% em 3 metas financeiras.', rarity: 'epico', icon: 'Trophy', category: 'goals', metric: 'goalsCompleted', target: 3 },
+      { id: 'meta_concluida_5', name: 'Arquiteto do Futuro', description: 'Atinja 100% em 5 metas financeiras.', rarity: 'lendario', icon: 'Crown', category: 'goals', metric: 'goalsCompleted', target: 5 },
     ];
   }
 
@@ -508,7 +585,10 @@ class GamificationEngine {
     const metrics = {
       statements: facts.statements.length,
       categorized: facts.categorizedCount,
+      inboxZero20: facts.transactionCount >= 20 && facts.uncategorizedCount === 0 ? 1 : 0,
       inboxZero: facts.transactionCount >= 50 && facts.uncategorizedCount === 0 ? 1 : 0,
+      inboxZero100: facts.transactionCount >= 100 && facts.uncategorizedCount === 0 ? 1 : 0,
+      inboxZero250: facts.transactionCount >= 250 && facts.uncategorizedCount === 0 ? 1 : 0,
       positiveMonths: facts.positiveMonths.length,
       positiveStreak: streaks.positiveMonths.best,
       reserveAportes: facts.reserveAportes.length,
@@ -519,6 +599,11 @@ class GamificationEngine {
       budgetsKept: facts.budgetsKept.length,
       missionsCompleted,
       recurringDetected: facts.recurringCount,
+      activeHabits: facts.activeHabitsCount,
+      habitCheckins: facts.habitCheckins,
+      habitStreak: facts.habitBestStreak,
+      goalsCount: facts.goalsCount,
+      goalsCompleted: facts.goalsCompleted,
     };
     const seen = new Map(this.db.prepare(`SELECT key, seen_at FROM game_seen WHERE key LIKE 'ach:%'`).all().map(r => [r.key, r.seen_at]));
 
