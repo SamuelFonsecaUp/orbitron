@@ -28,6 +28,7 @@ const KIND_LABEL: Record<GameEvent['kind'], string> = {
   invoice: 'Faturas em dia',
   mission: 'Missões',
   achievement: 'Conquistas',
+  habit: 'Hábitos & Rotina',
 };
 
 const KIND_COLOR: Record<GameEvent['kind'], string> = {
@@ -39,6 +40,7 @@ const KIND_COLOR: Record<GameEvent['kind'], string> = {
   invoice: '#60a5fa',
   mission: '#fb923c',
   achievement: '#f59e0b',
+  habit: '#22d3ee',
 };
 
 const MISSION_STATUS: Record<GameMission['status'], { label: string; color: string; Icon: React.FC<{ className?: string }> }> = {

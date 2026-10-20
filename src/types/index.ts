@@ -943,7 +943,7 @@ export interface GameEvent {
   id: string;
   date: string;
   xp: number;
-  kind: 'import' | 'categorize' | 'month' | 'reserve' | 'budget' | 'invoice' | 'mission' | 'achievement';
+  kind: 'import' | 'categorize' | 'month' | 'reserve' | 'budget' | 'invoice' | 'mission' | 'achievement' | 'habit';
   title: string;
 }
 

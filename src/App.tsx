@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useFinancial } from './context/FinancialContext';
 import { Sidebar } from './components/Sidebar';
 import { Navbar } from './components/Navbar';
@@ -9,6 +9,7 @@ import { TransactionModal } from './views/TransactionModal';
 import { ImportBankModal } from './views/ImportBankModal';
 import { CloudAuthModal } from './views/CloudAuthModal';
 import { UpdateBanner } from './components/AppUpdate';
+import { PlatformTourModal, hasSeenPlatformTour } from './components/PlatformTourModal';
 
 import { DashboardView } from './views/DashboardView';
 import { TransactionsView } from './views/TransactionsView';
@@ -40,6 +41,20 @@ export const App: React.FC = () => {
     cloudAuthModalOpen,
     setCloudAuthModalOpen,
   } = useFinancial();
+
+  const [tourOpen, setTourOpen] = useState(false);
+
+  useEffect(() => {
+    if (settings?.onboardingCompleted && !hasSeenPlatformTour()) {
+      setTourOpen(true);
+    }
+  }, [settings?.onboardingCompleted]);
+
+  useEffect(() => {
+    const handler = () => setTourOpen(true);
+    window.addEventListener('pigo:open-tour', handler);
+    return () => window.removeEventListener('pigo:open-tour', handler);
+  }, []);
 
   if (isLoading) {
     return (
@@ -74,6 +89,9 @@ export const App: React.FC = () => {
     <div className="flex h-screen w-screen overflow-hidden bg-[#0c0c0e] text-slate-100 font-sans">
       {/* PIN Security Modal */}
       {isLocked && <PinLockModal />}
+
+      {/* Interactive Platform Onboarding Tour */}
+      <PlatformTourModal isOpen={tourOpen} onClose={() => setTourOpen(false)} />
 
       {/* Level-up / achievement celebrations */}
       <GameCelebration />

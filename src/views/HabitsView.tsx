@@ -37,6 +37,113 @@ const CATEGORY_NAMES: Record<HabitCategory, { label: string; icon: string }> = {
   geral: { label: 'Geral', icon: '✨' },
 };
 
+const HABIT_TEMPLATE_PACKS: {
+  id: string;
+  title: string;
+  subtitle: string;
+  badge: string;
+  accentColor: string;
+  items: Partial<Habit>[];
+}[] = [
+  {
+    id: 'pack_financas',
+    title: 'Kit Blindagem Financeira',
+    subtitle: 'Hábitos diários que protegem seu bolso e aceleram sua liberdade financeira',
+    badge: '💰 Finanças & Bolso',
+    accentColor: '#10b981',
+    items: [
+      {
+        name: 'Dia Sem Gastos por Impulso',
+        description: 'Passar o dia sem compras supérfluas ou não planejadas',
+        category: 'financas',
+        period_of_day: 'anytime',
+        color: '#10b981',
+      },
+      {
+        name: 'Revisar Lançamentos do Dia (2 min)',
+        description: 'Conferir e categorizar os gastos do dia no Pigo',
+        category: 'financas',
+        period_of_day: 'evening',
+        color: '#34d399',
+      },
+      {
+        name: 'Cozinhar em Casa / Sem Delivery',
+        description: 'Economizar preparando as próprias refeições',
+        category: 'financas',
+        period_of_day: 'evening',
+        color: '#059669',
+      },
+      {
+        name: 'Estudar 15 min de Finanças & Negócios',
+        description: 'Leitura ou estudo focado em educação financeira',
+        category: 'financas',
+        period_of_day: 'evening',
+        color: '#6ee7b7',
+      },
+    ],
+  },
+  {
+    id: 'pack_manha',
+    title: 'Kit Manhã de Alta Performance',
+    subtitle: 'Comece o dia com energia física, hidratação e clareza de prioridades',
+    badge: '🌅 Energia Matinal',
+    accentColor: '#38bdf8',
+    items: [
+      {
+        name: 'Beber 500ml de Água ao Acordar',
+        description: 'Hidratar o corpo logo nos primeiros 15 minutos da manhã',
+        category: 'saude',
+        period_of_day: 'morning',
+        color: '#38bdf8',
+      },
+      {
+        name: 'Treino / Movimento Físico (30 min)',
+        description: 'Academia, corrida, caminhada ou mobilidade diária',
+        category: 'saude',
+        period_of_day: 'morning',
+        color: '#0ea5e9',
+      },
+      {
+        name: 'Definir as 3 Prioridades do Dia',
+        description: 'Planejar as 3 entregas essenciais antes de abrir redes sociais',
+        category: 'produtividade',
+        period_of_day: 'morning',
+        color: '#6366f1',
+      },
+    ],
+  },
+  {
+    id: 'pack_mente',
+    title: 'Kit Mente Blindada & Foco',
+    subtitle: 'Construa concentração profunda, leitura constante e sono reparador',
+    badge: '🧠 Foco & Evolução',
+    accentColor: '#a855f7',
+    items: [
+      {
+        name: 'Bloco de Foco Profundo (Sem Celular)',
+        description: '90 minutos de trabalho ou estudo focado sem distrações',
+        category: 'produtividade',
+        period_of_day: 'afternoon',
+        color: '#a855f7',
+      },
+      {
+        name: 'Leitura Diária (10 páginas)',
+        description: 'Construir o hábito da leitura constante todos os dias',
+        category: 'mente',
+        period_of_day: 'evening',
+        color: '#c084fc',
+      },
+      {
+        name: 'Desligar Telas 30 min Antes de Dormir',
+        description: 'Garantir um sono reparador e mente descansada',
+        category: 'saude',
+        period_of_day: 'evening',
+        color: '#818cf8',
+      },
+    ],
+  },
+];
+
 export const HabitsView: React.FC = () => {
   const { currentView, setCurrentView } = useFinancial();
   const {
@@ -47,6 +154,7 @@ export const HabitsView: React.FC = () => {
     setSelectedPeriod,
     toggleDay,
     deleteHabit,
+    installTemplateHabits,
     openNewHabitModal,
     openEditHabitModal,
   } = useHabits();
@@ -253,23 +361,30 @@ export const HabitsView: React.FC = () => {
         )}
       </div>
 
-      {/* Empty State */}
+      {/* Empty State with 1-Click Template Packs */}
       {habits.length === 0 ? (
-        <div className="p-12 text-center rounded-3xl bg-slate-900/40 border border-dashed border-slate-800 space-y-3">
-          <div className="w-12 h-12 rounded-2xl bg-cyan-500/10 text-cyan-400 flex items-center justify-center mx-auto">
-            <Sparkles className="w-6 h-6" />
+        <div className="space-y-6">
+          <div className="p-8 text-center rounded-3xl bg-slate-900/50 border border-dashed border-slate-800 space-y-3">
+            <div className="w-12 h-12 rounded-2xl bg-cyan-500/10 text-cyan-400 flex items-center justify-center mx-auto">
+              <Sparkles className="w-6 h-6" />
+            </div>
+            <h3 className="text-base font-bold text-white">Comece sua rotina em 1 clique</h3>
+            <p className="text-xs text-slate-400 max-w-md mx-auto">
+              Cada check-in concluído rende <strong className="text-amber-300">+5 XP</strong> na sua Jornada e fechar 100% do dia libera o bônus <strong className="text-amber-300">Dia Perfeito (+25 XP)</strong>! Escolha um pacote pronto abaixo ou crie um hábito personalizado:
+            </p>
+            <button
+              onClick={() => openNewHabitModal()}
+              className="px-4 py-2 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs rounded-xl inline-flex items-center gap-1.5 transition shadow-md shadow-cyan-500/20"
+            >
+              <Plus className="w-4 h-4" />
+              Criar Hábito Personalizado
+            </button>
           </div>
-          <h3 className="text-base font-bold text-white">Nenhum hábito cadastrado ainda</h3>
-          <p className="text-xs text-slate-400 max-w-sm mx-auto">
-            Pequenos hábitos diários produzem resultados extraordinários ao longo do tempo. Crie seu primeiro hábito agora!
-          </p>
-          <button
-            onClick={() => openNewHabitModal()}
-            className="px-4 py-2 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs rounded-xl inline-flex items-center gap-1.5 transition shadow-md shadow-cyan-500/20"
-          >
-            <Plus className="w-4 h-4" />
-            Criar Primeiro Hábito
-          </button>
+
+          <TemplatePacksSection
+            existingHabits={habits}
+            onInstall={installTemplateHabits}
+          />
         </div>
       ) : currentView === 'habits' ? (
         /* =========================================================
@@ -603,11 +718,145 @@ export const HabitsView: React.FC = () => {
               </div>
             );
           })}
+
+          <div className="pt-4 border-t border-white/[0.06]">
+            <TemplatePacksSection
+              existingHabits={habits}
+              onInstall={installTemplateHabits}
+            />
+          </div>
         </div>
       )}
 
       {/* Modal de Criação / Edição */}
       <HabitModal />
+    </div>
+  );
+};
+
+const TemplatePacksSection: React.FC<{
+  existingHabits: Habit[];
+  onInstall: (templates: Partial<Habit>[], packName?: string) => Promise<number>;
+}> = ({ existingHabits, onInstall }) => {
+  const existingNames = useMemo(
+    () => new Set(existingHabits.map((h) => h.name.toLowerCase().trim())),
+    [existingHabits]
+  );
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-sm font-bold text-white flex items-center gap-2">
+            <Sparkles className="w-4 h-4 text-cyan-400" />
+            Galeria de Pacotes & Templates Prontos
+          </h3>
+          <p className="text-xs text-slate-400 mt-0.5">
+            Adicione trilhas completas de hábitos financeiros, saúde e foco com 1 clique
+          </p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        {HABIT_TEMPLATE_PACKS.map((pack) => {
+          const allInstalled = pack.items.every(
+            (i) => i.name && existingNames.has(i.name.toLowerCase().trim())
+          );
+
+          return (
+            <div
+              key={pack.id}
+              className="p-5 rounded-3xl bg-slate-900/70 border border-slate-800/90 flex flex-col justify-between gap-4 relative overflow-hidden"
+            >
+              <div>
+                <div className="flex items-center justify-between gap-2 mb-2">
+                  <span
+                    className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full border"
+                    style={{
+                      backgroundColor: `${pack.accentColor}15`,
+                      color: pack.accentColor,
+                      borderColor: `${pack.accentColor}35`,
+                    }}
+                  >
+                    {pack.badge}
+                  </span>
+                  <span className="text-[10px] text-slate-500 font-semibold">
+                    {pack.items.length} hábitos
+                  </span>
+                </div>
+
+                <h4 className="text-sm font-black text-white">{pack.title}</h4>
+                <p className="text-xs text-slate-400 mt-1">{pack.subtitle}</p>
+
+                <div className="mt-4 space-y-2">
+                  {pack.items.map((item) => {
+                    const installed =
+                      item.name ? existingNames.has(item.name.toLowerCase().trim()) : false;
+                    return (
+                      <div
+                        key={item.name}
+                        className="p-2.5 rounded-xl bg-slate-950/70 border border-slate-800/80 flex items-center justify-between gap-2"
+                      >
+                        <div className="min-w-0">
+                          <span className="text-xs font-bold text-slate-200 block truncate">
+                            {item.name}
+                          </span>
+                          <span className="text-[10px] text-slate-500 block truncate">
+                            {item.description}
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          disabled={installed}
+                          onClick={() => onInstall([item])}
+                          className={`px-2 py-1 rounded-lg text-[10px] font-bold shrink-0 transition ${
+                            installed
+                              ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 cursor-default'
+                              : 'bg-slate-800 hover:bg-slate-700 text-white'
+                          }`}
+                        >
+                          {installed ? '✓ Na lista' : '+ Adicionar'}
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <button
+                type="button"
+                disabled={allInstalled}
+                onClick={() => onInstall(pack.items, pack.title)}
+                className={`w-full py-2.5 px-4 rounded-xl text-xs font-extrabold flex items-center justify-center gap-1.5 transition-all ${
+                  allInstalled
+                    ? 'bg-slate-800/60 text-slate-500 cursor-default border border-slate-800'
+                    : 'liquid-glass-cta text-white hover:brightness-110 active:scale-[0.98]'
+                }`}
+                style={
+                  !allInstalled
+                    ? {
+                        background: `linear-gradient(135deg, ${pack.accentColor}cc, ${pack.accentColor}99)`,
+                        ['--cta-glow' as any]: `${pack.accentColor}55`,
+                      }
+                    : undefined
+                }
+              >
+                {allInstalled ? (
+                  <>
+                    <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                    <span>Pacote já instalado</span>
+                  </>
+                ) : (
+                  <>
+                    <Plus className="w-4 h-4 stroke-[3]" />
+                    <span>Instalar Pacote Completo ({pack.items.length})</span>
+                  </>
+                )}
+              </button>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 };

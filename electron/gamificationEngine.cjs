@@ -16,6 +16,8 @@ const XP = {
   reserveAporteMaxBonus: 250,
   budgetKept: 50,
   invoiceOnTime: 80,
+  habitCheckin: 5,
+  perfectHabitDay: 25,
 };
 
 const RARITY_XP = { comum: 15, raro: 35, epico: 75, lendario: 150 };
@@ -238,6 +240,66 @@ class GamificationEngine {
       recurringCount = 0;
     }
 
+    // Hábitos
+    let habitCheckins = 0;
+    let habitBestStreak = 0;
+    let activeHabitsCount = 0;
+    let habitCheckinsByDay = [];
+    try {
+      const checkinRow = this.db.prepare(`SELECT COUNT(*) as c FROM habit_logs WHERE completed = 1`).get();
+      habitCheckins = checkinRow ? checkinRow.c : 0;
+
+      const habitsRow = this.db.prepare(`SELECT COUNT(*) as c FROM habits WHERE archived = 0`).get();
+      activeHabitsCount = habitsRow ? habitsRow.c : 0;
+
+      habitCheckinsByDay = this.db.prepare(`
+        SELECT date, COUNT(*) as c
+        FROM habit_logs
+        WHERE completed = 1
+        GROUP BY date
+        ORDER BY date ASC
+      `).all();
+
+      const habitDates = habitCheckinsByDay.map(r => r.date);
+      let curStreak = 0;
+      let maxStreak = 0;
+      let prevDate = null;
+      for (const d of habitDates) {
+        if (!prevDate) {
+          curStreak = 1;
+        } else {
+          const p = parseDate(prevDate);
+          p.setDate(p.getDate() + 1);
+          if (formatDate(p) === d) {
+            curStreak++;
+          } else {
+            curStreak = 1;
+          }
+        }
+        if (curStreak > maxStreak) maxStreak = curStreak;
+        prevDate = d;
+      }
+      habitBestStreak = maxStreak;
+    } catch (e) {
+      habitCheckins = 0;
+      habitBestStreak = 0;
+      activeHabitsCount = 0;
+      habitCheckinsByDay = [];
+    }
+
+    // Metas
+    let goalsCount = 0;
+    let goalsCompleted = 0;
+    try {
+      const gRows = this.db.prepare(`SELECT target_amount, current_amount FROM goals`).all();
+      goalsCount = gRows.length;
+      goalsCompleted = gRows.filter(g => g.current_amount >= g.target_amount && g.target_amount > 0).length;
+    } catch (e) {
+      goalsCount = 0;
+      goalsCompleted = 0;
+    }
+
+
     return {
       today,
       currentMonth,
@@ -254,6 +316,12 @@ class GamificationEngine {
       budgetsKept,
       invoicesOnTime,
       recurringCount,
+      habitCheckins,
+      habitBestStreak,
+      activeHabitsCount,
+      habitCheckinsByDay,
+      goalsCount,
+      goalsCompleted,
     };
   }
 
@@ -655,6 +723,24 @@ class GamificationEngine {
     }
     for (const m of completedMissions) {
       events.push({ id: `mis:${m.weekKey}:${m.id}`, date: m.completedAt || facts.today, xp: m.xp, kind: 'mission', title: `Missão concluída: ${m.title}` });
+    }
+        for (const hDay of (facts.habitCheckinsByDay || [])) {
+      events.push({
+        id: `hab:${hDay.date}`,
+        date: hDay.date,
+        xp: hDay.c * XP.habitCheckin,
+        kind: 'habit',
+        title: `${hDay.c} ${hDay.c === 1 ? 'hábito concluído' : 'hábitos concluídos'} no dia`,
+      });
+      if (facts.activeHabitsCount > 0 && hDay.c >= facts.activeHabitsCount) {
+        events.push({
+          id: `hab_perfect:${hDay.date}`,
+          date: hDay.date,
+          xp: XP.perfectHabitDay,
+          kind: 'habit',
+          title: 'Dia Perfeito: 100% dos hábitos concluídos!',
+        });
+      }
     }
     for (const a of achievements.filter(x => x.unlocked)) {
       events.push({ id: `ach:${a.id}`, date: a.unlockedAt, xp: a.xp, kind: 'achievement', title: `Conquista: ${a.name}` });

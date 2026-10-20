@@ -442,6 +442,15 @@ export const Sidebar: React.FC = () => {
       {/* Footer / System status & Settings */}
       <div className="p-3 border-t border-white/[0.06] space-y-1 relative z-10">
         <button
+          type="button"
+          onClick={() => window.dispatchEvent(new CustomEvent('pigo:open-tour'))}
+          className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium text-slate-400 hover:text-slate-200 hover:bg-white/[0.04] transition-all"
+        >
+          <Sparkles className="w-4 h-4 text-emerald-400" />
+          <span className="flex-1 text-left">Como Usar (Tour)</span>
+        </button>
+
+        <button
           onClick={() => setCurrentView('settings')}
           className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium transition-all ${
             currentView === 'settings'
