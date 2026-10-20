@@ -260,18 +260,30 @@ export const PlatformTourModal: React.FC<PlatformTourModalProps> = ({ isOpen, on
 
           {/* Footer Navigation & Step Dots */}
           <div className="pt-2 border-t border-white/[0.07] flex items-center justify-between gap-3">
-            {/* Step indicators */}
-            <div className="flex items-center gap-1.5">
-              {SLIDES.map((_, idx) => (
-                <button
-                  key={idx}
-                  type="button"
-                  onClick={() => setStep(idx)}
-                  className={`h-2 rounded-full transition-all ${
-                    idx === step ? 'w-7 bg-white' : 'w-2 bg-slate-700 hover:bg-slate-500'
-                  }`}
-                />
-              ))}
+            {/* Step indicators + Quick Setup Wizard trigger */}
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-1.5">
+                {SLIDES.map((_, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => setStep(idx)}
+                    className={`h-2 rounded-full transition-all ${
+                      idx === step ? 'w-7 bg-white' : 'w-2 bg-slate-700 hover:bg-slate-500'
+                    }`}
+                  />
+                ))}
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  handleFinish();
+                  window.dispatchEvent(new CustomEvent('pigo:open-setup-wizard'));
+                }}
+                className="text-[11px] font-bold text-emerald-400 hover:text-emerald-300 underline underline-offset-2"
+              >
+                Assistente de Contas & Reserva
+              </button>
             </div>
 
             <div className="flex items-center gap-2">

@@ -43,6 +43,7 @@ export const App: React.FC = () => {
   } = useFinancial();
 
   const [tourOpen, setTourOpen] = useState(false);
+  const [setupWizardOpen, setSetupWizardOpen] = useState(false);
 
   useEffect(() => {
     if (settings?.onboardingCompleted && !hasSeenPlatformTour()) {
@@ -51,9 +52,14 @@ export const App: React.FC = () => {
   }, [settings?.onboardingCompleted]);
 
   useEffect(() => {
-    const handler = () => setTourOpen(true);
-    window.addEventListener('pigo:open-tour', handler);
-    return () => window.removeEventListener('pigo:open-tour', handler);
+    const handleTour = () => setTourOpen(true);
+    const handleWizard = () => setSetupWizardOpen(true);
+    window.addEventListener('pigo:open-tour', handleTour);
+    window.addEventListener('pigo:open-setup-wizard', handleWizard);
+    return () => {
+      window.removeEventListener('pigo:open-tour', handleTour);
+      window.removeEventListener('pigo:open-setup-wizard', handleWizard);
+    };
   }, []);
 
   if (isLoading) {
@@ -92,6 +98,9 @@ export const App: React.FC = () => {
 
       {/* Interactive Platform Onboarding Tour */}
       <PlatformTourModal isOpen={tourOpen} onClose={() => setTourOpen(false)} />
+
+      {/* On-demand 5-Step Setup Wizard (Accounts, Categories, Reserve, Habits) */}
+      {setupWizardOpen && <OnboardingView onClose={() => setSetupWizardOpen(false)} />}
 
       {/* Level-up / achievement celebrations */}
       <GameCelebration />
