@@ -12,6 +12,15 @@
     font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
   }
 
+  /* Frameless Electron window drag regions */
+  .app-drag {
+    -webkit-app-region: drag;
+  }
+
+  .app-no-drag {
+    -webkit-app-region: no-drag;
+  }
+
   /* Custom subtle dark gray scrollbars */
   ::-webkit-scrollbar {
     width: 6px;

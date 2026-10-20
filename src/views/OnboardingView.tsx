@@ -20,6 +20,9 @@ import {
   Trophy,
   FileSpreadsheet,
   Zap,
+  Minus,
+  Square,
+  X,
 } from 'lucide-react';
 import { useFinancial } from '../context/FinancialContext';
 import { useHabits } from '../context/HabitsContext';
@@ -578,8 +581,43 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({ onComplete }) =>
   ];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0c0c0e] p-4 overflow-y-auto select-none">
-      <div className="w-full max-w-2xl bg-slate-900 border border-white/10 rounded-3xl p-6 sm:p-8 shadow-2xl relative overflow-hidden my-auto">
+    <div className="fixed inset-0 z-50 flex flex-col bg-[#0c0c0e] overflow-y-auto select-none">
+      {/* Frameless Window Drag Bar */}
+      <div className="h-9 w-full flex items-center justify-between px-4 shrink-0 app-drag border-b border-white/[0.04] bg-[#0c0c0e]/90 backdrop-blur-md sticky top-0 z-50">
+        <div className="flex items-center gap-2 text-[11px] font-bold text-slate-400">
+          <img src={pigoIcon} alt="Pigo" className="w-4 h-4 rounded" />
+          <span>Pigo • Configuração Inicial Obrigatória</span>
+        </div>
+        <div className="flex items-center gap-1 app-no-drag">
+          <button
+            type="button"
+            onClick={() => window.electronAPI?.minimizeWindow()}
+            title="Minimizar"
+            className="p-1 text-slate-400 hover:text-slate-200 hover:bg-slate-800 rounded-md transition-colors"
+          >
+            <Minus className="w-3.5 h-3.5" />
+          </button>
+          <button
+            type="button"
+            onClick={() => window.electronAPI?.maximizeWindow()}
+            title="Maximizar / Restaurar"
+            className="p-1 text-slate-400 hover:text-slate-200 hover:bg-slate-800 rounded-md transition-colors"
+          >
+            <Square className="w-3 h-3" />
+          </button>
+          <button
+            type="button"
+            onClick={() => window.electronAPI?.closeWindow()}
+            title="Fechar aplicativo"
+            className="p-1 text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 rounded-md transition-colors"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      </div>
+
+      <div className="flex-1 flex items-center justify-center p-4">
+        <div className="w-full max-w-2xl bg-slate-900 border border-white/10 rounded-3xl p-6 sm:p-8 shadow-2xl relative overflow-hidden my-auto">
         {/* Ambient top glow */}
         <div className="absolute -top-24 -left-24 w-64 h-64 bg-emerald-500/15 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute -bottom-24 -right-24 w-64 h-64 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none" />
@@ -1391,6 +1429,7 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({ onComplete }) =>
             </div>
           </div>
         )}
+        </div>
       </div>
     </div>
   );

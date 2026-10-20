@@ -101,7 +101,7 @@ export const Navbar: React.FC = () => {
   const modBadge = MODULE_BADGE[activeModule];
 
   return (
-    <header className="h-12 border-b border-slate-800/80 bg-slate-950/70 flex items-center justify-between px-4 select-none shrink-0 backdrop-blur-md relative z-20">
+    <header className="h-12 border-b border-slate-800/80 bg-slate-950/70 flex items-center justify-between px-4 select-none shrink-0 backdrop-blur-md relative z-20 app-drag">
       {/* Breadcrumb Title Area */}
       <div className="flex items-center gap-2">
         <span
@@ -116,7 +116,7 @@ export const Navbar: React.FC = () => {
       </div>
 
       {/* Actions and Desktop Window Controls */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 app-no-drag">
         {pendingImportSession && currentView !== 'import' && (
           <button
             onClick={() => setCurrentView('import')}

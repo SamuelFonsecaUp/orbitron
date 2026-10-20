@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog, shell, safeStorage } = require('electron');
+const { app, BrowserWindow, Menu, ipcMain, dialog, shell, safeStorage } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { initDatabase, closeDatabase } = require('./database.cjs');
@@ -52,7 +52,9 @@ function createWindow() {
     height: 820,
     minWidth: 1060,
     minHeight: 680,
-    backgroundColor: '#090d16',
+    frame: false,
+    autoHideMenuBar: true,
+    backgroundColor: '#0c0c0e',
     title: 'Pigo - Finanças Pessoais',
     icon: fs.existsSync(iconPath) ? iconPath : undefined,
     webPreferences: {
@@ -63,6 +65,9 @@ function createWindow() {
     },
     show: false, // Wait until ready-to-show to avoid white flicker
   });
+
+  Menu.setApplicationMenu(null);
+  mainWindow.setMenuBarVisibility(false);
 
   mainWindow.once('ready-to-show', () => {
     mainWindow.show();

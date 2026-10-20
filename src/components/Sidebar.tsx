@@ -261,7 +261,7 @@ export const Sidebar: React.FC = () => {
 
       <div className="flex flex-col min-h-0 flex-1 relative z-10">
         {/* Brand Header */}
-        <div className="p-4 border-b border-white/[0.06] flex items-center justify-between">
+        <div className="p-4 border-b border-white/[0.06] flex items-center justify-between app-drag">
           <div className="flex items-center gap-3">
             <div className="relative">
               <img
