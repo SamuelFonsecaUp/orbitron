@@ -21,7 +21,7 @@ import { CategoriesView } from './views/CategoriesView';
 import { GoalsView } from './views/GoalsView';
 import { ReportsView } from './views/ReportsView';
 import { SettingsView } from './views/SettingsView';
-import { OnboardingView } from './views/OnboardingView';
+import { OnboardingView, hasCompletedMandatoryOnboarding } from './views/OnboardingView';
 import { ImportView } from './views/ImportView';
 import { ReserveView } from './views/ReserveView';
 import { JourneyView } from './views/JourneyView';
@@ -44,11 +44,12 @@ export const App: React.FC = () => {
 
   const [tourOpen, setTourOpen] = useState(false);
   const [setupWizardOpen, setSetupWizardOpen] = useState(false);
+  const [mandatoryDone, setMandatoryDone] = useState(() =>
+    hasCompletedMandatoryOnboarding(settings?.onboardingCompleted)
+  );
 
   useEffect(() => {
-    if (settings?.onboardingCompleted && !hasSeenPlatformTour()) {
-      setTourOpen(true);
-    }
+    setMandatoryDone(hasCompletedMandatoryOnboarding(settings?.onboardingCompleted));
   }, [settings?.onboardingCompleted]);
 
   useEffect(() => {
@@ -73,12 +74,17 @@ export const App: React.FC = () => {
     );
   }
 
-  // First run onboarding
-  if (settings && !settings.onboardingCompleted) {
+  // Mandatory 5-step Tutorial & Setup gate (locks entire app until finished)
+  if ((settings && !mandatoryDone) || setupWizardOpen) {
     return (
       <>
         <ToastContainer />
-        <OnboardingView />
+        <OnboardingView
+          onComplete={() => {
+            setMandatoryDone(true);
+            setSetupWizardOpen(false);
+          }}
+        />
       </>
     );
   }
@@ -98,9 +104,6 @@ export const App: React.FC = () => {
 
       {/* Interactive Platform Onboarding Tour */}
       <PlatformTourModal isOpen={tourOpen} onClose={() => setTourOpen(false)} />
-
-      {/* On-demand 5-Step Setup Wizard (Accounts, Categories, Reserve, Habits) */}
-      {setupWizardOpen && <OnboardingView onClose={() => setSetupWizardOpen(false)} />}
 
       {/* Level-up / achievement celebrations */}
       <GameCelebration />

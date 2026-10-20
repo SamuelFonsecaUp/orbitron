@@ -16,13 +16,25 @@ import {
   Plus,
   Trash2,
   CheckSquare,
-  User,
-  X,
+  GraduationCap,
+  Trophy,
+  FileSpreadsheet,
+  Zap,
 } from 'lucide-react';
 import { useFinancial } from '../context/FinancialContext';
 import { useHabits } from '../context/HabitsContext';
 import { AccountType, Category } from '../types';
 import pigoIcon from '../assets/pigo-icon.png';
+
+export const MANDATORY_ONBOARDING_KEY = 'pigo_mandatory_onboarding_v2';
+
+export function hasCompletedMandatoryOnboarding(onboardingCompleted?: boolean): boolean {
+  try {
+    return Boolean(onboardingCompleted) && localStorage.getItem(MANDATORY_ONBOARDING_KEY) === '1';
+  } catch {
+    return Boolean(onboardingCompleted);
+  }
+}
 
 interface DraftAccount {
   tempId: string;
@@ -30,7 +42,6 @@ interface DraftAccount {
   type: AccountType;
   color: string;
   balanceStr: string;
-  isReserveAccount?: boolean;
 }
 
 interface DraftCategory {
@@ -90,25 +101,24 @@ function parseFormattedToCents(formatted: string): number {
 }
 
 interface OnboardingViewProps {
-  onClose?: () => void;
+  onComplete?: () => void;
 }
 
-export const OnboardingView: React.FC<OnboardingViewProps> = ({ onClose }) => {
+export const OnboardingView: React.FC<OnboardingViewProps> = ({ onComplete }) => {
   const { refreshAll, showToast, refreshCloudSession, settings, accounts, categories } =
     useFinancial();
   const { loadHabits } = useHabits();
 
-  const [mode, setMode] = useState<'choice' | 'cloud' | 'wizard'>(
-    onClose ? 'wizard' : 'choice'
-  );
+  const [mode, setMode] = useState<'wizard' | 'cloud'>('wizard');
   const [cloudTab, setCloudTab] = useState<'signin' | 'signup'>('signin');
   const [wizardStep, setWizardStep] = useState<1 | 2 | 3 | 4 | 5>(1);
+  const [maxUnlockedStep, setMaxUnlockedStep] = useState<number>(1);
 
   // Cloud form state
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
-  // Step 1: User Profile
+  // Step 1: User Profile & Tutorial Read Confirmation
   const [userName, setUserName] = useState(
     settings?.userName && settings.userName !== 'Usuário' ? settings.userName : ''
   );
@@ -170,9 +180,10 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({ onClose }) => {
   const [dedicatedReserveBalance, setDedicatedReserveBalance] = useState('0,00');
   const [selectedReserveAccTempId, setSelectedReserveAccTempId] = useState<string>('acc_1');
 
-  // Step 5: Starter Habit Packs
+  // Step 5: Starter Habit Packs & Custom Habit
   const [installFinanceHabits, setInstallFinanceHabits] = useState(true);
-  const [installMorningHabits, setInstallMorningHabits] = useState(false);
+  const [installMorningHabits, setInstallMorningHabits] = useState(true);
+  const [customHabitName, setCustomHabitName] = useState('');
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
@@ -199,7 +210,7 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({ onClose }) => {
 
   const removeDraftAccount = (tempId: string) => {
     if (draftAccounts.length <= 1) {
-      showToast('Mantenha pelo menos 1 conta principal.', 'info');
+      showToast('É obrigatório manter pelo menos 1 conta bancária ou carteira.', 'info');
       return;
     }
     setDraftAccounts((prev) => prev.filter((a) => a.tempId !== tempId));
@@ -237,7 +248,7 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({ onClose }) => {
     );
   };
 
-  // --- 1. Cloud Authentication & Restore Flow ---
+  // --- Cloud Authentication & Restore Flow ---
   const handleCloudAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg('');
@@ -271,6 +282,11 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({ onClose }) => {
           onboardingCompleted: true,
         });
 
+        try {
+          localStorage.setItem(MANDATORY_ONBOARDING_KEY, '1');
+          localStorage.setItem('pigo_platform_tour_v1_3_seen', '1');
+        } catch {}
+
         if (restoredCount !== null) {
           showToast(
             `Dados restaurados com sucesso (${restoredCount} registros). Bem-vindo de volta!`,
@@ -278,19 +294,14 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({ onClose }) => {
           );
         }
         await refreshAll();
-        onClose?.();
+        onComplete?.();
       } else {
         const res = await window.electronAPI.cloudSignUp(email, password);
         if (res.confirmed) {
-          showToast('Conta criada com sucesso e conectada!', 'success');
+          showToast('Conta criada na nuvem! Agora conclua as etapas obrigatórias.', 'success');
           await refreshCloudSession();
-          await window.electronAPI.updateSettings({
-            userName: email.split('@')[0] || 'Usuário',
-            currency: 'BRL',
-            onboardingCompleted: true,
-          });
-          await refreshAll();
-          onClose?.();
+          setUserName(email.split('@')[0] || '');
+          setMode('wizard');
         } else {
           showToast('Conta criada! Faça login para restaurar ou conectar.', 'success');
           setCloudTab('signin');
@@ -303,8 +314,68 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({ onClose }) => {
     }
   };
 
-  // --- 2. Complete Wizard Flow ---
+  // --- Validation per Mandatory Step ---
+  const validateStep = (step: number): boolean => {
+    setErrorMsg('');
+    if (step === 1) {
+      if (!userName.trim()) {
+        setErrorMsg('Etapa obrigatória: informe seu nome ou apelido para continuar.');
+        return false;
+      }
+      return true;
+    }
+    if (step === 2) {
+      const validAccs = draftAccounts.filter((a) => a.name.trim().length > 0);
+      if (validAccs.length === 0) {
+        setErrorMsg('Etapa obrigatória: cadastre pelo menos 1 conta bancária ou carteira.');
+        return false;
+      }
+      return true;
+    }
+    if (step === 3) {
+      const enabledExpense = draftCategories.filter((c) => c.type === 'expense' && c.enabled);
+      const enabledIncome = draftCategories.filter((c) => c.type === 'income' && c.enabled);
+      if (enabledExpense.length === 0 || enabledIncome.length === 0) {
+        setErrorMsg(
+          'Etapa obrigatória: mantenha pelo menos 1 categoria de Despesa e 1 de Receita ativas.'
+        );
+        return false;
+      }
+      return true;
+    }
+    if (step === 4) {
+      if (reserveSetupMode === 'dedicated' && !dedicatedReserveName.trim()) {
+        setErrorMsg('Etapa obrigatória: informe o nome da sua conta/caixinha de Reserva.');
+        return false;
+      }
+      return true;
+    }
+    return true;
+  };
+
+  const nextStep = () => {
+    if (!validateStep(wizardStep)) return;
+    const next = Math.min(5, wizardStep + 1) as 1 | 2 | 3 | 4 | 5;
+    setWizardStep(next);
+    setMaxUnlockedStep((prev) => Math.max(prev, next));
+  };
+
+  const prevStep = () => {
+    setErrorMsg('');
+    if (wizardStep > 1) {
+      setWizardStep((s) => Math.max(1, s - 1) as 1 | 2 | 3 | 4 | 5);
+    }
+  };
+
+  // --- Finish Mandatory Wizard & Unlock Platform ---
   const handleFinishWizard = async () => {
+    for (let s = 1; s <= 4; s++) {
+      if (!validateStep(s)) {
+        setWizardStep(s as 1 | 2 | 3 | 4 | 5);
+        return;
+      }
+    }
+
     setErrorMsg('');
     setIsSubmitting(true);
 
@@ -359,13 +430,24 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({ onClose }) => {
 
       if (reserveSetupMode === 'dedicated' && dedicatedReserveName.trim()) {
         const resCents = parseFormattedToCents(dedicatedReserveBalance);
-        const createdReserveAcc = await window.electronAPI.createAccount({
-          name: dedicatedReserveName.trim(),
-          type: 'savings',
-          initialBalance: resCents,
-          color: '#10b981',
-        });
-        reserveAccIds = [createdReserveAcc.id];
+        const existingReserveAcc = (accounts || []).find(
+          (a) => a.name.toLowerCase() === dedicatedReserveName.trim().toLowerCase()
+        );
+        if (existingReserveAcc) {
+          await window.electronAPI.updateAccount(existingReserveAcc.id, {
+            initialBalance: resCents,
+            type: 'savings',
+          });
+          reserveAccIds = [existingReserveAcc.id];
+        } else {
+          const createdReserveAcc = await window.electronAPI.createAccount({
+            name: dedicatedReserveName.trim(),
+            type: 'savings',
+            initialBalance: resCents,
+            color: '#10b981',
+          });
+          reserveAccIds = [createdReserveAcc.id];
+        }
         reserveInitialCents = resCents;
       } else if (reserveSetupMode === 'existing') {
         const mappedId =
@@ -376,7 +458,7 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({ onClose }) => {
         }
       }
 
-      // 4. Optional Starter Habit Packs
+      // 4. Starter Habit Packs + Custom Habit
       if (window.electronAPI.createHabit) {
         const existingHabits = await window.electronAPI.getHabits();
         const existingHabitNames = new Set(
@@ -436,6 +518,16 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({ onClose }) => {
           );
         }
 
+        if (customHabitName.trim()) {
+          starterHabits.push({
+            name: customHabitName.trim(),
+            description: 'Hábito criado no tutorial inicial',
+            category: 'geral',
+            period_of_day: 'anytime',
+            color: '#a855f7',
+          });
+        }
+
         for (const h of starterHabits) {
           if (!existingHabitNames.has(h.name.toLowerCase())) {
             await window.electronAPI.createHabit({
@@ -451,7 +543,7 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({ onClose }) => {
         await loadHabits();
       }
 
-      // 5. Save settings & complete onboarding
+      // 5. Save settings & mark mandatory onboarding completed
       await window.electronAPI.updateSettings({
         userName: userName.trim() || 'Usuário',
         currency: 'BRL',
@@ -462,9 +554,14 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({ onClose }) => {
         reserveAutoDetect: true,
       });
 
-      showToast('Configuração concluída com sucesso! Bem-vindo ao Pigo!', 'success');
+      try {
+        localStorage.setItem(MANDATORY_ONBOARDING_KEY, '1');
+        localStorage.setItem('pigo_platform_tour_v1_3_seen', '1');
+      } catch {}
+
+      showToast('Tutorial e configuração concluídos! Plataforma liberada!', 'success');
       await refreshAll();
-      onClose?.();
+      onComplete?.();
     } catch (err: any) {
       setErrorMsg(err.message || 'Erro ao finalizar configuração.');
     } finally {
@@ -472,151 +569,68 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({ onClose }) => {
     }
   };
 
-  const nextStep = () => {
-    setErrorMsg('');
-    if (wizardStep === 1 && !userName.trim()) {
-      setErrorMsg('Por favor, informe como gostaria de ser chamado.');
-      return;
-    }
-    if (wizardStep === 2) {
-      const validAccs = draftAccounts.filter((a) => a.name.trim().length > 0);
-      if (validAccs.length === 0) {
-        setErrorMsg('Cadastre pelo menos uma conta bancária ou carteira.');
-        return;
-      }
-    }
-    setWizardStep((s) => Math.min(5, s + 1) as 1 | 2 | 3 | 4 | 5);
-  };
-
-  const prevStep = () => {
-    setErrorMsg('');
-    if (wizardStep === 1) {
-      if (onClose) onClose();
-      else setMode('choice');
-    } else {
-      setWizardStep((s) => Math.max(1, s - 1) as 1 | 2 | 3 | 4 | 5);
-    }
-  };
-
   const stepLabels = [
-    { step: 1, label: 'Perfil', icon: User },
-    { step: 2, label: 'Contas', icon: Landmark },
-    { step: 3, label: 'Categorias', icon: Tag },
-    { step: 4, label: 'Reserva', icon: ShieldCheck },
-    { step: 5, label: 'Hábitos', icon: CheckSquare },
+    { step: 1, label: '1. Tutorial', icon: GraduationCap },
+    { step: 2, label: '2. Contas', icon: Landmark },
+    { step: 3, label: '3. Categorias', icon: Tag },
+    { step: 4, label: '4. Reserva', icon: ShieldCheck },
+    { step: 5, label: '5. Hábitos', icon: CheckSquare },
   ];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0c0c0e]/95 backdrop-blur-xl p-4 overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0c0c0e] p-4 overflow-y-auto select-none">
       <div className="w-full max-w-2xl bg-slate-900 border border-white/10 rounded-3xl p-6 sm:p-8 shadow-2xl relative overflow-hidden my-auto">
         {/* Ambient top glow */}
         <div className="absolute -top-24 -left-24 w-64 h-64 bg-emerald-500/15 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute -bottom-24 -right-24 w-64 h-64 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none" />
 
-        {onClose && (
-          <button
-            type="button"
-            onClick={onClose}
-            className="absolute top-5 right-5 z-20 p-2 rounded-xl bg-slate-950/70 hover:bg-slate-800 text-slate-400 hover:text-white border border-white/10 transition"
-            title="Fechar assistente"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        )}
-
-        {/* Brand Header */}
-        <div className="flex items-center gap-3.5 mb-5 relative z-10">
-          <img
-            src={pigoIcon}
-            alt="Pigo Logo"
-            className="w-11 h-11 rounded-2xl shadow-lg object-contain shrink-0 border border-white/15"
-          />
-          <div>
-            <h1 className="text-lg font-black text-white tracking-tight">
-              Configuração Inicial do Pigo
-            </h1>
-            <p className="text-xs text-slate-400">
-              Finanças, Reserva de Emergência, Categorias & Hábitos em um só lugar
-            </p>
-          </div>
-        </div>
-
-        {errorMsg && (
-          <div className="p-3 bg-rose-500/10 border border-rose-500/30 rounded-xl text-xs text-rose-300 font-medium mb-4 flex items-center gap-2 relative z-10">
-            <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
-            <span>{errorMsg}</span>
-          </div>
-        )}
-
-        {/* =========================================================
-            MODE 1: INITIAL CHOICE (CLOUD VS WIZARD)
-           ========================================================= */}
-        {mode === 'choice' && (
-          <div className="space-y-4 relative z-10">
-            <div className="mb-2">
-              <h2 className="text-base font-bold text-white tracking-tight">
-                Como você deseja começar?
-              </h2>
-              <p className="text-xs text-slate-400 mt-0.5">
-                Escolha se deseja configurar sua estrutura agora ou restaurar um backup da nuvem:
+        {/* Header */}
+        <div className="flex items-center justify-between gap-3 mb-5 relative z-10">
+          <div className="flex items-center gap-3.5">
+            <img
+              src={pigoIcon}
+              alt="Pigo Logo"
+              className="w-11 h-11 rounded-2xl shadow-lg object-contain shrink-0 border border-white/15"
+            />
+            <div>
+              <div className="flex items-center gap-2">
+                <h1 className="text-lg font-black text-white tracking-tight">
+                  Tutorial & Configuração Obrigatória
+                </h1>
+                <span className="text-[9px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30">
+                  Passo {wizardStep} de 5
+                </span>
+              </div>
+              <p className="text-xs text-slate-400">
+                Complete as 5 etapas abaixo para destravar todos os ambientes do Pigo
               </p>
             </div>
+          </div>
 
-            {/* Option A: Step-by-Step Wizard */}
-            <button
-              type="button"
-              onClick={() => {
-                setMode('wizard');
-                setWizardStep(1);
-                setErrorMsg('');
-              }}
-              className="w-full p-5 rounded-2xl bg-slate-950/80 hover:bg-slate-800/80 border border-emerald-500/30 hover:border-emerald-400 text-left transition-all group flex items-start gap-4 shadow-lg"
-            >
-              <div className="w-12 h-12 rounded-2xl bg-emerald-500/15 text-emerald-400 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform border border-emerald-500/30">
-                <Sparkles className="w-6 h-6" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-black text-white group-hover:text-emerald-300 transition-colors">
-                    Configurar Meu Pigo Passo a Passo (Recomendado)
-                  </span>
-                  <ArrowRight className="w-4 h-4 text-emerald-400 group-hover:translate-x-1 transition-all" />
-                </div>
-                <p className="text-xs text-slate-400 mt-1 leading-relaxed">
-                  Cadastre suas **Contas Bancárias**, personalize suas **Categorias**, defina sua **Reserva de Emergência** e escolha seus **Hábitos Iniciais** em menos de 2 minutos.
-                </p>
-              </div>
-            </button>
-
-            {/* Option B: Cloud Restore */}
+          {mode === 'wizard' && wizardStep === 1 && (
             <button
               type="button"
               onClick={() => {
                 setMode('cloud');
                 setErrorMsg('');
               }}
-              className="w-full p-4 rounded-2xl bg-slate-950/60 hover:bg-slate-800/70 border border-slate-800 hover:border-cyan-500/40 text-left transition-all group flex items-start gap-4"
+              className="px-3 py-1.5 rounded-xl bg-slate-950/80 hover:bg-slate-800 border border-slate-800 text-[11px] font-bold text-cyan-300 flex items-center gap-1.5 shrink-0 transition"
             >
-              <div className="w-11 h-11 rounded-xl bg-cyan-500/10 text-cyan-400 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform border border-cyan-500/20">
-                <Cloud className="w-5 h-5" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-bold text-white group-hover:text-cyan-300 transition-colors">
-                    Já tenho uma conta na Nuvem
-                  </span>
-                  <ArrowRight className="w-4 h-4 text-slate-500 group-hover:text-cyan-400 group-hover:translate-x-1 transition-all" />
-                </div>
-                <p className="text-xs text-slate-400 mt-1 leading-relaxed">
-                  Para quem já usa em outro computador. Faça login para restaurar todas as suas contas, categorias e lançamentos.
-                </p>
-              </div>
+              <Cloud className="w-3.5 h-3.5" />
+              <span>Restaurar da Nuvem</span>
             </button>
+          )}
+        </div>
+
+        {errorMsg && (
+          <div className="p-3 bg-rose-500/10 border border-rose-500/30 rounded-xl text-xs text-rose-300 font-medium mb-4 flex items-center gap-2 relative z-10 animate-shake">
+            <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+            <span>{errorMsg}</span>
           </div>
         )}
 
         {/* =========================================================
-            MODE 2: CLOUD AUTH / RESTORE
+            CLOUD RESTORE MODE
            ========================================================= */}
         {mode === 'cloud' && (
           <div className="space-y-4 relative z-10">
@@ -624,13 +638,13 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({ onClose }) => {
               <button
                 type="button"
                 onClick={() => {
-                  setMode('choice');
+                  setMode('wizard');
                   setErrorMsg('');
                 }}
                 className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-white transition-colors"
               >
                 <ArrowLeft className="w-3.5 h-3.5" />
-                <span>Voltar</span>
+                <span>Voltar para o Tutorial Inicial</span>
               </button>
 
               <div className="flex bg-slate-950/80 p-0.5 rounded-lg border border-slate-800">
@@ -723,139 +737,157 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({ onClose }) => {
         )}
 
         {/* =========================================================
-            MODE 3: 5-STEP INTERACTIVE SETUP WIZARD
+            MANDATORY 5-STEP TUTORIAL & SETUP WIZARD
            ========================================================= */}
         {mode === 'wizard' && (
           <div className="space-y-5 relative z-10">
-            {/* Step Progress Bar */}
-            <div className="grid grid-cols-5 gap-1.5 p-1.5 rounded-2xl bg-slate-950/80 border border-white/[0.07]">
+            {/* Step Progress Bar (Locked progression) */}
+            <div className="grid grid-cols-5 gap-1.5 p-1.5 rounded-2xl liquid-glass-well">
               {stepLabels.map(({ step, label, icon: StepIcon }) => {
                 const active = wizardStep === step;
                 const done = wizardStep > step;
+                const unlocked = step <= maxUnlockedStep;
                 return (
                   <button
                     key={step}
                     type="button"
+                    disabled={!unlocked}
                     onClick={() => {
-                      if (step < wizardStep) setWizardStep(step as 1 | 2 | 3 | 4 | 5);
+                      if (unlocked) setWizardStep(step as 1 | 2 | 3 | 4 | 5);
                     }}
                     className={`flex items-center justify-center gap-1.5 py-2 px-2 rounded-xl text-[11px] font-bold transition-all ${
                       active
                         ? 'liquid-glass-tab-active text-white shadow'
                         : done
                         ? 'text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/15 cursor-pointer'
-                        : 'text-slate-500 cursor-default'
+                        : 'text-slate-600 cursor-not-allowed opacity-60'
                     }`}
                   >
-                    <StepIcon className="w-3.5 h-3.5 shrink-0" />
+                    {done ? (
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                    ) : (
+                      <StepIcon className="w-3.5 h-3.5 shrink-0" />
+                    )}
                     <span className="hidden sm:inline truncate">{label}</span>
                   </button>
                 );
               })}
             </div>
 
-            {/* STEP 1: PERFIL */}
+            {/* =====================================================
+                ETAPA 1: TUTORIAL DOS 3 AMBIENTES & SEU NOME
+               ===================================================== */}
             {wizardStep === 1 && (
-              <div className="space-y-4 py-1">
-                <div>
-                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-400">
-                    Etapa 1 de 5 • Boas-Vindas
-                  </span>
-                  <h2 className="text-lg font-black text-white mt-0.5">
-                    Como podemos chamar você?
-                  </h2>
-                  <p className="text-xs text-slate-400">
-                    Vamos personalizar sua experiência no Pigo Finanças, Hábitos e Jornada.
-                  </p>
+              <div className="space-y-4">
+                <div className="p-4 rounded-2xl bg-slate-950/70 border border-white/[0.07] space-y-3">
+                  <div className="flex items-center gap-2 text-xs font-extrabold uppercase tracking-wider text-emerald-400">
+                    <GraduationCap className="w-4 h-4" />
+                    <span>Como funciona o Pigo (3 Ambientes Integrados)</span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                    <div className="p-3.5 rounded-xl bg-slate-900/90 border border-emerald-500/25 space-y-1.5">
+                      <div className="flex items-center gap-2">
+                        <WalletCards className="w-4 h-4 text-emerald-400" />
+                        <span className="text-xs font-extrabold text-white">1. Finanças</span>
+                      </div>
+                      <p className="text-[11px] text-slate-400 leading-relaxed">
+                        Controle suas contas, cartões, orçamentos, reserva de emergência e importe extratos OFX/CSV com categorização inteligente.
+                      </p>
+                    </div>
+
+                    <div className="p-3.5 rounded-xl bg-slate-900/90 border border-cyan-500/25 space-y-1.5">
+                      <div className="flex items-center gap-2">
+                        <CheckSquare className="w-4 h-4 text-cyan-400" />
+                        <span className="text-xs font-extrabold text-white">2. Hábitos</span>
+                      </div>
+                      <p className="text-[11px] text-slate-400 leading-relaxed">
+                        Construa disciplina diária por período (Manhã, Tarde, Noite), acompanhe a grade de 7 dias e mapas de calor anuais.
+                      </p>
+                    </div>
+
+                    <div className="p-3.5 rounded-xl bg-slate-900/90 border border-amber-500/25 space-y-1.5">
+                      <div className="flex items-center gap-2">
+                        <Trophy className="w-4 h-4 text-amber-400" />
+                        <span className="text-xs font-extrabold text-white">3. Jornada</span>
+                      </div>
+                      <p className="text-[11px] text-slate-400 leading-relaxed">
+                        Ganhe XP ao importar extratos, fechar meses no azul e cumprir hábitos (+5 XP/hábito e +25 XP no Dia Perfeito) rumo a 82 troféus!
+                      </p>
+                    </div>
+                  </div>
                 </div>
 
-                <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                    Seu nome ou apelido
+                <div className="p-4 rounded-2xl bg-slate-950/80 border border-slate-800">
+                  <label className="block text-xs font-bold text-white mb-1.5">
+                    Para começar, como você quer ser chamado no Pigo? <span className="text-rose-400">*</span>
                   </label>
                   <input
                     type="text"
-                    placeholder="Ex: Samuel"
+                    placeholder="Digite seu nome ou apelido..."
                     value={userName}
                     onChange={(e) => setUserName(e.target.value)}
                     autoFocus
-                    className="w-full bg-slate-950/90 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500"
+                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500"
                   />
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-2">
-                  <div className="p-3.5 rounded-2xl bg-slate-950/60 border border-white/[0.06]">
-                    <WalletCards className="w-4 h-4 text-emerald-400 mb-1.5" />
-                    <span className="text-xs font-bold text-white block">Finanças & Reserva</span>
-                    <span className="text-[11px] text-slate-400">
-                      Contas, cartões, extratos OFX/CSV e reserva de emergência.
-                    </span>
-                  </div>
-                  <div className="p-3.5 rounded-2xl bg-slate-950/60 border border-white/[0.06]">
-                    <CheckSquare className="w-4 h-4 text-cyan-400 mb-1.5" />
-                    <span className="text-xs font-bold text-white block">Hábitos & Rotina</span>
-                    <span className="text-[11px] text-slate-400">
-                      Check-ins diários, grade semanal e mapas de calor anuais.
-                    </span>
-                  </div>
-                  <div className="p-3.5 rounded-2xl bg-slate-950/60 border border-white/[0.06]">
-                    <Sparkles className="w-4 h-4 text-amber-400 mb-1.5" />
-                    <span className="text-xs font-bold text-white block">Jornada & Troféus</span>
-                    <span className="text-[11px] text-slate-400">
-                      Suba de nível com 82 conquistas e missões semanais.
-                    </span>
-                  </div>
                 </div>
               </div>
             )}
 
-            {/* STEP 2: CONTAS BANCÁRIAS */}
+            {/* =====================================================
+                ETAPA 2: CADASTRO OBRIGATÓRIO DE CONTAS
+               ===================================================== */}
             {wizardStep === 2 && (
               <div className="space-y-4">
-                <div>
-                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-400">
-                    Etapa 2 de 5 • Suas Contas
-                  </span>
-                  <h2 className="text-lg font-black text-white mt-0.5">
-                    Quais contas bancárias ou carteiras você usa?
-                  </h2>
-                  <p className="text-xs text-slate-400">
-                    Clique nos bancos abaixo para adicionar rápido ou personalize o saldo inicial de cada conta:
-                  </p>
+                <div className="p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/25 flex items-start gap-3">
+                  <FileSpreadsheet className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
+                  <div className="text-xs text-slate-300 leading-relaxed">
+                    <strong className="text-white block">Por que cadastrar suas contas agora?</strong>
+                    Toda movimentação e importação de extrato OFX/CSV precisa estar ligada a um banco ou carteira. Adicione abaixo os bancos que você utiliza e informe o saldo atual aproximado:
+                  </div>
                 </div>
 
                 {/* Quick Bank Presets */}
-                <div className="flex flex-wrap gap-1.5">
-                  {BANK_PRESETS.map((preset) => {
-                    const alreadyAdded = draftAccounts.some(
-                      (a) => a.name.toLowerCase() === preset.name.toLowerCase()
-                    );
-                    return (
-                      <button
-                        key={preset.name}
-                        type="button"
-                        onClick={() => {
-                          if (!alreadyAdded) addDraftAccount(preset);
-                        }}
-                        className={`px-2.5 py-1 rounded-xl text-[11px] font-semibold border transition flex items-center gap-1.5 ${
-                          alreadyAdded
-                            ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30 cursor-default'
-                            : 'bg-slate-950/80 hover:bg-slate-800 text-slate-300 border-slate-800'
-                        }`}
-                      >
-                        <span
-                          className="w-2 h-2 rounded-full"
-                          style={{ backgroundColor: preset.color }}
-                        />
-                        <span>{preset.name}</span>
-                        {!alreadyAdded && <Plus className="w-3 h-3 text-slate-400" />}
-                      </button>
-                    );
-                  })}
+                <div>
+                  <span className="text-[11px] font-bold text-slate-400 block mb-1.5">
+                    Toque para adicionar rapidamente seus bancos:
+                  </span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {BANK_PRESETS.map((preset) => {
+                      const alreadyAdded = draftAccounts.some(
+                        (a) => a.name.toLowerCase() === preset.name.toLowerCase()
+                      );
+                      return (
+                        <button
+                          key={preset.name}
+                          type="button"
+                          onClick={() => {
+                            if (!alreadyAdded) addDraftAccount(preset);
+                          }}
+                          className={`px-2.5 py-1 rounded-xl text-[11px] font-semibold border transition flex items-center gap-1.5 ${
+                            alreadyAdded
+                              ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30 cursor-default'
+                              : 'bg-slate-950/80 hover:bg-slate-800 text-slate-300 border-slate-800'
+                          }`}
+                        >
+                          <span
+                            className="w-2 h-2 rounded-full"
+                            style={{ backgroundColor: preset.color }}
+                          />
+                          <span>{preset.name}</span>
+                          {alreadyAdded ? (
+                            <CheckCircle2 className="w-3 h-3 text-emerald-400" />
+                          ) : (
+                            <Plus className="w-3 h-3 text-slate-400" />
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
 
                 {/* Draft Accounts List */}
-                <div className="space-y-2.5 max-h-60 overflow-y-auto pr-1">
+                <div className="space-y-2 max-h-52 overflow-y-auto pr-1">
                   {draftAccounts.map((acc) => (
                     <div
                       key={acc.tempId}
@@ -937,24 +969,22 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({ onClose }) => {
                   className="w-full py-2 rounded-xl border border-dashed border-slate-700 hover:border-emerald-500/50 text-xs font-bold text-slate-300 hover:text-emerald-300 flex items-center justify-center gap-1.5 transition"
                 >
                   <Plus className="w-3.5 h-3.5" />
-                  <span>Adicionar Outra Conta</span>
+                  <span>Adicionar Outra Conta Manualmente</span>
                 </button>
               </div>
             )}
 
-            {/* STEP 3: CATEGORIAS */}
+            {/* =====================================================
+                ETAPA 3: REVISÃO & CRIAÇÃO DE CATEGORIAS
+               ===================================================== */}
             {wizardStep === 3 && (
               <div className="space-y-4">
-                <div>
-                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-400">
-                    Etapa 3 de 5 • Suas Categorias
-                  </span>
-                  <h2 className="text-lg font-black text-white mt-0.5">
-                    Personalize suas Categorias de Receita e Despesa
-                  </h2>
-                  <p className="text-xs text-slate-400">
-                    Desmarque o que não usar ou adicione categorias próprias para a sua realidade:
-                  </p>
+                <div className="p-3.5 rounded-2xl bg-purple-500/10 border border-purple-500/25 flex items-start gap-3">
+                  <Tag className="w-5 h-5 text-purple-400 shrink-0 mt-0.5" />
+                  <div className="text-xs text-slate-300 leading-relaxed">
+                    <strong className="text-white block">Categorização Inteligente</strong>
+                    Quando você categoriza um estabelecimento (ex: iFood ou Supermercado), o Pigo aprende a regra e categoriza sozinho nos próximos extratos! Revise suas categorias ou crie novas abaixo:
+                  </div>
                 </div>
 
                 {/* Add New Category Bar */}
@@ -967,7 +997,7 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({ onClose }) => {
                   />
                   <input
                     type="text"
-                    placeholder="Nova categoria (ex: Pet, Academia, Delivery...)"
+                    placeholder="Criar categoria (ex: Pet, Academia, Delivery, Dízimo...)"
                     value={newCatName}
                     onChange={(e) => setNewCatName(e.target.value)}
                     onKeyDown={(e) => {
@@ -992,15 +1022,15 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({ onClose }) => {
                     className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center gap-1 shrink-0 transition"
                   >
                     <Plus className="w-3.5 h-3.5" />
-                    <span>Criar</span>
+                    <span>Adicionar</span>
                   </button>
                 </div>
 
                 {/* Category Chips */}
-                <div className="space-y-3 max-h-56 overflow-y-auto pr-1">
+                <div className="space-y-3 max-h-52 overflow-y-auto pr-1">
                   <div>
                     <span className="text-[10px] font-bold uppercase tracking-wider text-rose-400 block mb-1.5">
-                      Categorias de Despesas
+                      Despesas (Clique para ativar/desativar)
                     </span>
                     <div className="flex flex-wrap gap-1.5">
                       {draftCategories.map((cat, idx) => {
@@ -1029,7 +1059,7 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({ onClose }) => {
 
                   <div>
                     <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-400 block mb-1.5">
-                      Categorias de Receitas
+                      Receitas (Clique para ativar/desativar)
                     </span>
                     <div className="flex flex-wrap gap-1.5">
                       {draftCategories.map((cat, idx) => {
@@ -1059,25 +1089,23 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({ onClose }) => {
               </div>
             )}
 
-            {/* STEP 4: RESERVA DE EMERGÊNCIA */}
+            {/* =====================================================
+                ETAPA 4: RESERVA DE EMERGÊNCIA OBRIGATÓRIA
+               ===================================================== */}
             {wizardStep === 4 && (
               <div className="space-y-4">
-                <div>
-                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-400">
-                    Etapa 4 de 5 • Reserva de Emergência
-                  </span>
-                  <h2 className="text-lg font-black text-white mt-0.5">
-                    Configure seu Colchão de Segurança
-                  </h2>
-                  <p className="text-xs text-slate-400">
-                    O Pigo calcula automaticamente seu custo de vida mensal e acompanha a evolução da sua reserva:
-                  </p>
+                <div className="p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/25 flex items-start gap-3">
+                  <ShieldCheck className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
+                  <div className="text-xs text-slate-300 leading-relaxed">
+                    <strong className="text-white block">Sua Fortaleza Financeira</strong>
+                    O Pigo monitora seus aportes e calcula quantos meses do seu custo de vida já estão protegidos. Defina abaixo sua meta e onde sua reserva fica guardada:
+                  </div>
                 </div>
 
                 {/* Target Months */}
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-2">
-                    Quantos meses do seu custo de vida você quer ter na Reserva?
+                  <label className="block text-xs font-bold text-white mb-2">
+                    1. Quantos meses de custo de vida é a sua meta de Reserva? <span className="text-rose-400">*</span>
                   </label>
                   <div className="grid grid-cols-4 gap-2">
                     {[3, 6, 9, 12].map((m) => {
@@ -1093,14 +1121,14 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({ onClose }) => {
                               : 'bg-slate-950/70 border-slate-800 text-slate-400 hover:text-white'
                           }`}
                         >
-                          <span className="text-lg font-black block">{m} meses</span>
+                          <span className="text-base font-black block">{m} meses</span>
                           <span className="text-[10px] text-emerald-400 font-semibold">
                             {m === 3
-                              ? 'Essencial'
+                              ? 'Iniciante'
                               : m === 6
                               ? 'Recomendado'
                               : m === 9
-                              ? 'Conservador'
+                              ? 'Seguro'
                               : 'Blindado'}
                           </span>
                         </button>
@@ -1111,15 +1139,15 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({ onClose }) => {
 
                 {/* Where is the Reserve kept? */}
                 <div className="space-y-2.5 pt-1">
-                  <label className="block text-xs font-semibold text-slate-300">
-                    Onde você guarda (ou vai guardar) sua Reserva de Emergência?
+                  <label className="block text-xs font-bold text-white">
+                    2. Onde fica (ou ficará) guardada sua Reserva? <span className="text-rose-400">*</span>
                   </label>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                     <button
                       type="button"
                       onClick={() => setReserveSetupMode('dedicated')}
-                      className={`p-3.5 rounded-2xl border text-left transition ${
+                      className={`p-3 rounded-2xl border text-left transition ${
                         reserveSetupMode === 'dedicated'
                           ? 'bg-emerald-500/15 border-emerald-400 text-white'
                           : 'bg-slate-950/70 border-slate-800 text-slate-400'
@@ -1129,24 +1157,24 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({ onClose }) => {
                         Criar Caixinha / Conta de Reserva Separada
                       </span>
                       <span className="text-[11px] text-slate-400 mt-0.5 block">
-                        Ideal para Caixinha Nubank, CDB Liquidez Diária ou Tesouro Selic.
+                        Ex: Caixinha Nubank, CDB Liquidez Diária ou Tesouro Selic.
                       </span>
                     </button>
 
                     <button
                       type="button"
                       onClick={() => setReserveSetupMode('existing')}
-                      className={`p-3.5 rounded-2xl border text-left transition ${
+                      className={`p-3 rounded-2xl border text-left transition ${
                         reserveSetupMode === 'existing'
                           ? 'bg-emerald-500/15 border-emerald-400 text-white'
                           : 'bg-slate-950/70 border-slate-800 text-slate-400'
                       }`}
                     >
                       <span className="text-xs font-bold block text-white">
-                        Usar uma conta já listada na Etapa 2
+                        Vincular uma conta já criada na Etapa 2
                       </span>
                       <span className="text-[11px] text-slate-400 mt-0.5 block">
-                        Vincular uma das contas que você acabou de adicionar.
+                        Usar uma das contas que você cadastrou no passo anterior.
                       </span>
                     </button>
                   </div>
@@ -1154,7 +1182,7 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({ onClose }) => {
                   {reserveSetupMode === 'dedicated' ? (
                     <div className="p-3.5 rounded-2xl bg-slate-950/80 border border-slate-800 grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div>
-                        <label className="block text-[11px] text-slate-400 mb-1">
+                        <label className="block text-[11px] font-semibold text-slate-300 mb-1">
                           Nome da Caixinha / Reserva
                         </label>
                         <input
@@ -1165,8 +1193,8 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({ onClose }) => {
                         />
                       </div>
                       <div>
-                        <label className="block text-[11px] text-slate-400 mb-1">
-                          Saldo já guardado hoje (R$)
+                        <label className="block text-[11px] font-semibold text-slate-300 mb-1">
+                          Quanto você já tem guardado nela hoje? (R$)
                         </label>
                         <div className="relative">
                           <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-500">
@@ -1185,8 +1213,8 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({ onClose }) => {
                     </div>
                   ) : (
                     <div className="p-3.5 rounded-2xl bg-slate-950/80 border border-slate-800">
-                      <label className="block text-[11px] text-slate-400 mb-1">
-                        Selecione qual conta da Etapa 2 representa sua Reserva:
+                      <label className="block text-[11px] font-semibold text-slate-300 mb-1">
+                        Selecione qual conta da Etapa 2 é a sua Reserva:
                       </label>
                       <select
                         value={selectedReserveAccTempId}
@@ -1205,26 +1233,24 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({ onClose }) => {
               </div>
             )}
 
-            {/* STEP 5: HÁBITOS & FINALIZAÇÃO */}
+            {/* =====================================================
+                ETAPA 5: HÁBITOS INICIAIS & LIBERAÇÃO DO APP
+               ===================================================== */}
             {wizardStep === 5 && (
               <div className="space-y-4">
-                <div>
-                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-cyan-400">
-                    Etapa 5 de 5 • Hábitos & Resumo
-                  </span>
-                  <h2 className="text-lg font-black text-white mt-0.5">
-                    Ative seus Hábitos Iniciais (Opcional)
-                  </h2>
-                  <p className="text-xs text-slate-400">
-                    Cada check-in diário rende <strong className="text-amber-300">+5 XP</strong> na Jornada! Escolha se já quer iniciar com trilhas prontas:
-                  </p>
+                <div className="p-3.5 rounded-2xl bg-cyan-500/10 border border-cyan-500/25 flex items-start gap-3">
+                  <Zap className="w-5 h-5 text-cyan-400 shrink-0 mt-0.5" />
+                  <div className="text-xs text-slate-300 leading-relaxed">
+                    <strong className="text-white block">Última Etapa: Seus Hábitos Diários</strong>
+                    Cada hábito concluído rende <strong className="text-amber-300">+5 XP</strong> e fechar 100% do dia rende <strong className="text-amber-300">+25 XP de Dia Perfeito</strong>. Escolha abaixo os pacotes iniciais:
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <button
                     type="button"
                     onClick={() => setInstallFinanceHabits((v) => !v)}
-                    className={`p-4 rounded-2xl border text-left transition ${
+                    className={`p-3.5 rounded-2xl border text-left transition ${
                       installFinanceHabits
                         ? 'bg-emerald-500/15 border-emerald-400 text-white'
                         : 'bg-slate-950/70 border-slate-800 text-slate-400'
@@ -1232,7 +1258,7 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({ onClose }) => {
                   >
                     <div className="flex items-center justify-between mb-1">
                       <span className="text-xs font-black text-white">
-                        💰 Kit Blindagem Financeira
+                        💰 Kit Blindagem Financeira (3 hábitos)
                       </span>
                       <CheckCircle2
                         className={`w-4 h-4 ${
@@ -1241,14 +1267,14 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({ onClose }) => {
                       />
                     </div>
                     <p className="text-[11px] text-slate-400">
-                      Inclui: Dia Sem Gastos por Impulso, Revisar Lançamentos do Dia e Cozinhar em Casa.
+                      Dia Sem Gastos por Impulso, Revisar Lançamentos do Dia e Cozinhar em Casa.
                     </p>
                   </button>
 
                   <button
                     type="button"
                     onClick={() => setInstallMorningHabits((v) => !v)}
-                    className={`p-4 rounded-2xl border text-left transition ${
+                    className={`p-3.5 rounded-2xl border text-left transition ${
                       installMorningHabits
                         ? 'bg-cyan-500/15 border-cyan-400 text-white'
                         : 'bg-slate-950/70 border-slate-800 text-slate-400'
@@ -1256,7 +1282,7 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({ onClose }) => {
                   >
                     <div className="flex items-center justify-between mb-1">
                       <span className="text-xs font-black text-white">
-                        🌅 Kit Manhã de Alta Performance
+                        🌅 Kit Manhã de Alta Performance (2 hábitos)
                       </span>
                       <CheckCircle2
                         className={`w-4 h-4 ${
@@ -1265,39 +1291,55 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({ onClose }) => {
                       />
                     </div>
                     <p className="text-[11px] text-slate-400">
-                      Inclui: Beber 500ml de Água ao Acordar e Treino / Movimento Físico (30 min).
+                      Beber 500ml de Água ao Acordar e Treino / Movimento Físico (30 min).
                     </p>
                   </button>
                 </div>
 
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">
+                    Quer adicionar mais algum hábito pessoal específico? (Opcional)
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Ex: Ler 10 páginas, Estudar Inglês, Meditar..."
+                    value={customHabitName}
+                    onChange={(e) => setCustomHabitName(e.target.value)}
+                    className="w-full bg-slate-950/80 border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500"
+                  />
+                </div>
+
                 {/* Final Summary Card */}
-                <div className="p-4 rounded-2xl bg-slate-950/80 border border-white/[0.08] space-y-2">
+                <div className="p-3.5 rounded-2xl bg-slate-950/80 border border-white/[0.08] space-y-2">
                   <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
-                    Resumo da sua Configuração
+                    Resumo pronto para liberar seu Pigo:
                   </span>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
-                    <div className="p-2.5 rounded-xl bg-slate-900 border border-slate-800">
+                    <div className="p-2 rounded-xl bg-slate-900 border border-slate-800">
                       <span className="text-[10px] text-slate-400 block">Contas</span>
                       <strong className="text-white">
                         {draftAccounts.filter((a) => a.name.trim()).length +
                           (reserveSetupMode === 'dedicated' ? 1 : 0)}{' '}
-                        configuradas
+                        contas
                       </strong>
                     </div>
-                    <div className="p-2.5 rounded-xl bg-slate-900 border border-slate-800">
+                    <div className="p-2 rounded-xl bg-slate-900 border border-slate-800">
                       <span className="text-[10px] text-slate-400 block">Categorias</span>
                       <strong className="text-white">
                         {draftCategories.filter((c) => c.enabled).length} ativas
                       </strong>
                     </div>
-                    <div className="p-2.5 rounded-xl bg-slate-900 border border-slate-800">
-                      <span className="text-[10px] text-slate-400 block">Meta da Reserva</span>
+                    <div className="p-2 rounded-xl bg-slate-900 border border-slate-800">
+                      <span className="text-[10px] text-slate-400 block">Reserva</span>
                       <strong className="text-emerald-400">{reserveTargetMonths} meses</strong>
                     </div>
-                    <div className="p-2.5 rounded-xl bg-slate-900 border border-slate-800">
-                      <span className="text-[10px] text-slate-400 block">Hábitos Iniciais</span>
+                    <div className="p-2 rounded-xl bg-slate-900 border border-slate-800">
+                      <span className="text-[10px] text-slate-400 block">Hábitos</span>
                       <strong className="text-cyan-300">
-                        {(installFinanceHabits ? 3 : 0) + (installMorningHabits ? 2 : 0)} hábitos
+                        {(installFinanceHabits ? 3 : 0) +
+                          (installMorningHabits ? 2 : 0) +
+                          (customHabitName.trim() ? 1 : 0)}{' '}
+                        ativos
                       </strong>
                     </div>
                   </div>
@@ -1307,14 +1349,20 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({ onClose }) => {
 
             {/* Wizard Footer Navigation */}
             <div className="pt-3 border-t border-white/[0.08] flex items-center justify-between gap-3">
-              <button
-                type="button"
-                onClick={prevStep}
-                className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center gap-1.5 transition"
-              >
-                <ArrowLeft className="w-3.5 h-3.5" />
-                <span>Voltar</span>
-              </button>
+              {wizardStep > 1 ? (
+                <button
+                  type="button"
+                  onClick={prevStep}
+                  className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center gap-1.5 transition"
+                >
+                  <ArrowLeft className="w-3.5 h-3.5" />
+                  <span>Etapa Anterior</span>
+                </button>
+              ) : (
+                <span className="text-[11px] text-slate-500">
+                  🔒 Conclua as 5 etapas para liberar o app
+                </span>
+              )}
 
               {wizardStep < 5 ? (
                 <button
@@ -1322,7 +1370,7 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({ onClose }) => {
                   onClick={nextStep}
                   className="liquid-glass-cta px-6 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 text-white text-xs font-extrabold flex items-center gap-1.5 transition"
                 >
-                  <span>Próxima Etapa</span>
+                  <span>Confirmar e Avançar ({wizardStep}/5)</span>
                   <ArrowRight className="w-4 h-4" />
                 </button>
               ) : (
@@ -1334,7 +1382,9 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({ onClose }) => {
                 >
                   <CheckCircle2 className="w-4 h-4" />
                   <span>
-                    {isSubmitting ? 'Salvando tudo...' : 'Concluir e Entrar no Pigo!'}
+                    {isSubmitting
+                      ? 'Liberando Plataforma...'
+                      : 'Concluir Tutorial e Liberar o Pigo!'}
                   </span>
                 </button>
               )}
