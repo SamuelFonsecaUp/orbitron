@@ -75,6 +75,12 @@ import {
   X,
   Printer,
   FileDown,
+  Image as ImageIcon,
+  FileUp,
+  Save,
+  Grid,
+  Unlock,
+  Scan,
 } from 'lucide-react';
 import { useFinancial } from '../context/FinancialContext';
 
@@ -194,7 +200,17 @@ interface NoteItem {
   updatedAt: string;
 }
 
-export type LucidShapeType = 'cloud' | 'capsule' | 'octagon' | 'diamond' | 'sticky' | 'rectangle';
+export type LucidShapeType =
+  | 'cloud'
+  | 'capsule'
+  | 'octagon'
+  | 'diamond'
+  | 'sticky'
+  | 'rectangle'
+  | 'circle'
+  | 'text'
+  | 'frame'
+  | 'image';
 
 export interface NodeConnection {
   targetId: string;
@@ -208,11 +224,18 @@ export interface MindmapNode {
   connections?: NodeConnection[];
   x: number;
   y: number;
+  width?: number;
+  height?: number;
   color: string;
   icon?: string;
   notes?: string;
   shape?: LucidShapeType;
   lineLabel?: string;
+  locked?: boolean;
+  zIndex?: number;
+  groupId?: string;
+  imageUrl?: string;
+  fontSize?: number;
 }
 
 export interface BoardEdge {
@@ -286,12 +309,15 @@ export const LUCID_FAN_PALETTES = [
 ];
 
 export const LUCID_SHAPES: { type: LucidShapeType; label: string; desc: string }[] = [
+  { type: 'sticky', label: 'Post-it', desc: 'Nota rápida adesiva colorida' },
+  { type: 'rectangle', label: 'Cartão', desc: 'Bloco estruturado' },
+  { type: 'circle', label: 'Círculo', desc: 'Início ou fim de fluxo' },
   { type: 'cloud', label: 'Nuvem', desc: 'Ideia central e pensamentos' },
   { type: 'capsule', label: 'Cápsula', desc: 'Conceito e objetivos' },
-  { type: 'octagon', label: 'Octógono', desc: 'Questão crítica ou parada' },
   { type: 'diamond', label: 'Losango', desc: 'Decisão ou dilema' },
-  { type: 'sticky', label: 'Post-it', desc: 'Nota rápida adesiva' },
-  { type: 'rectangle', label: 'Cartão', desc: 'Bloco estruturado' },
+  { type: 'octagon', label: 'Octógono', desc: 'Questão crítica ou parada' },
+  { type: 'text', label: 'Texto Livre', desc: 'Texto limpo sem moldura' },
+  { type: 'frame', label: 'Área / Frame', desc: 'Agrupador de seção com título' },
 ];
 
 interface MindmapBoard {
@@ -411,6 +437,15 @@ const ToolsViewInner: React.FC = () => {
   const [lucidTimerOpen, setLucidTimerOpen] = useState<boolean>(false);
   const [lucidTimerSeconds, setLucidTimerSeconds] = useState<number>(300); // 5 min
   const [lucidTimerActive, setLucidTimerActive] = useState<boolean>(false);
+
+  // Novos Estados: Seleção Múltipla, Histórico (Undo/Redo), Clipboard & Grid Snap
+  const [selectedNodeIds, setSelectedNodeIds] = useState<string[]>([]);
+  const [clipboardNodes, setClipboardNodes] = useState<MindmapNode[] | null>(null);
+  const [undoStack, setUndoStack] = useState<MindmapNode[][]>([]);
+  const [redoStack, setRedoStack] = useState<MindmapNode[][]>([]);
+  const [gridSnap, setGridSnap] = useState<boolean>(false);
+  const imageInputRef = useRef<HTMLInputElement | null>(null);
+  const projectFileInputRef = useRef<HTMLInputElement | null>(null);
 
   // =========================================================
   // 3. COFRE DE SENHAS CRIPTOGRAFADO
@@ -581,8 +616,17 @@ const ToolsViewInner: React.FC = () => {
     selectedMap?.nodes[0] ||
     null;
 
-  const saveMapNodes = async (mapId: string, nextNodes: MindmapNode[], nextTitle?: string) => {
-    if (!window.electronAPI?.updateMindmap) return;
+  const saveMapNodes = async (
+    mapId: string,
+    nextNodes: MindmapNode[],
+    nextTitle?: string,
+    recordHistory: boolean = true
+  ) => {
+    if (recordHistory && selectedMap) {
+      setUndoStack((prev) => [...prev.slice(-30), selectedMap.nodes]);
+      setRedoStack([]);
+    }
+
     setMindmaps((prev) =>
       prev.map((m) =>
         m.id === mapId
@@ -590,11 +634,38 @@ const ToolsViewInner: React.FC = () => {
           : m
       )
     );
-    await window.electronAPI.updateMindmap(mapId, {
-      nodes: nextNodes,
-      ...(nextTitle !== undefined ? { title: nextTitle } : {}),
-    });
+
+    if (window.electronAPI?.updateMindmap) {
+      await window.electronAPI.updateMindmap(mapId, {
+        nodes: nextNodes,
+        ...(nextTitle !== undefined ? { title: nextTitle } : {}),
+      });
+    }
     await refreshGame();
+  };
+
+  const handleUndo = () => {
+    if (!selectedMap || undoStack.length === 0) {
+      showToast('Nenhuma ação para desfazer.', 'info');
+      return;
+    }
+    const prevNodes = undoStack[undoStack.length - 1];
+    setUndoStack((prev) => prev.slice(0, -1));
+    setRedoStack((prev) => [...prev, selectedMap.nodes]);
+    saveMapNodes(selectedMap.id, prevNodes, undefined, false);
+    showToast('Ação desfeita (Ctrl+Z).', 'info');
+  };
+
+  const handleRedo = () => {
+    if (!selectedMap || redoStack.length === 0) {
+      showToast('Nenhuma ação para refazer.', 'info');
+      return;
+    }
+    const nextNodes = redoStack[redoStack.length - 1];
+    setRedoStack((prev) => prev.slice(0, -1));
+    setUndoStack((prev) => [...prev, selectedMap.nodes]);
+    saveMapNodes(selectedMap.id, nextNodes, undefined, false);
+    showToast('Ação refeita (Ctrl+Y).', 'info');
   };
 
   // Timer countdown do Lucidspark
@@ -1142,12 +1213,479 @@ const ToolsViewInner: React.FC = () => {
     showToast('Visualização de impressão aberta! Escolha "Salvar como PDF".', 'success');
   };
 
-  // Keyboard navigation for Mindmap
+  // Exportar Quadro em Imagem PNG de Alta Resolução (HD / 2x Retina)
+  const handleExportPNG = () => {
+    if (!selectedMap || !Array.isArray(selectedMap.nodes) || selectedMap.nodes.length === 0) {
+      showToast('O quadro precisa ter ao menos um elemento para exportar.', 'info');
+      return;
+    }
+    const nodes = selectedMap.nodes;
+    const minX = Math.min(...nodes.map((n) => n.x)) - 100;
+    const minY = Math.min(...nodes.map((n) => n.y)) - 100;
+    const maxX = Math.max(...nodes.map((n) => n.x + 160)) + 100;
+    const maxY = Math.max(...nodes.map((n) => n.y + 100)) + 100;
+    const width = Math.max(900, maxX - minX);
+    const height = Math.max(600, maxY - minY);
+
+    const canvas = document.createElement('canvas');
+    const scale = 2;
+    canvas.width = width * scale;
+    canvas.height = height * scale;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    ctx.scale(scale, scale);
+
+    // Fundo sólido escuro de estúdio
+    ctx.fillStyle = '#0b0c10';
+    ctx.fillRect(0, 0, width, height);
+
+    // Grade de pontos suaves
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.08)';
+    for (let x = 0; x < width; x += 24) {
+      for (let y = 0; y < height; y += 24) {
+        ctx.beginPath();
+        ctx.arc(x, y, 1.2, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    // Desenhar Conexões
+    const edges = getBoardEdges(nodes);
+    edges.forEach((edge) => {
+      const source = nodes.find((n) => n.id === edge.sourceId);
+      const target = nodes.find((n) => n.id === edge.targetId);
+      if (!source || !target) return;
+      const sx = source.x - minX;
+      const sy = source.y - minY;
+      const tx = target.x - minX;
+      const ty = target.y - minY;
+      const mx = (sx + tx) / 2;
+      const my = (sy + ty) / 2;
+
+      ctx.strokeStyle = edge.color || '#6366f1';
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      if (connectorStyle === 'straight') {
+        ctx.moveTo(sx, sy);
+        ctx.lineTo(tx, ty);
+      } else if (connectorStyle === 'elbow') {
+        ctx.moveTo(sx, sy);
+        ctx.lineTo(mx, sy);
+        ctx.lineTo(mx, ty);
+        ctx.lineTo(tx, ty);
+      } else {
+        ctx.moveTo(sx, sy);
+        ctx.bezierCurveTo(mx, sy, mx, ty, tx, ty);
+      }
+      ctx.stroke();
+
+      // Seta indicativa no destino
+      const angle = Math.atan2(ty - my, tx - mx);
+      ctx.fillStyle = edge.color || '#6366f1';
+      ctx.beginPath();
+      ctx.moveTo(tx, ty);
+      ctx.lineTo(tx - 12 * Math.cos(angle - Math.PI / 7), ty - 12 * Math.sin(angle - Math.PI / 7));
+      ctx.lineTo(tx - 12 * Math.cos(angle + Math.PI / 7), ty - 12 * Math.sin(angle + Math.PI / 7));
+      ctx.closePath();
+      ctx.fill();
+
+      // Rótulo da linha
+      if (edge.label) {
+        ctx.font = 'bold 10px system-ui, sans-serif';
+        ctx.fillStyle = '#1e293b';
+        const tw = ctx.measureText(edge.label).width;
+        ctx.fillRect(mx - tw / 2 - 8, my - 12, tw + 16, 20);
+        ctx.fillStyle = '#e2e8f0';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(edge.label, mx, my - 2);
+      }
+    });
+
+    // Desenhar Nós
+    nodes.forEach((node) => {
+      const nx = node.x - minX;
+      const ny = node.y - minY;
+      const shape = node.shape || 'cloud';
+
+      ctx.save();
+      ctx.fillStyle = node.color || '#6366f1';
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+      ctx.lineWidth = 1.5;
+
+      if (shape === 'frame') {
+        ctx.strokeStyle = node.color || '#818cf8';
+        ctx.lineWidth = 2;
+        ctx.fillStyle = 'rgba(30, 41, 59, 0.4)';
+        ctx.beginPath();
+        if (typeof ctx.roundRect === 'function') {
+          ctx.roundRect(nx - 120, ny - 90, 240, 180, 12);
+        } else {
+          ctx.rect(nx - 120, ny - 90, 240, 180);
+        }
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = node.color || '#818cf8';
+        ctx.font = 'bold 11px system-ui, sans-serif';
+        ctx.textAlign = 'left';
+        ctx.fillText(node.label || 'Área', nx - 110, ny - 70);
+        ctx.restore();
+        return;
+      } else if (shape === 'text') {
+        ctx.fillStyle = '#f8fafc';
+        ctx.font = 'bold 14px system-ui, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(node.label, nx, ny);
+        ctx.restore();
+        return;
+      } else if (shape === 'sticky') {
+        ctx.beginPath();
+        if (typeof ctx.roundRect === 'function') ctx.roundRect(nx - 60, ny - 40, 120, 80, 6);
+        else ctx.rect(nx - 60, ny - 40, 120, 80);
+        ctx.fill();
+      } else if (shape === 'capsule') {
+        ctx.beginPath();
+        if (typeof ctx.roundRect === 'function') ctx.roundRect(nx - 70, ny - 25, 140, 50, 25);
+        else ctx.rect(nx - 70, ny - 25, 140, 50);
+        ctx.fill();
+      } else if (shape === 'circle') {
+        ctx.beginPath();
+        ctx.arc(nx, ny, 38, 0, Math.PI * 2);
+        ctx.fill();
+      } else if (shape === 'diamond') {
+        ctx.beginPath();
+        ctx.moveTo(nx, ny - 36);
+        ctx.lineTo(nx + 65, ny);
+        ctx.lineTo(nx, ny + 36);
+        ctx.lineTo(nx - 65, ny);
+        ctx.closePath();
+        ctx.fill();
+      } else if (shape === 'octagon') {
+        ctx.beginPath();
+        ctx.moveTo(nx - 35, ny - 35);
+        ctx.lineTo(nx + 35, ny - 35);
+        ctx.lineTo(nx + 65, ny);
+        ctx.lineTo(nx + 35, ny + 35);
+        ctx.lineTo(nx - 35, ny + 35);
+        ctx.lineTo(nx - 65, ny);
+        ctx.closePath();
+        ctx.fill();
+      } else {
+        ctx.beginPath();
+        if (typeof ctx.roundRect === 'function') ctx.roundRect(nx - 75, ny - 30, 150, 60, 18);
+        else ctx.rect(nx - 75, ny - 30, 150, 60);
+        ctx.fill();
+      }
+
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 12px system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(node.label, nx, ny);
+      ctx.restore();
+    });
+
+    const a = document.createElement('a');
+    a.href = canvas.toDataURL('image/png');
+    a.download = `${selectedMap.title.replace(/\s+/g, '_')}_lucidspark.png`;
+    a.click();
+    showToast('Imagem PNG de alta resolução exportada!', 'success');
+  };
+
+  // Salvar Como: Exporta o documento editável nativo do projeto (.pigo-board)
+  const handleSaveAsProjectFile = () => {
+    if (!selectedMap) return;
+    const projectDoc = {
+      app: 'Pigo Lucidspark Offline Builder',
+      version: '1.0',
+      exportedAt: new Date().toISOString(),
+      project: {
+        id: selectedMap.id,
+        title: selectedMap.title,
+        description: selectedMap.description || 'Geral',
+        connectorStyle,
+        nodes: selectedMap.nodes,
+      },
+    };
+    const jsonStr = JSON.stringify(projectDoc, null, 2);
+    const blob = new Blob([jsonStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${selectedMap.title.replace(/\s+/g, '_')}.pigo-board`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast('Projeto editável salvo localmente (.pigo-board)!', 'success');
+  };
+
+  // Abrir Projeto: Carrega um arquivo .pigo-board ou .json do computador
+  const handleOpenProjectFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      try {
+        const content = event.target?.result as string;
+        const parsed = JSON.parse(content);
+        const proj = parsed.project || parsed;
+        if (!proj || !Array.isArray(proj.nodes)) {
+          showToast('Formato de projeto inválido.', 'error');
+          return;
+        }
+
+        const newId = `map_${Date.now()}`;
+        const newTitle = proj.title || file.name.replace(/\.[^/.]+$/, '');
+        const importedBoard: MindmapBoard = {
+          id: newId,
+          title: newTitle,
+          description: proj.description || 'Geral',
+          nodes: proj.nodes,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+
+        if (window.electronAPI?.createMindmap) {
+          await window.electronAPI.createMindmap(importedBoard);
+        }
+        setMindmaps((prev) => [importedBoard, ...prev]);
+        setSelectedMapId(newId);
+        setLucidViewMode('canvas');
+        showToast(`Projeto "${newTitle}" aberto com sucesso!`, 'success');
+      } catch (err) {
+        console.error(err);
+        showToast('Falha ao ler arquivo de projeto.', 'error');
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  };
+
+  // Importar Imagem Local do Computador (embutida em base64 para nunca quebrar)
+  const handleImportLocalImage = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !selectedMap) return;
+
+    if (!file.type.startsWith('image/')) {
+      showToast('Por favor, selecione um arquivo de imagem válido (PNG, JPEG, WebP).', 'info');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const dataUrl = event.target?.result as string;
+      if (!dataUrl) return;
+
+      const newNodeId = `img_${Date.now()}`;
+      const newNode: MindmapNode = {
+        id: newNodeId,
+        label: file.name.replace(/\.[^/.]+$/, ''),
+        shape: 'image',
+        imageUrl: dataUrl,
+        x: (selectedNode ? selectedNode.x + 180 : 450) + (Math.random() * 40 - 20),
+        y: (selectedNode ? selectedNode.y + 40 : 250) + (Math.random() * 40 - 20),
+        color: '#3b82f6',
+        connections: [],
+        notes: '',
+      };
+
+      saveMapNodes(selectedMap.id, [...selectedMap.nodes, newNode]);
+      setSelectedNodeId(newNodeId);
+      showToast('Imagem local incorporada ao projeto!', 'success');
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  };
+
+  // Ajustar à Tela (Fit to Content / Zoom to Fit)
+  const handleZoomToFit = () => {
+    if (!selectedMap || !Array.isArray(selectedMap.nodes) || selectedMap.nodes.length === 0 || !canvasRef.current) return;
+    const nodes = selectedMap.nodes;
+    const minX = Math.min(...nodes.map((n) => n.x)) - 80;
+    const minY = Math.min(...nodes.map((n) => n.y)) - 80;
+    const maxX = Math.max(...nodes.map((n) => n.x + 160)) + 80;
+    const maxY = Math.max(...nodes.map((n) => n.y + 100)) + 80;
+
+    const contentWidth = Math.max(400, maxX - minX);
+    const contentHeight = Math.max(300, maxY - minY);
+
+    const rect = canvasRef.current.getBoundingClientRect();
+    const scaleX = rect.width / contentWidth;
+    const scaleY = rect.height / contentHeight;
+    const newZoom = Math.min(1.2, Math.max(0.35, Math.min(scaleX, scaleY) * 0.9));
+
+    const centerX = (minX + maxX) / 2;
+    const centerY = (minY + maxY) / 2;
+
+    setZoom(Number(newZoom.toFixed(2)));
+    setPanOffset({
+      x: Math.round(rect.width / 2 - centerX * newZoom),
+      y: Math.round(rect.height / 2 - centerY * newZoom),
+    });
+    showToast('Visualização ajustada para exibir todo o conteúdo.', 'info');
+  };
+
+  // Centralizar Câmera no Objeto Selecionado
+  const handleCenterOnSelection = () => {
+    if (!selectedNode || !canvasRef.current) return;
+    const rect = canvasRef.current.getBoundingClientRect();
+    setZoom(1);
+    setPanOffset({
+      x: Math.round(rect.width / 2 - selectedNode.x),
+      y: Math.round(rect.height / 2 - selectedNode.y),
+    });
+  };
+
+  // Duplicar Elemento(s) Selecionado(s) (Ctrl+D)
+  const handleDuplicate = () => {
+    if (!selectedMap || !selectedNode) return;
+    const targets = selectedNodeIds.length > 0
+      ? selectedMap.nodes.filter((n) => selectedNodeIds.includes(n.id))
+      : [selectedNode];
+
+    const idMap = new Map<string, string>();
+    targets.forEach((n) => {
+      idMap.set(n.id, `node_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`);
+    });
+
+    const cloned: MindmapNode[] = targets.map((n) => {
+      const newId = idMap.get(n.id)!;
+      const remapped = (n.connections || [])
+        .filter((c) => idMap.has(c.targetId))
+        .map((c) => ({ ...c, targetId: idMap.get(c.targetId)! }));
+      return {
+        ...n,
+        id: newId,
+        label: `${n.label} (Cópia)`,
+        x: n.x + 40,
+        y: n.y + 40,
+        connections: remapped,
+      };
+    });
+
+    saveMapNodes(selectedMap.id, [...selectedMap.nodes, ...cloned]);
+    setSelectedNodeIds(cloned.map((c) => c.id));
+    if (cloned.length > 0) setSelectedNodeId(cloned[0].id);
+    showToast(`${cloned.length} elemento(s) duplicado(s)!`, 'info');
+  };
+
+  // Copiar & Colar (Ctrl+C / Ctrl+V)
+  const handleCopy = () => {
+    if (!selectedMap) return;
+    const targets = selectedNodeIds.length > 0
+      ? selectedMap.nodes.filter((n) => selectedNodeIds.includes(n.id))
+      : selectedNode ? [selectedNode] : [];
+    if (targets.length === 0) return;
+    setClipboardNodes(targets);
+    showToast(`${targets.length} elemento(s) copiado(s)!`, 'info');
+  };
+
+  const handlePaste = () => {
+    if (!selectedMap || !clipboardNodes || clipboardNodes.length === 0) return;
+    const idMap = new Map<string, string>();
+    clipboardNodes.forEach((n) => {
+      idMap.set(n.id, `node_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`);
+    });
+
+    const pasted: MindmapNode[] = clipboardNodes.map((n) => {
+      const newId = idMap.get(n.id)!;
+      const remapped = (n.connections || [])
+        .filter((c) => idMap.has(c.targetId))
+        .map((c) => ({ ...c, targetId: idMap.get(c.targetId)! }));
+      return {
+        ...n,
+        id: newId,
+        x: n.x + 50,
+        y: n.y + 50,
+        connections: remapped,
+      };
+    });
+
+    saveMapNodes(selectedMap.id, [...selectedMap.nodes, ...pasted]);
+    setSelectedNodeIds(pasted.map((p) => p.id));
+    if (pasted.length > 0) setSelectedNodeId(pasted[0].id);
+    showToast(`${pasted.length} elemento(s) colado(s)!`, 'info');
+  };
+
+  // Bloquear / Desbloquear Elemento
+  const handleToggleLock = (nodeId: string) => {
+    if (!selectedMap) return;
+    const nextNodes = selectedMap.nodes.map((n) =>
+      n.id === nodeId ? { ...n, locked: !n.locked } : n
+    );
+    saveMapNodes(selectedMap.id, nextNodes);
+    showToast('Status de bloqueio atualizado.', 'info');
+  };
+
+  // Ordem de Sobreposição (Trazer para frente / Enviar para trás)
+  const handleReorderNode = (nodeId: string, direction: 'forward' | 'backward') => {
+    if (!selectedMap) return;
+    const idx = selectedMap.nodes.findIndex((n) => n.id === nodeId);
+    if (idx === -1) return;
+    const next = [...selectedMap.nodes];
+    const [removed] = next.splice(idx, 1);
+    if (direction === 'forward') {
+      next.push(removed);
+    } else {
+      next.unshift(removed);
+    }
+    saveMapNodes(selectedMap.id, next);
+  };
+
+  // Keyboard navigation & Shortcuts for Mindmap
   useEffect(() => {
     if (activeTool !== 'mindmap') return;
     const handleKeyDown = (e: KeyboardEvent) => {
       const activeTag = (document.activeElement?.tagName || '').toLowerCase();
       if (activeTag === 'input' || activeTag === 'textarea') return;
+
+      // Atalhos com Ctrl / Cmd
+      if (e.ctrlKey || e.metaKey) {
+        const key = e.key.toLowerCase();
+        if (key === 'z') {
+          e.preventDefault();
+          if (e.shiftKey) handleRedo();
+          else handleUndo();
+          return;
+        }
+        if (key === 'y') {
+          e.preventDefault();
+          handleRedo();
+          return;
+        }
+        if (key === 'c') {
+          e.preventDefault();
+          handleCopy();
+          return;
+        }
+        if (key === 'v') {
+          e.preventDefault();
+          handlePaste();
+          return;
+        }
+        if (key === 'd') {
+          e.preventDefault();
+          handleDuplicate();
+          return;
+        }
+        if (key === 's') {
+          e.preventDefault();
+          handleSaveAsProjectFile();
+          return;
+        }
+        if (key === 'a') {
+          e.preventDefault();
+          if (selectedMap) setSelectedNodeIds(selectedMap.nodes.map((n) => n.id));
+          return;
+        }
+        if (key === '0') {
+          e.preventDefault();
+          handleZoomToFit();
+          return;
+        }
+      }
 
       if (e.key === 'Tab') {
         e.preventDefault();
@@ -1167,11 +1705,20 @@ const ToolsViewInner: React.FC = () => {
           }
         }
         handleDeleteSelectedNode();
+      } else if (e.key === '+' || e.key === '=') {
+        e.preventDefault();
+        setZoom((z) => Math.min(2.5, Number((z + 0.1).toFixed(2))));
+      } else if (e.key === '-') {
+        e.preventDefault();
+        setZoom((z) => Math.max(0.2, Number((z - 0.1).toFixed(2))));
+      } else if (e.key === '0') {
+        e.preventDefault();
+        handleZoomToFit();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [activeTool, selectedMap, selectedNode, selectedEdgeId]);
+  }, [activeTool, selectedMap, selectedNode, selectedEdgeId, selectedNodeIds, clipboardNodes, undoStack, redoStack]);
 
   // Pan & Drag Handlers
   const handleCanvasMouseDown = (e: React.MouseEvent) => {
@@ -1192,18 +1739,33 @@ const ToolsViewInner: React.FC = () => {
       return;
     }
     if (!draggingNodeId || !selectedMap || !canvasRef.current) return;
+    const draggingNode = selectedMap.nodes.find((n) => n.id === draggingNodeId);
+    if (draggingNode?.locked) return;
+
     const rect = canvasRef.current.getBoundingClientRect();
-    const mouseX = (e.clientX - rect.left - panOffset.x) / zoom;
-    const mouseY = (e.clientY - rect.top - panOffset.y) / zoom;
+    const rawX = (e.clientX - rect.left - panOffset.x) / zoom;
+    const rawY = (e.clientY - rect.top - panOffset.y) / zoom;
+    const newX = gridSnap ? Math.round(rawX / 20) * 20 : Math.round(rawX);
+    const newY = gridSnap ? Math.round(rawY / 20) * 20 : Math.round(rawY);
+
+    const deltaX = newX - (draggingNode?.x || newX);
+    const deltaY = newY - (draggingNode?.y || newY);
 
     setMindmaps((prev) =>
       prev.map((m) =>
         m.id === selectedMap.id
           ? {
               ...m,
-              nodes: m.nodes.map((n) =>
-                n.id === draggingNodeId ? { ...n, x: Math.round(mouseX), y: Math.round(mouseY) } : n
-              ),
+              nodes: m.nodes.map((n) => {
+                if (n.locked) return n;
+                if (selectedNodeIds.includes(draggingNodeId) && selectedNodeIds.includes(n.id)) {
+                  return { ...n, x: n.x + deltaX, y: n.y + deltaY };
+                }
+                if (n.id === draggingNodeId) {
+                  return { ...n, x: newX, y: newY };
+                }
+                return n;
+              }),
             }
           : m
       )
@@ -1218,11 +1780,9 @@ const ToolsViewInner: React.FC = () => {
     if (!draggingNodeId || !selectedMap) return;
     const draggedId = draggingNodeId;
     setDraggingNodeId(null);
-    if (window.electronAPI?.updateMindmap) {
-      const currentMap = mindmaps.find((m) => m.id === selectedMap.id);
-      if (currentMap) {
-        await window.electronAPI.updateMindmap(currentMap.id, { nodes: currentMap.nodes });
-      }
+    const currentMap = mindmaps.find((m) => m.id === selectedMap.id);
+    if (currentMap) {
+      saveMapNodes(currentMap.id, currentMap.nodes, undefined, true);
     }
     setSelectedNodeId(draggedId);
   };
@@ -2426,15 +2986,15 @@ const ToolsViewInner: React.FC = () => {
                   </select>
 
                   <div className="flex items-center gap-1 text-[11px] text-emerald-400 font-semibold px-2 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/20">
-                    <Cloud className="w-3.5 h-3.5" />
-                    <span className="hidden md:inline">Salvo</span>
+                    <Save className="w-3.5 h-3.5" />
+                    <span className="hidden md:inline">Salvo Localmente (Offline)</span>
                   </div>
 
                   {/* Indicador de Conexão Ativa */}
                   {connectingFromNodeId && (
                     <div className="px-2.5 py-1 rounded-xl bg-indigo-600/30 border border-indigo-400 text-indigo-200 text-xs font-bold animate-pulse flex items-center gap-1.5">
                       <Link2 className="w-3.5 h-3.5" />
-                      <span>Modo Conectar: Clique no nó de destino</span>
+                      <span>Modo Conectar: Clique no elemento de destino</span>
                       <button
                         type="button"
                         onClick={() => setConnectingFromNodeId(null)}
@@ -2446,8 +3006,34 @@ const ToolsViewInner: React.FC = () => {
                   )}
                 </div>
 
-                {/* Right Header: Timer, Style, Share */}
-                <div className="flex items-center gap-2">
+                {/* Right Header: Desfazer, Refazer, Conexões, Grade, Fit, Salvar Como, Abrir, PNG, PDF */}
+                <div className="flex items-center gap-1.5 flex-wrap justify-end">
+                  {/* Desfazer / Refazer */}
+                  <div className="flex items-center rounded-xl bg-slate-950 p-0.5 border border-slate-800">
+                    <button
+                      type="button"
+                      onClick={handleUndo}
+                      disabled={undoStack.length === 0}
+                      className={`p-1.5 rounded-lg transition ${
+                        undoStack.length > 0 ? 'text-slate-200 hover:bg-slate-800' : 'text-slate-600 cursor-not-allowed'
+                      }`}
+                      title="Desfazer (Ctrl+Z)"
+                    >
+                      <Undo2 className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleRedo}
+                      disabled={redoStack.length === 0}
+                      className={`p-1.5 rounded-lg transition ${
+                        redoStack.length > 0 ? 'text-slate-200 hover:bg-slate-800' : 'text-slate-600 cursor-not-allowed'
+                      }`}
+                      title="Refazer (Ctrl+Y)"
+                    >
+                      <Redo2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+
                   {/* Seletor de Estilo de Conexão */}
                   <div className="flex items-center rounded-xl bg-slate-950 p-0.5 border border-slate-800">
                     <button
@@ -2482,14 +3068,39 @@ const ToolsViewInner: React.FC = () => {
                     </button>
                   </div>
 
+                  {/* Grade Snap */}
+                  <button
+                    type="button"
+                    onClick={() => setGridSnap((v) => !v)}
+                    className={`p-1.5 rounded-xl border text-xs font-bold transition flex items-center gap-1 ${
+                      gridSnap
+                        ? 'bg-indigo-600/30 border-indigo-500 text-indigo-300'
+                        : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-white'
+                    }`}
+                    title="Alternar Encaixe na Grade (Snap to Grid)"
+                  >
+                    <Grid className="w-3.5 h-3.5" />
+                    <span className="text-[10px] hidden xl:inline">Grade</span>
+                  </button>
+
+                  {/* Ajustar à Tela (Fit to View) */}
+                  <button
+                    type="button"
+                    onClick={handleZoomToFit}
+                    className="p-1.5 rounded-xl bg-slate-950 border border-slate-800 text-slate-300 hover:text-white hover:border-slate-700 transition"
+                    title="Ajustar Todo Conteúdo à Tela (Ctrl+0)"
+                  >
+                    <Maximize2 className="w-3.5 h-3.5 text-cyan-400" />
+                  </button>
+
                   {/* Auto-Organizar */}
                   <button
                     type="button"
                     onClick={handleAutoLayout}
-                    className="p-1.5 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white transition"
+                    className="p-1.5 rounded-xl bg-slate-950 border border-slate-800 text-slate-300 hover:text-white hover:border-slate-700 transition"
                     title="Auto-organizar layout"
                   >
-                    <Layout className="w-4 h-4 text-indigo-400" />
+                    <Layout className="w-3.5 h-3.5 text-indigo-400" />
                   </button>
 
                   {/* Timer de Brainstorming */}
@@ -2497,15 +3108,15 @@ const ToolsViewInner: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => setLucidTimerOpen((v) => !v)}
-                      className={`px-3 py-1.5 rounded-xl border text-xs font-bold flex items-center gap-1.5 transition ${
+                      className={`px-2.5 py-1.5 rounded-xl border text-xs font-bold flex items-center gap-1.5 transition ${
                         lucidTimerActive
                           ? 'bg-amber-500/20 border-amber-400 text-amber-300 animate-pulse'
-                          : 'bg-slate-800/90 border-slate-700 text-slate-300 hover:text-white'
+                          : 'bg-slate-950 border-slate-800 text-slate-300 hover:text-white'
                       }`}
                       title="Timer de Sessão"
                     >
                       <Timer className="w-3.5 h-3.5 text-amber-400" />
-                      <span className="font-mono">
+                      <span className="font-mono text-[11px]">
                         {Math.floor(lucidTimerSeconds / 60)}:{(lucidTimerSeconds % 60).toString().padStart(2, '0')}
                       </span>
                     </button>
@@ -2558,31 +3169,69 @@ const ToolsViewInner: React.FC = () => {
                     )}
                   </div>
 
-                  {/* Botão Exportar PDF */}
+                  <div className="h-4 w-px bg-slate-800 mx-0.5 hidden sm:block" />
+
+                  {/* Abrir Projeto Local (.pigo-board / .json) */}
+                  <button
+                    type="button"
+                    onClick={() => projectFileInputRef.current?.click()}
+                    className="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold flex items-center gap-1.5 border border-slate-700 transition shadow"
+                    title="Abrir arquivo de projeto salvo no computador (.pigo-board ou .json)"
+                  >
+                    <FileUp className="w-3.5 h-3.5 text-sky-400" />
+                    <span className="hidden lg:inline">Abrir</span>
+                  </button>
+
+                  {/* Salvar Como (.pigo-board) */}
+                  <button
+                    type="button"
+                    onClick={handleSaveAsProjectFile}
+                    className="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold flex items-center gap-1.5 border border-slate-700 transition shadow"
+                    title="Salvar cópia editável do projeto no computador (.pigo-board)"
+                  >
+                    <Save className="w-3.5 h-3.5 text-emerald-400" />
+                    <span className="hidden lg:inline">Salvar Como</span>
+                  </button>
+
+                  {/* Exportar PNG (2x Retina) */}
+                  <button
+                    type="button"
+                    onClick={handleExportPNG}
+                    className="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold flex items-center gap-1.5 border border-slate-700 transition shadow"
+                    title="Exportar Imagem PNG de Alta Resolução"
+                  >
+                    <FileDown className="w-3.5 h-3.5 text-amber-400" />
+                    <span>PNG</span>
+                  </button>
+
+                  {/* Exportar PDF */}
                   <button
                     type="button"
                     onClick={handleExportPDF}
-                    className="px-3 py-1.5 rounded-xl bg-slate-800/90 hover:bg-slate-700 text-slate-100 hover:text-white text-xs font-bold flex items-center gap-1.5 border border-slate-700 transition shadow"
-                    title="Exportar Quadro em PDF de Alta Resolução"
+                    className="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-black flex items-center gap-1.5 shadow-lg shadow-indigo-600/30 transition"
+                    title="Exportar Quadro em PDF Vetorial de Alta Resolução"
                   >
-                    <Printer className="w-3.5 h-3.5 text-indigo-400" />
-                    <span>Exportar PDF</span>
-                  </button>
-
-                  {/* Botão de Compartilhar */}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      copyToClipboard(window.location.href, 'Quadro Lucidspark');
-                      showToast('Link do quadro copiado!', 'success');
-                    }}
-                    className="px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-black flex items-center gap-1.5 shadow-lg shadow-indigo-600/30 transition"
-                  >
-                    <Share2 className="w-3.5 h-3.5" />
-                    <span>Compartilhar</span>
+                    <Printer className="w-3.5 h-3.5" />
+                    <span>PDF</span>
                   </button>
                 </div>
               </div>
+
+              {/* Hidden File Inputs for Local Image Import & Project File Opening */}
+              <input
+                type="file"
+                ref={imageInputRef}
+                onChange={handleImportLocalImage}
+                accept="image/*"
+                className="hidden"
+              />
+              <input
+                type="file"
+                ref={projectFileInputRef}
+                onChange={handleOpenProjectFile}
+                accept=".json,.pigo-board"
+                className="hidden"
+              />
 
               {/* Dock Lateral Flutuante Profissional (Sem emojis) */}
               <div className="absolute left-4 top-20 z-20 flex flex-col items-center bg-slate-900/95 border border-white/[0.08] rounded-2xl p-1.5 shadow-2xl space-y-1.5 backdrop-blur-xl">
@@ -2616,21 +3265,24 @@ const ToolsViewInner: React.FC = () => {
                         ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30'
                         : 'text-slate-400 hover:text-white hover:bg-white/10'
                     }`}
-                    title="Inserir Formas: Nuvem, Cápsula, Octógono, Losango, Cartão"
+                    title="Inserir Formas: Nuvem, Cápsula, Octógono, Losango, Cartão, Círculo, Texto, Frame"
                   >
                     <Layers className="w-5 h-5 text-cyan-400" />
                   </button>
 
                   {lucidShapesMenuOpen && (
-                    <div className="absolute left-full top-0 ml-3 w-56 p-2 rounded-2xl bg-slate-900 border border-slate-700 shadow-2xl z-40 space-y-1">
+                    <div className="absolute left-full top-0 ml-3 w-60 p-2 rounded-2xl bg-slate-900 border border-slate-700 shadow-2xl z-40 space-y-1">
                       <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 px-2 block">
-                        Inserir Forma
+                        Inserir Elemento
                       </span>
                       {LUCID_SHAPES.map((shape) => (
                         <button
                           key={shape.type}
                           type="button"
-                          onClick={() => handleAddShape(shape.type)}
+                          onClick={() => {
+                            handleAddShape(shape.type);
+                            setLucidShapesMenuOpen(false);
+                          }}
                           className="w-full px-2.5 py-2 rounded-xl hover:bg-slate-800 text-left text-xs font-bold text-slate-200 flex items-center gap-2.5 transition"
                         >
                           <span className="p-1 rounded bg-slate-800 text-indigo-400">
@@ -2640,6 +3292,9 @@ const ToolsViewInner: React.FC = () => {
                             {shape.type === 'diamond' && <Diamond className="w-3.5 h-3.5" />}
                             {shape.type === 'sticky' && <StickyNote className="w-3.5 h-3.5" />}
                             {shape.type === 'rectangle' && <Square className="w-3.5 h-3.5" />}
+                            {shape.type === 'circle' && <Circle className="w-3.5 h-3.5" />}
+                            {shape.type === 'text' && <Type className="w-3.5 h-3.5" />}
+                            {shape.type === 'frame' && <Scan className="w-3.5 h-3.5" />}
                           </span>
                           <div>
                             <div>{shape.label}</div>
@@ -2650,6 +3305,16 @@ const ToolsViewInner: React.FC = () => {
                     </div>
                   )}
                 </div>
+
+                {/* Inserir Imagem Local do Computador */}
+                <button
+                  type="button"
+                  onClick={() => imageInputRef.current?.click()}
+                  className="p-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition"
+                  title="Inserir Imagem do Computador (100% Offline)"
+                >
+                  <ImageIcon className="w-5 h-5 text-emerald-400" />
+                </button>
 
                 {/* Modo Conectar Livre */}
                 <button
@@ -2670,6 +3335,16 @@ const ToolsViewInner: React.FC = () => {
                   title="Conectar Elementos Livremente"
                 >
                   <Link2 className="w-5 h-5 text-indigo-400" />
+                </button>
+
+                {/* Duplicar Seleção */}
+                <button
+                  type="button"
+                  onClick={handleDuplicate}
+                  className="p-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition"
+                  title="Duplicar Seleção (Ctrl+D)"
+                >
+                  <Copy className="w-5 h-5 text-sky-400" />
                 </button>
 
                 {/* Criar em Lote */}
@@ -3080,6 +3755,16 @@ const ToolsViewInner: React.FC = () => {
                           +
                         </div>
 
+                        {/* Indicador de Bloqueio se o Nó estiver trancado */}
+                        {node.locked && (
+                          <div
+                            className="absolute -top-2.5 -right-2.5 p-1 rounded-full bg-amber-500 text-slate-900 shadow-xl z-30 pointer-events-none"
+                            title="Elemento bloqueado contra edição e movimentação"
+                          >
+                            <Lock className="w-3 h-3" />
+                          </div>
+                        )}
+
                         {/* Barra de Ações Rápidas Flutuante sobre o Nó Selecionado */}
                         {isSelected && (
                           <div
@@ -3105,6 +3790,9 @@ const ToolsViewInner: React.FC = () => {
                               <option value="diamond">Losango</option>
                               <option value="sticky">Post-it</option>
                               <option value="rectangle">Cartão</option>
+                              <option value="circle">Círculo</option>
+                              <option value="text">Texto Livre</option>
+                              <option value="frame">Área / Frame</option>
                             </select>
 
                             <input
@@ -3119,6 +3807,48 @@ const ToolsViewInner: React.FC = () => {
                               className="w-5 h-5 rounded cursor-pointer bg-transparent border-0"
                               title="Alterar cor"
                             />
+
+                            {/* Bloquear / Desbloquear */}
+                            <button
+                              type="button"
+                              onClick={() => handleToggleLock(node.id)}
+                              className={`p-1 rounded transition ${
+                                node.locked
+                                  ? 'text-amber-400 bg-amber-400/20'
+                                  : 'text-slate-400 hover:text-white'
+                              }`}
+                              title={node.locked ? 'Desbloquear elemento' : 'Bloquear elemento'}
+                            >
+                              {node.locked ? <Lock className="w-3.5 h-3.5" /> : <Unlock className="w-3.5 h-3.5" />}
+                            </button>
+
+                            {/* Ordem de Sobreposição */}
+                            <button
+                              type="button"
+                              onClick={() => handleReorderNode(node.id, 'forward')}
+                              className="p-1 rounded text-slate-400 hover:text-white"
+                              title="Trazer para frente"
+                            >
+                              <ChevronUp className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleReorderNode(node.id, 'backward')}
+                              className="p-1 rounded text-slate-400 hover:text-white"
+                              title="Enviar para trás"
+                            >
+                              <ChevronDown className="w-3.5 h-3.5" />
+                            </button>
+
+                            {/* Duplicar Elemento */}
+                            <button
+                              type="button"
+                              onClick={handleDuplicate}
+                              className="p-1 rounded text-slate-400 hover:text-white"
+                              title="Duplicar elemento (Ctrl+D)"
+                            >
+                              <Copy className="w-3.5 h-3.5" />
+                            </button>
 
                             <button
                               type="button"
@@ -3365,6 +4095,123 @@ const ToolsViewInner: React.FC = () => {
                               }}
                               className="bg-transparent text-white font-bold text-xs leading-snug w-full text-center focus:outline-none select-text"
                             />
+                          </div>
+                        )}
+
+                        {/* FORMA 7: CÍRCULO */}
+                        {shape === 'circle' && (
+                          <div
+                            style={{
+                              backgroundColor: node.color,
+                              borderColor: isSelected ? '#ffffff' : 'rgba(255,255,255,0.3)',
+                            }}
+                            className={`w-28 h-28 rounded-full border-2 shadow-2xl flex items-center justify-center p-3 text-center ${
+                              isSelected ? 'ring-4 ring-white/30 scale-105' : ''
+                            }`}
+                          >
+                            <input
+                              type="text"
+                              value={node.label}
+                              onChange={(e) => {
+                                const nextNodes = selectedMap.nodes.map((n) =>
+                                  n.id === node.id ? { ...n, label: e.target.value } : n
+                                );
+                                saveMapNodes(selectedMap.id, nextNodes);
+                              }}
+                              className="bg-transparent text-white font-bold text-xs leading-snug w-full text-center focus:outline-none select-text"
+                            />
+                          </div>
+                        )}
+
+                        {/* FORMA 8: TEXTO LIVRE */}
+                        {shape === 'text' && (
+                          <div
+                            style={{
+                              color: node.color && node.color !== '#1e293b' ? node.color : '#f8fafc',
+                            }}
+                            className={`min-w-[120px] max-w-[280px] p-2 text-left rounded-lg transition ${
+                              isSelected ? 'outline-dashed outline-2 outline-indigo-400 bg-indigo-500/10' : ''
+                            }`}
+                          >
+                            <textarea
+                              rows={2}
+                              value={node.label}
+                              onChange={(e) => {
+                                const nextNodes = selectedMap.nodes.map((n) =>
+                                  n.id === node.id ? { ...n, label: e.target.value } : n
+                                );
+                                saveMapNodes(selectedMap.id, nextNodes);
+                              }}
+                              className="bg-transparent font-bold text-sm leading-snug w-full resize-none focus:outline-none select-text"
+                              placeholder="Digite seu texto..."
+                            />
+                          </div>
+                        )}
+
+                        {/* FORMA 9: ÁREA / FRAME */}
+                        {shape === 'frame' && (
+                          <div
+                            style={{
+                              borderColor: node.color,
+                              backgroundColor: `${node.color}15`,
+                            }}
+                            className={`w-72 min-h-[180px] rounded-3xl border-2 border-dashed p-3 flex flex-col justify-between shadow-lg backdrop-blur-xs ${
+                              isSelected ? 'ring-4 ring-indigo-400/50' : ''
+                            }`}
+                          >
+                            <div className="flex items-center gap-1.5 pb-2 border-b border-white/10">
+                              <Scan className="w-3.5 h-3.5 text-indigo-400" />
+                              <input
+                                type="text"
+                                value={node.label}
+                                onChange={(e) => {
+                                  const nextNodes = selectedMap.nodes.map((n) =>
+                                    n.id === node.id ? { ...n, label: e.target.value } : n
+                                  );
+                                  saveMapNodes(selectedMap.id, nextNodes);
+                                }}
+                                className="bg-transparent text-white font-black text-xs uppercase tracking-wider w-full focus:outline-none select-text"
+                              />
+                            </div>
+                            <div className="flex-1 flex items-center justify-center p-4">
+                              <span className="text-[11px] text-slate-400/60 font-medium italic pointer-events-none">
+                                Área de organização (Frame)
+                              </span>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* FORMA 10: IMAGEM LOCAL */}
+                        {shape === 'image' && (
+                          <div
+                            className={`rounded-2xl overflow-hidden shadow-2xl border-2 max-w-[280px] bg-slate-900 ${
+                              isSelected ? 'border-white ring-4 ring-indigo-400/50' : 'border-slate-700'
+                            }`}
+                          >
+                            {node.imageUrl ? (
+                              <img
+                                src={node.imageUrl}
+                                alt={node.label}
+                                className="w-full max-h-56 object-contain pointer-events-none select-none bg-slate-950"
+                              />
+                            ) : (
+                              <div className="w-48 h-32 flex items-center justify-center text-slate-500">
+                                <ImageIcon className="w-8 h-8" />
+                              </div>
+                            )}
+                            <div className="p-2 bg-slate-900/90 text-center">
+                              <input
+                                type="text"
+                                value={node.label}
+                                onChange={(e) => {
+                                  const nextNodes = selectedMap.nodes.map((n) =>
+                                    n.id === node.id ? { ...n, label: e.target.value } : n
+                                  );
+                                  saveMapNodes(selectedMap.id, nextNodes);
+                                }}
+                                className="bg-transparent text-white text-xs font-semibold text-center w-full focus:outline-none select-text"
+                              />
+                            </div>
                           </div>
                         )}
                       </div>
