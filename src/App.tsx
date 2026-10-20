@@ -31,6 +31,7 @@ import { IntelligenceView } from './views/IntelligenceView';
 export const App: React.FC = () => {
   const {
     currentView,
+    activeModule,
     settings,
     isLocked,
     isLoading,
@@ -45,7 +46,7 @@ export const App: React.FC = () => {
       <div className="flex h-screen w-screen items-center justify-center bg-[#090d16] text-white">
         <div className="flex flex-col items-center gap-3">
           <div className="w-8 h-8 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" />
-          <span className="text-xs text-slate-400 font-medium">Carregando Meu Financeiro...</span>
+          <span className="text-xs text-slate-400 font-medium">Carregando Pigo...</span>
         </div>
       </div>
     );
@@ -60,6 +61,14 @@ export const App: React.FC = () => {
       </>
     );
   }
+
+  // Ambient glow color based on active module
+  const ambientGlowClass =
+    activeModule === 'habits'
+      ? 'from-cyan-500/[0.07] via-sky-500/[0.02] to-transparent'
+      : activeModule === 'journey'
+      ? 'from-amber-500/[0.08] via-orange-500/[0.02] to-transparent'
+      : 'from-brand-500/[0.06] via-emerald-500/[0.02] to-transparent';
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-[#090d16] text-slate-100 font-sans">
@@ -94,11 +103,16 @@ export const App: React.FC = () => {
       <Sidebar />
 
       {/* Main Content Area */}
-      <div className="flex flex-col flex-1 min-w-0 h-full overflow-hidden bg-slate-950/40">
+      <div className="flex flex-col flex-1 min-w-0 h-full overflow-hidden bg-slate-950/40 relative">
+        {/* Contextual Ambient Top Glow */}
+        <div
+          className={`pointer-events-none absolute inset-x-0 top-0 h-64 bg-gradient-to-b ${ambientGlowClass} transition-colors duration-700`}
+        />
+
         <Navbar />
         <UpdateBanner />
 
-        <main className="flex-1 min-h-0 overflow-hidden relative">
+        <main className="flex-1 min-h-0 overflow-hidden relative z-10">
           <div key={currentView} className="h-full w-full animate-fade-in">
             {currentView === 'dashboard' && <DashboardView />}
             {currentView === 'transactions' && <TransactionsView />}
@@ -112,8 +126,8 @@ export const App: React.FC = () => {
             {currentView === 'settings' && <SettingsView />}
             {currentView === 'import' && <ImportView />}
             {currentView === 'reserve' && <ReserveView />}
-            {currentView === 'journey' && <JourneyView />}
-            {currentView === 'habits' && <HabitsView />}
+            {currentView.startsWith('journey') && <JourneyView />}
+            {currentView.startsWith('habits') && <HabitsView />}
             {currentView === 'intelligence' && <IntelligenceView />}
           </div>
         </main>

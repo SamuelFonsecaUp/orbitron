@@ -47,6 +47,8 @@ interface ToastInfo {
 interface FinancialContextType {
   currentView: AppView;
   setCurrentView: (view: AppView) => void;
+  activeModule: AppModule;
+  setActiveModule: (mod: AppModule) => void;
   isLocked: boolean;
   unlockApp: (pin: string) => Promise<boolean>;
   lockApp: () => void;
@@ -117,22 +119,28 @@ const FinancialContext = createContext<FinancialContextType | undefined>(undefin
 
 export const FinancialProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [currentView, setCurrentView] = useState<AppView>('dashboard');
-  const [activeModule, setActiveModuleState] = useState<'finance' | 'habits'>('finance');
+  const [activeModule, setActiveModuleState] = useState<AppModule>('finance');
 
-  const setActiveModule = useCallback((mod: 'finance' | 'habits') => {
+  const setActiveModule = useCallback((mod: AppModule) => {
     setActiveModuleState(mod);
     if (mod === 'habits') {
-      setCurrentView('habits');
-    } else if (currentView === 'habits') {
-      setCurrentView('dashboard');
+      if (!currentView.startsWith('habits')) setCurrentView('habits');
+    } else if (mod === 'journey') {
+      if (!currentView.startsWith('journey')) setCurrentView('journey');
+    } else {
+      if (currentView.startsWith('habits') || currentView.startsWith('journey')) {
+        setCurrentView('dashboard');
+      }
     }
   }, [currentView]);
 
   const handleSetCurrentView = useCallback((view: AppView) => {
     setCurrentView(view);
-    if (view === 'habits') {
+    if (view.startsWith('habits')) {
       setActiveModuleState('habits');
-    } else {
+    } else if (view.startsWith('journey')) {
+      setActiveModuleState('journey');
+    } else if (view !== 'settings') {
       setActiveModuleState('finance');
     }
   }, []);
@@ -489,7 +497,9 @@ export const FinancialProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     <FinancialContext.Provider
       value={{
         currentView,
-        setCurrentView,
+        setCurrentView: handleSetCurrentView,
+        activeModule,
+        setActiveModule,
         isLocked,
         unlockApp,
         lockApp,
