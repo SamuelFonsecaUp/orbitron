@@ -60,6 +60,19 @@ import {
   Rocket,
   Menu,
   ListTree,
+  Folder,
+  FolderPlus,
+  FolderOpen,
+  ArrowLeft,
+  Octagon,
+  Diamond,
+  Circle,
+  Hexagon,
+  Link2,
+  Unlink,
+  MousePointer,
+  Edit2,
+  X,
 } from 'lucide-react';
 import { useFinancial } from '../context/FinancialContext';
 
@@ -181,10 +194,16 @@ interface NoteItem {
 
 export type LucidShapeType = 'cloud' | 'capsule' | 'octagon' | 'diamond' | 'sticky' | 'rectangle';
 
+export interface NodeConnection {
+  targetId: string;
+  label?: string;
+}
+
 export interface MindmapNode {
   id: string;
   label: string;
-  parentId: string | null;
+  parentId?: string | null;
+  connections?: NodeConnection[];
   x: number;
   y: number;
   color: string;
@@ -192,6 +211,56 @@ export interface MindmapNode {
   notes?: string;
   shape?: LucidShapeType;
   lineLabel?: string;
+}
+
+export interface BoardEdge {
+  id: string;
+  sourceId: string;
+  targetId: string;
+  label?: string;
+  color?: string;
+}
+
+export function getBoardEdges(nodes: MindmapNode[]): BoardEdge[] {
+  const edges: BoardEdge[] = [];
+  const edgeSet = new Set<string>();
+
+  nodes.forEach((node) => {
+    // 1. Conexões livres M:N explícitas
+    if (node.connections && Array.isArray(node.connections)) {
+      node.connections.forEach((conn, idx) => {
+        const key = `${node.id}->${conn.targetId}`;
+        if (!edgeSet.has(key)) {
+          edgeSet.add(key);
+          edges.push({
+            id: `edge_${node.id}_${conn.targetId}_${idx}`,
+            sourceId: node.id,
+            targetId: conn.targetId,
+            label: conn.label || '',
+            color: node.color,
+          });
+        }
+      });
+    }
+
+    // 2. Conexões herdadas via parentId (retrocompatibilidade)
+    if (node.parentId) {
+      const key = `${node.parentId}->${node.id}`;
+      const revKey = `${node.id}->${node.parentId}`;
+      if (!edgeSet.has(key) && !edgeSet.has(revKey)) {
+        edgeSet.add(key);
+        edges.push({
+          id: `edge_leg_${node.parentId}_${node.id}`,
+          sourceId: node.parentId,
+          targetId: node.id,
+          label: node.lineLabel || '',
+          color: node.color,
+        });
+      }
+    }
+  });
+
+  return edges;
 }
 
 export const LUCID_FAN_PALETTES = [
@@ -213,13 +282,13 @@ export const LUCID_FAN_PALETTES = [
   },
 ];
 
-export const LUCID_SHAPES: { type: LucidShapeType; label: string; icon: string; desc: string }[] = [
-  { type: 'cloud', label: 'Nuvem', icon: '☁️', desc: 'Ideia central & pensamentos' },
-  { type: 'capsule', label: 'Cápsula', icon: '💊', desc: 'Conceito & desejos' },
-  { type: 'octagon', label: 'Octógono', icon: '🛑', desc: 'Questão crítica ou parada' },
-  { type: 'diamond', label: 'Losango', icon: '💎', desc: 'Decisão ou dilema' },
-  { type: 'sticky', label: 'Post-it', icon: '🟨', desc: 'Nota rápida adesiva' },
-  { type: 'rectangle', label: 'Cartão', icon: '⏹️', desc: 'Bloco estruturado' },
+export const LUCID_SHAPES: { type: LucidShapeType; label: string; desc: string }[] = [
+  { type: 'cloud', label: 'Nuvem', desc: 'Ideia central e pensamentos' },
+  { type: 'capsule', label: 'Cápsula', desc: 'Conceito e objetivos' },
+  { type: 'octagon', label: 'Octógono', desc: 'Questão crítica ou parada' },
+  { type: 'diamond', label: 'Losango', desc: 'Decisão ou dilema' },
+  { type: 'sticky', label: 'Post-it', desc: 'Nota rápida adesiva' },
+  { type: 'rectangle', label: 'Cartão', desc: 'Bloco estruturado' },
 ];
 
 interface MindmapBoard {
@@ -247,14 +316,12 @@ interface VaultItem {
 }
 
 const NOTE_CATEGORIES = [
-  { id: 'ideias', label: '💡 Ideias', color: '#a855f7' },
-  { id: 'financas', label: '💰 Finanças', color: '#10b981' },
-  { id: 'projetos', label: '🚀 Projetos', color: '#38bdf8' },
-  { id: 'estudos', label: '📚 Estudos', color: '#f59e0b' },
-  { id: 'pessoal', label: '📌 Pessoal', color: '#ec4899' },
+  { id: 'ideias', label: 'Ideias', color: '#a855f7' },
+  { id: 'financas', label: 'Finanças', color: '#10b981' },
+  { id: 'projetos', label: 'Projetos', color: '#38bdf8' },
+  { id: 'estudos', label: 'Estudos', color: '#f59e0b' },
+  { id: 'pessoal', label: 'Pessoal', color: '#ec4899' },
 ];
-
-const NOTE_ICONS = ['📝', '💡', '🚀', '💰', '🎯', '🧠', '🔥', '⭐', '📊', '⚡', '📚', '🛠️', '✨'];
 
 const NOTE_COVERS = [
   { id: 'cov_purple', label: 'Roxo Cyber', class: 'from-purple-900/60 via-fuchsia-900/30 to-transparent' },
@@ -265,16 +332,15 @@ const NOTE_COVERS = [
 ];
 
 const VAULT_CATEGORIES = [
-  { id: 'bancos', label: '🏦 Bancos & Corretoras', color: '#10b981' },
-  { id: 'cartoes', label: '💳 Cartões & Apps', color: '#8b5cf6' },
-  { id: 'redes_sociais', label: '🌐 Redes Sociais', color: '#38bdf8' },
-  { id: 'trabalho', label: '💼 Trabalho', color: '#f59e0b' },
-  { id: 'email', label: '📧 E-mails & Contas', color: '#ec4899' },
-  { id: 'outros', label: '🔐 Outros', color: '#94a3b8' },
+  { id: 'bancos', label: 'Bancos e Corretoras', color: '#10b981' },
+  { id: 'cartoes', label: 'Cartões e Aplicativos', color: '#8b5cf6' },
+  { id: 'redes_sociais', label: 'Redes Sociais', color: '#38bdf8' },
+  { id: 'trabalho', label: 'Trabalho e Negócios', color: '#f59e0b' },
+  { id: 'email', label: 'E-mails e Acessos', color: '#ec4899' },
+  { id: 'outros', label: 'Outros Registros', color: '#94a3b8' },
 ];
 
 const NODE_COLORS = ['#a855f7', '#10b981', '#38bdf8', '#f59e0b', '#ec4899', '#ef4444', '#6366f1', '#14b8a6'];
-const NODE_ICONS = ['', '⭐', '🔥', '✅', '💡', '🎯', '📌', '⚡'];
 
 export const ToolsView: React.FC = () => {
   const { currentView, setCurrentView, showToast, refreshGame } = useFinancial();
@@ -310,10 +376,28 @@ export const ToolsView: React.FC = () => {
   const [connectorStyle, setConnectorStyle] = useState<'curved' | 'straight' | 'elbow'>('curved');
   const canvasRef = useRef<HTMLDivElement | null>(null);
 
+  // Estados de navegação por pastas e documentos (Hub inicial estilo Lucidspark)
+  const [lucidViewMode, setLucidViewMode] = useState<'folders' | 'canvas'>('folders');
+  const [activeFolder, setActiveFolder] = useState<string>('all');
+  const [folders, setFolders] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('pigo_lucid_folders');
+      return saved ? JSON.parse(saved) : ['Geral', 'Estratégia', 'Finanças', 'Projetos', 'Estudos'];
+    } catch {
+      return ['Geral', 'Estratégia', 'Finanças', 'Projetos', 'Estudos'];
+    }
+  });
+  const [folderSearch, setFolderSearch] = useState<string>('');
+  const [newFolderName, setNewFolderName] = useState<string>('');
+  const [newFolderModalOpen, setNewFolderModalOpen] = useState<boolean>(false);
+
+  // Estados de conexões livres entre nós
+  const [connectingFromNodeId, setConnectingFromNodeId] = useState<string | null>(null);
+  const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
+
   // Estados específicos estilo Lucidspark
   const [lucidStickyDrawerOpen, setLucidStickyDrawerOpen] = useState(false);
   const [lucidShapesMenuOpen, setLucidShapesMenuOpen] = useState(false);
-  const [lucidBoardsMenuOpen, setLucidBoardsMenuOpen] = useState(false);
   const [lucidActiveColor, setLucidActiveColor] = useState<string>('#6366f1');
   const [lucidStickyInput, setLucidStickyInput] = useState<string>('');
   const [lucidBatchInput, setLucidBatchInput] = useState<string>('');
@@ -322,9 +406,6 @@ export const ToolsView: React.FC = () => {
   const [lucidTimerOpen, setLucidTimerOpen] = useState<boolean>(false);
   const [lucidTimerSeconds, setLucidTimerSeconds] = useState<number>(300); // 5 min
   const [lucidTimerActive, setLucidTimerActive] = useState<boolean>(false);
-  const [lucidVotes, setLucidVotes] = useState<Record<string, number>>({});
-  const [editingLineLabelNodeId, setEditingLineLabelNodeId] = useState<string | null>(null);
-  const [lineLabelInput, setLineLabelInput] = useState<string>('');
 
   // =========================================================
   // 3. COFRE DE SENHAS CRIPTOGRAFADO
@@ -531,33 +612,61 @@ export const ToolsView: React.FC = () => {
     };
   }, [lucidTimerActive, lucidTimerSeconds, showToast]);
 
-  const handleCreateMindmap = async () => {
+  // Gestão de Pastas estilo Lucidspark
+  const handleCreateFolder = () => {
+    const trimmed = newFolderName.trim();
+    if (!trimmed) return;
+    if (folders.includes(trimmed)) {
+      showToast('Esta pasta já existe.', 'info');
+      return;
+    }
+    const next = [...folders, trimmed];
+    setFolders(next);
+    localStorage.setItem('pigo_lucid_folders', JSON.stringify(next));
+    setActiveFolder(trimmed);
+    setNewFolderName('');
+    setNewFolderModalOpen(false);
+    showToast(`Pasta "${trimmed}" criada!`, 'success');
+  };
+
+  const handleDeleteFolder = (folderName: string) => {
+    if (folderName === 'Geral') {
+      showToast('A pasta Geral é o repositório padrão e não pode ser removida.', 'info');
+      return;
+    }
+    const next = folders.filter((f) => f !== folderName);
+    setFolders(next);
+    localStorage.setItem('pigo_lucid_folders', JSON.stringify(next));
+    if (activeFolder === folderName) setActiveFolder('all');
+    showToast(`Pasta "${folderName}" removida.`, 'info');
+  };
+
+  const handleCreateBoardInFolder = async (folderName?: string) => {
     if (!window.electronAPI?.createMindmap) return;
-    const title = newMapTitle.trim() || `Brainstorming #${mindmaps.length + 1}`;
+    const targetFolder = folderName || (activeFolder !== 'all' ? activeFolder : 'Geral');
+    const title = `Quadro #${mindmaps.length + 1}`;
     const defaultNodes: MindmapNode[] = [
-      { id: 'root', label: 'Main Idea', parentId: null, x: 520, y: 260, color: '#6366f1', shape: 'cloud', notes: 'Ideia Central da Sessão' },
-      { id: 'b1', label: 'Mental happiness is more important than physical happiness', parentId: 'root', x: 260, y: 150, color: '#8b5cf6', shape: 'cloud', lineLabel: 'John Stuart Mill & Dalai Lama agree' },
-      { id: 'b2', label: 'Virtue helps people reach happiness', parentId: 'root', x: 780, y: 150, color: '#8b5cf6', shape: 'cloud' },
-      { id: 'b3', label: 'Utility is to look upon the mental desires within people', parentId: 'b1', x: 200, y: 310, color: '#d946ef', shape: 'capsule' },
-      { id: 'b4', label: 'What topics or current issues did it make you think of?', parentId: 'b3', x: 200, y: 460, color: '#ef4444', shape: 'octagon' },
-      { id: 'b5', label: 'Urban life makes people isolated', parentId: 'b4', x: 120, y: 590, color: '#10b981', shape: 'diamond' },
-      { id: 'b6', label: "Today's people are easily satisfied by physical goods", parentId: 'b4', x: 290, y: 590, color: '#10b981', shape: 'diamond' },
-      { id: 'b7', label: 'Virtue is a component of happiness', parentId: 'root', x: 520, y: 400, color: '#6366f1', shape: 'cloud' },
-      { id: 'b8', label: 'People want virtue because they want happiness', parentId: 'b7', x: 520, y: 530, color: '#d946ef', shape: 'capsule' },
-      { id: 'b9', label: 'Utilitarianism: an aggregated happiness needs to be achieved in society', parentId: 'root', x: 780, y: 380, color: '#8b5cf6', shape: 'cloud' },
+      { id: 'n1', label: 'Ideia Central', x: 500, y: 260, color: '#6366f1', shape: 'cloud', connections: [{ targetId: 'n2', label: 'Estratégia' }, { targetId: 'n3', label: 'Ação' }] },
+      { id: 'n2', label: 'Estratégia Principal', x: 250, y: 150, color: '#8b5cf6', shape: 'capsule', connections: [] },
+      { id: 'n3', label: 'Plano de Execução', x: 750, y: 150, color: '#0ea5e9', shape: 'capsule', connections: [] },
     ];
-    const created = await window.electronAPI.createMindmap({ title, nodes: defaultNodes });
-    setNewMapTitle('');
+
+    const created = await window.electronAPI.createMindmap({
+      title,
+      description: targetFolder,
+      nodes: defaultNodes,
+    });
     const updated = await window.electronAPI.getMindmaps();
     setMindmaps(updated);
     if (created?.id) {
       setSelectedMapId(created.id);
-      setSelectedNodeId('root');
+      setSelectedNodeId('n1');
       setZoom(1);
       setPanOffset({ x: 0, y: 0 });
+      setLucidViewMode('canvas');
     }
     await refreshGame();
-    showToast(`Quadro Lucidspark "${title}" criado com sucesso!`, 'success');
+    showToast(`Quadro criado na pasta "${targetFolder}"!`, 'success');
   };
 
   const handleDeleteMindmap = async (id: string) => {
@@ -569,76 +678,140 @@ export const ToolsView: React.FC = () => {
     showToast('Quadro excluído.', 'info');
   };
 
-  // Subtópico estilo Lucidspark
+  // Conectar dois nós livremente (M:N Graph)
+  const handleConnectNodes = (sourceId: string, targetId: string) => {
+    if (!selectedMap || sourceId === targetId) return;
+    const sourceNode = selectedMap.nodes.find((n) => n.id === sourceId);
+    if (!sourceNode) return;
+
+    const existing = (sourceNode.connections || []).some((c) => c.targetId === targetId);
+    if (existing) {
+      showToast('Esses elementos já estão conectados.', 'info');
+      setConnectingFromNodeId(null);
+      return;
+    }
+
+    const nextNodes = selectedMap.nodes.map((n) => {
+      if (n.id === sourceId) {
+        return {
+          ...n,
+          connections: [...(n.connections || []), { targetId, label: '' }],
+        };
+      }
+      return n;
+    });
+
+    saveMapNodes(selectedMap.id, nextNodes);
+    setConnectingFromNodeId(null);
+    showToast('Conexão estabelecida com sucesso!', 'success');
+  };
+
+  // Remover conexão entre dois nós
+  const handleDisconnect = (sourceId: string, targetId: string) => {
+    if (!selectedMap) return;
+    const nextNodes = selectedMap.nodes.map((n) => {
+      if (n.id === sourceId) {
+        return {
+          ...n,
+          connections: (n.connections || []).filter((c) => c.targetId !== targetId),
+          parentId: n.parentId === targetId ? null : n.parentId,
+        };
+      }
+      if (n.id === targetId && n.parentId === sourceId) {
+        return { ...n, parentId: null };
+      }
+      return n;
+    });
+    saveMapNodes(selectedMap.id, nextNodes);
+    setSelectedEdgeId(null);
+    showToast('Conexão removida.', 'info');
+  };
+
+  // Atualizar rótulo de texto na linha de conexão
+  const handleUpdateEdgeLabel = (sourceId: string, targetId: string, label: string) => {
+    if (!selectedMap) return;
+    const nextNodes = selectedMap.nodes.map((n) => {
+      if (n.id === sourceId) {
+        const conns = (n.connections || []).map((c) =>
+          c.targetId === targetId ? { ...c, label } : c
+        );
+        return { ...n, connections: conns, lineLabel: n.parentId === targetId ? label : n.lineLabel };
+      }
+      if (n.id === targetId && n.parentId === sourceId) {
+        return { ...n, lineLabel: label };
+      }
+      return n;
+    });
+    saveMapNodes(selectedMap.id, nextNodes);
+  };
+
+  // Criar elemento livremente ao dar clique duplo no canvas
+  const handleCanvasDoubleClick = (e: React.MouseEvent) => {
+    if (e.target !== canvasRef.current && (e.target as HTMLElement).tagName !== 'svg') return;
+    if (!selectedMap || !canvasRef.current) return;
+
+    const rect = canvasRef.current.getBoundingClientRect();
+    const clickX = Math.round((e.clientX - rect.left - panOffset.x) / zoom);
+    const clickY = Math.round((e.clientY - rect.top - panOffset.y) / zoom);
+
+    const newNode: MindmapNode = {
+      id: `node_${Date.now()}_${Math.random().toString(36).slice(2, 5)}`,
+      label: 'Novo Tópico',
+      x: clickX,
+      y: clickY,
+      color: lucidActiveColor,
+      shape: 'sticky',
+      connections: [],
+      notes: '',
+    };
+
+    saveMapNodes(selectedMap.id, [...selectedMap.nodes, newNode]);
+    setSelectedNodeId(newNode.id);
+    showToast('Novo elemento adicionado livremente no canvas!', 'info');
+  };
+
+  // Subtópico conectado
   const handleAddChildNode = (shape?: LucidShapeType) => {
     if (!selectedMap) return;
     const parent = selectedNode || selectedMap.nodes[0];
     if (!parent) return;
 
-    const siblings = selectedMap.nodes.filter((n) => n.parentId === parent.id);
-    const count = siblings.length;
-    const isRoot = parent.parentId === null;
-    let newX = parent.x + 240;
-    let newY = parent.y + (count - 1) * 90;
-
-    if (isRoot) {
-      const angle = (count * 50 - 25) * (Math.PI / 180);
-      newX = Math.round(parent.x + Math.cos(angle) * 260);
-      newY = Math.round(parent.y + Math.sin(angle) * 180);
-    }
+    const newNodeId = `node_${Date.now()}_${Math.random().toString(36).slice(2, 5)}`;
+    const newX = parent.x + 220 + (Math.random() * 40 - 20);
+    const newY = parent.y + (Math.random() * 80 - 40);
 
     const newNode: MindmapNode = {
-      id: `node_${Date.now()}_${Math.random().toString(36).slice(2, 5)}`,
+      id: newNodeId,
       label: 'Novo Tópico',
-      parentId: parent.id,
       x: newX,
       y: newY,
       color: lucidActiveColor || parent.color || '#6366f1',
       shape: shape || parent.shape || 'cloud',
+      connections: [],
       notes: '',
     };
 
-    saveMapNodes(selectedMap.id, [...selectedMap.nodes, newNode]);
-    setSelectedNodeId(newNode.id);
+    const nextNodes = selectedMap.nodes.map((n) =>
+      n.id === parent.id
+        ? { ...n, connections: [...(n.connections || []), { targetId: newNodeId, label: '' }] }
+        : n
+    );
+
+    saveMapNodes(selectedMap.id, [...nextNodes, newNode]);
+    setSelectedNodeId(newNodeId);
   };
 
-  // Tópico Irmão no mesmo nível
-  const handleAddSiblingNode = () => {
-    if (!selectedMap || !selectedNode) return;
-    if (selectedNode.parentId === null) {
-      handleAddChildNode();
-      return;
-    }
-    const parent = selectedMap.nodes.find((n) => n.id === selectedNode.parentId);
-    if (!parent) return;
-
-    const newNode: MindmapNode = {
-      id: `node_${Date.now()}_${Math.random().toString(36).slice(2, 5)}`,
-      label: 'Novo Tópico',
-      parentId: parent.id,
-      x: selectedNode.x,
-      y: selectedNode.y + 90,
-      color: selectedNode.color,
-      shape: selectedNode.shape || 'cloud',
-      notes: '',
-    };
-
-    saveMapNodes(selectedMap.id, [...selectedMap.nodes, newNode]);
-    setSelectedNodeId(newNode.id);
-  };
-
-  // Adicionar Post-it direto da gaveta de cores Lucidspark
+  // Criar post-it do leque
   const handleAddStickyFromDrawer = () => {
     if (!selectedMap || !lucidStickyInput.trim()) return;
-    const parent = selectedNode || selectedMap.nodes[0];
     const newNode: MindmapNode = {
       id: `sticky_${Date.now()}_${Math.random().toString(36).slice(2, 5)}`,
       label: lucidStickyInput.trim(),
-      parentId: parent ? parent.id : null,
-      x: (parent ? parent.x + 180 : 500) + (Math.random() * 40 - 20),
-      y: (parent ? parent.y + 50 : 300) + (Math.random() * 40 - 20),
+      x: (selectedNode ? selectedNode.x + 180 : 500) + (Math.random() * 40 - 20),
+      y: (selectedNode ? selectedNode.y + 40 : 280) + (Math.random() * 40 - 20),
       color: lucidActiveColor,
       shape: 'sticky',
+      connections: [],
       notes: '',
     };
     saveMapNodes(selectedMap.id, [...selectedMap.nodes, newNode]);
@@ -647,7 +820,7 @@ export const ToolsView: React.FC = () => {
     showToast('Post-it adicionado ao quadro!', 'success');
   };
 
-  // Adicionar Post-its em lote (Batch Create)
+  // Criar em lote
   const handleBatchAddStickies = () => {
     if (!selectedMap || !lucidBatchInput.trim()) return;
     const lines = lucidBatchInput
@@ -660,18 +833,17 @@ export const ToolsView: React.FC = () => {
     const startX = 260;
     const startY = 220;
     const perRow = 3;
-    const parent = selectedNode || selectedMap.nodes[0];
     const newNodes: MindmapNode[] = lines.map((line, idx) => {
       const col = idx % perRow;
       const row = Math.floor(idx / perRow);
       return {
         id: `sticky_batch_${Date.now()}_${idx}`,
         label: line,
-        parentId: parent ? parent.id : null,
         x: startX + col * 170,
         y: startY + row * 150,
         color: lucidActiveColor,
         shape: 'sticky',
+        connections: [],
         notes: '',
       };
     });
@@ -682,27 +854,26 @@ export const ToolsView: React.FC = () => {
     showToast(`${newNodes.length} post-its adicionados em lote!`, 'success');
   };
 
-  // Adicionar forma rápida pelo menu de formas
+  // Adicionar forma rápida
   const handleAddShape = (shape: LucidShapeType) => {
     if (!selectedMap) return;
-    const parent = selectedNode || selectedMap.nodes[0];
     const newNode: MindmapNode = {
       id: `shape_${Date.now()}_${Math.random().toString(36).slice(2, 5)}`,
       label:
         shape === 'cloud'
-          ? 'Ideia Nuvem'
+          ? 'Ideia Central'
           : shape === 'capsule'
-          ? 'Desejo Mental'
+          ? 'Objetivo'
           : shape === 'octagon'
-          ? 'Tópico Crítico'
+          ? 'Alerta Crítico'
           : shape === 'diamond'
-          ? 'Decisão / Dilema'
+          ? 'Decisão'
           : 'Novo Bloco',
-      parentId: parent ? parent.id : null,
-      x: (parent ? parent.x + 220 : 500) + (Math.random() * 40 - 20),
-      y: (parent ? parent.y + 40 : 280) + (Math.random() * 60 - 30),
+      x: (selectedNode ? selectedNode.x + 200 : 500) + (Math.random() * 40 - 20),
+      y: (selectedNode ? selectedNode.y + 40 : 280) + (Math.random() * 60 - 30),
       color: lucidActiveColor,
       shape,
+      connections: [],
       notes: '',
     };
     saveMapNodes(selectedMap.id, [...selectedMap.nodes, newNode]);
@@ -713,24 +884,20 @@ export const ToolsView: React.FC = () => {
 
   const handleDeleteSelectedNode = () => {
     if (!selectedMap || !selectedNode) return;
-    if (selectedNode.parentId === null) {
-      showToast('O nó central não pode ser excluído.', 'info');
+    if (selectedMap.nodes.length <= 1) {
+      showToast('O quadro precisa conter pelo menos um nó.', 'info');
       return;
     }
-    const toRemove = new Set<string>([selectedNode.id]);
-    let changed = true;
-    while (changed) {
-      changed = false;
-      for (const n of selectedMap.nodes) {
-        if (n.parentId && toRemove.has(n.parentId) && !toRemove.has(n.id)) {
-          toRemove.add(n.id);
-          changed = true;
-        }
-      }
-    }
-    const nextNodes = selectedMap.nodes.filter((n) => !toRemove.has(n.id));
+    const nodeId = selectedNode.id;
+    const nextNodes = selectedMap.nodes
+      .filter((n) => n.id !== nodeId)
+      .map((n) => ({
+        ...n,
+        connections: (n.connections || []).filter((c) => c.targetId !== nodeId),
+        parentId: n.parentId === nodeId ? null : n.parentId,
+      }));
     saveMapNodes(selectedMap.id, nextNodes);
-    setSelectedNodeId('root');
+    setSelectedNodeId(nextNodes[0]?.id || 'root');
   };
 
   const handleAutoLayout = () => {
@@ -1662,114 +1829,458 @@ export const ToolsView: React.FC = () => {
           ABA 2: QUADRO VISUAL DE IDEIAS ESTILO LUCIDSPARK
          ========================================================= */}
       {activeTool === 'mindmap' && (
-        <div className="relative w-full h-[760px] rounded-3xl bg-[#0b0c10] border border-white/[0.08] shadow-2xl flex flex-col overflow-hidden select-none">
-          {!selectedMap ? (
-            <div className="h-full flex flex-col items-center justify-center text-center p-6 space-y-4">
-              <div className="p-4 rounded-3xl bg-indigo-500/10 border border-indigo-500/30 text-indigo-400">
-                <Sparkles className="w-12 h-12 animate-pulse" />
+        <div className="w-full">
+          {/* =======================================================
+              MODO 1: HUB DE PASTAS E DOCUMENTOS ESTILO LUCIDSPARK
+             ======================================================= */}
+          {lucidViewMode === 'folders' && (
+            <div className="space-y-6 animate-in fade-in duration-150">
+              {/* Header do Hub de Documentos */}
+              <div className="p-5 rounded-3xl bg-slate-900/90 border border-white/[0.08] shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-4 backdrop-blur-xl">
+                <div className="flex items-center gap-3.5">
+                  <div className="p-3 rounded-2xl bg-gradient-to-tr from-indigo-600 to-purple-600 text-white shadow-lg shadow-indigo-600/30">
+                    <FolderOpen className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-black text-white tracking-tight flex items-center gap-2">
+                      <span>Documentos e Quadros Lucidspark</span>
+                    </h2>
+                    <p className="text-xs text-slate-400">
+                      Organize seus projetos, estratégias e sessões de brainstorming estruturados em pastas.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2.5">
+                  <div className="relative">
+                    <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="text"
+                      placeholder="Buscar quadros..."
+                      value={folderSearch}
+                      onChange={(e) => setFolderSearch(e.target.value)}
+                      className="bg-slate-950 border border-slate-800 rounded-xl pl-8 pr-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 w-48 sm:w-60"
+                    />
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setNewFolderModalOpen(true)}
+                    className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold flex items-center gap-1.5 border border-slate-700 transition"
+                  >
+                    <FolderPlus className="w-3.5 h-3.5 text-indigo-400" />
+                    <span>Nova Pasta</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleCreateBoardInFolder()}
+                    className="px-4 py-2 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-xs font-black flex items-center gap-1.5 shadow-lg shadow-indigo-600/30 transition transform hover:scale-105"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>Novo Quadro</span>
+                  </button>
+                </div>
               </div>
-              <h3 className="text-xl font-black text-white">Quadro Infinito Lucidspark</h3>
-              <p className="text-xs text-slate-400 max-w-md">
-                Faça tempestades de ideias, organize projetos e crie teias visuais com nuvens, cápsulas, post-its, octógonos e conexões anotadas.
-              </p>
-              <button
-                onClick={handleCreateMindmap}
-                className="px-6 py-3 rounded-2xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-xs font-black flex items-center gap-2 shadow-xl shadow-indigo-600/30 transition transform hover:scale-105"
-              >
-                <Plus className="w-4 h-4" />
-                <span>Criar Primeiro Quadro Lucidspark</span>
-              </button>
+
+              {/* Grid Principal: Sidebar de Pastas + Cards de Quadros */}
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                {/* Coluna Esquerda: Navegador de Pastas */}
+                <div className="lg:col-span-3 space-y-2">
+                  <div className="p-3 rounded-2xl bg-slate-900/80 border border-white/[0.08] shadow-lg space-y-1">
+                    <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 px-3 py-1 block">
+                      Pastas de Organização
+                    </span>
+
+                    {/* Todos os Quadros */}
+                    <button
+                      type="button"
+                      onClick={() => setActiveFolder('all')}
+                      className={`w-full px-3 py-2.5 rounded-xl text-left text-xs font-bold flex items-center justify-between transition ${
+                        activeFolder === 'all'
+                          ? 'bg-indigo-600 text-white shadow-md'
+                          : 'text-slate-300 hover:bg-slate-800/80'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 truncate">
+                        <Layers className="w-4 h-4 shrink-0" />
+                        <span className="truncate">Todos os Quadros</span>
+                      </div>
+                      <span className="text-[10px] opacity-75 font-mono">{mindmaps.length}</span>
+                    </button>
+
+                    {/* Lista de Pastas Individuais */}
+                    {folders.map((folder) => {
+                      const count = mindmaps.filter((m) => (m.description || 'Geral') === folder).length;
+                      const isActive = activeFolder === folder;
+                      return (
+                        <div
+                          key={folder}
+                          className={`group w-full px-3 py-2.5 rounded-xl flex items-center justify-between cursor-pointer transition ${
+                            isActive
+                              ? 'bg-indigo-600 text-white shadow-md'
+                              : 'text-slate-300 hover:bg-slate-800/80'
+                          }`}
+                          onClick={() => setActiveFolder(folder)}
+                        >
+                          <div className="flex items-center gap-2 truncate">
+                            <Folder className="w-4 h-4 shrink-0 text-indigo-400 group-hover:text-white" />
+                            <span className="text-xs font-bold truncate">{folder}</span>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-[10px] opacity-75 font-mono">{count}</span>
+                            {folder !== 'Geral' && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDeleteFolder(folder);
+                                }}
+                                className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-rose-300 p-0.5 transition"
+                                title="Excluir Pasta"
+                              >
+                                <Trash2 className="w-3 h-3" />
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+
+                    <button
+                      type="button"
+                      onClick={() => setNewFolderModalOpen(true)}
+                      className="w-full mt-2 px-3 py-2 rounded-xl text-left text-xs font-semibold text-indigo-400 hover:text-indigo-300 hover:bg-indigo-600/10 flex items-center gap-2 transition"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>Criar Nova Pasta</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Coluna Direita: Cards de Quadros da Pasta */}
+                <div className="lg:col-span-9 space-y-4">
+                  <div className="flex items-center justify-between text-xs text-slate-400 px-1">
+                    <span className="font-bold flex items-center gap-1.5 text-slate-200">
+                      <Folder className="w-4 h-4 text-indigo-400" />
+                      <span>Pasta Atual:</span>
+                      <span className="text-indigo-300">
+                        {activeFolder === 'all' ? 'Todos os Quadros' : activeFolder}
+                      </span>
+                    </span>
+                    <span>
+                      {
+                        mindmaps.filter(
+                          (m) =>
+                            (activeFolder === 'all' || (m.description || 'Geral') === activeFolder) &&
+                            (!folderSearch || m.title.toLowerCase().includes(folderSearch.toLowerCase()))
+                        ).length
+                      }{' '}
+                      quadros encontrados
+                    </span>
+                  </div>
+
+                  {/* Grid de Quadros */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                    {mindmaps
+                      .filter(
+                        (m) =>
+                          (activeFolder === 'all' || (m.description || 'Geral') === activeFolder) &&
+                          (!folderSearch || m.title.toLowerCase().includes(folderSearch.toLowerCase()))
+                      )
+                      .map((board) => {
+                        const edges = getBoardEdges(board.nodes);
+                        return (
+                          <div
+                            key={board.id}
+                            className="group p-4 rounded-3xl bg-slate-900/85 border border-white/[0.08] hover:border-indigo-500/50 shadow-xl flex flex-col justify-between transition-all duration-200 hover:-translate-y-1"
+                          >
+                            <div>
+                              {/* Miniatura Visual Estilizada do Quadro */}
+                              <div
+                                onClick={() => {
+                                  setSelectedMapId(board.id);
+                                  setSelectedNodeId(board.nodes[0]?.id || 'root');
+                                  setLucidViewMode('canvas');
+                                }}
+                                className="h-32 w-full rounded-2xl bg-slate-950 border border-slate-800 flex items-center justify-center p-3 relative overflow-hidden cursor-pointer group-hover:border-indigo-500/30"
+                                style={{
+                                  backgroundImage:
+                                    'radial-gradient(rgba(255,255,255,0.12) 1px, transparent 1px)',
+                                  backgroundSize: '16px 16px',
+                                }}
+                              >
+                                <div className="flex flex-wrap items-center justify-center gap-1.5 opacity-80 pointer-events-none">
+                                  {board.nodes.slice(0, 4).map((n) => (
+                                    <span
+                                      key={n.id}
+                                      style={{ backgroundColor: n.color }}
+                                      className="px-2 py-0.5 rounded-lg text-[10px] font-bold text-white shadow truncate max-w-[100px]"
+                                    >
+                                      {n.label}
+                                    </span>
+                                  ))}
+                                </div>
+                                <div className="absolute inset-0 bg-indigo-600/0 group-hover:bg-indigo-600/10 transition flex items-center justify-center opacity-0 group-hover:opacity-100">
+                                  <span className="px-3 py-1.5 rounded-xl bg-indigo-600 text-white text-xs font-black flex items-center gap-1 shadow-lg">
+                                    <span>Abrir Quadro</span>
+                                    <ArrowRight className="w-3.5 h-3.5" />
+                                  </span>
+                                </div>
+                              </div>
+
+                              {/* Título e Pasta */}
+                              <div className="pt-3.5 space-y-1">
+                                <h4 className="text-sm font-black text-white truncate">{board.title}</h4>
+                                <div className="flex items-center gap-2 text-[11px] text-slate-400">
+                                  <span className="px-2 py-0.5 rounded-md bg-slate-800 text-slate-300 font-semibold flex items-center gap-1">
+                                    <Folder className="w-3 h-3 text-indigo-400" />
+                                    <span>{board.description || 'Geral'}</span>
+                                  </span>
+                                  <span>•</span>
+                                  <span>{board.nodes.length} nós</span>
+                                  <span>•</span>
+                                  <span>{edges.length} conexões</span>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Ações do Card */}
+                            <div className="pt-4 flex items-center justify-between border-t border-slate-800/80 mt-3">
+                              <select
+                                value={board.description || 'Geral'}
+                                onChange={(e) => {
+                                  if (window.electronAPI?.updateMindmap) {
+                                    window.electronAPI.updateMindmap(board.id, {
+                                      description: e.target.value,
+                                    });
+                                    setMindmaps((prev) =>
+                                      prev.map((b) =>
+                                        b.id === board.id ? { ...b, description: e.target.value } : b
+                                      )
+                                    );
+                                    showToast(`Quadro movido para a pasta "${e.target.value}".`, 'success');
+                                  }
+                                }}
+                                className="bg-slate-950 border border-slate-800 rounded-lg px-2 py-1 text-[11px] text-slate-300 focus:outline-none"
+                                title="Mover para outra pasta"
+                              >
+                                {folders.map((f) => (
+                                  <option key={f} value={f}>
+                                    Pasta: {f}
+                                  </option>
+                                ))}
+                              </select>
+
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteMindmap(board.id)}
+                                className="p-1.5 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition"
+                                title="Excluir Quadro"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+
+                    {/* Card de Adição Rápida */}
+                    <div
+                      onClick={() => handleCreateBoardInFolder()}
+                      className="p-6 rounded-3xl border-2 border-dashed border-slate-800 hover:border-indigo-500/60 flex flex-col items-center justify-center text-center cursor-pointer min-h-[220px] transition-all group"
+                    >
+                      <div className="p-3 rounded-2xl bg-slate-800 text-slate-400 group-hover:bg-indigo-600 group-hover:text-white transition mb-2 shadow">
+                        <Plus className="w-5 h-5" />
+                      </div>
+                      <span className="text-xs font-bold text-slate-300 group-hover:text-white">
+                        Criar Novo Quadro em Branco
+                      </span>
+                      <span className="text-[11px] text-slate-500 mt-1">
+                        Inicie um quadro 100% livre na pasta atual
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Modal de Criação de Nova Pasta */}
+              {newFolderModalOpen && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                  <div className="w-full max-w-sm bg-slate-900 border border-slate-700 rounded-3xl p-5 shadow-2xl space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-sm font-black text-white flex items-center gap-2">
+                        <FolderPlus className="w-4 h-4 text-indigo-400" />
+                        <span>Criar Nova Pasta</span>
+                      </h4>
+                      <button
+                        type="button"
+                        onClick={() => setNewFolderModalOpen(false)}
+                        className="text-slate-400 hover:text-white"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+
+                    <input
+                      type="text"
+                      placeholder="Nome da pasta (ex: Estratégia 2026)..."
+                      value={newFolderName}
+                      onChange={(e) => setNewFolderName(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleCreateFolder();
+                        }
+                      }}
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+                    />
+
+                    <div className="flex items-center justify-end gap-2 pt-1">
+                      <button
+                        type="button"
+                        onClick={() => setNewFolderModalOpen(false)}
+                        className="px-4 py-2 rounded-xl bg-slate-800 text-slate-300 text-xs font-bold"
+                      >
+                        Cancelar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleCreateFolder}
+                        className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition"
+                      >
+                        Criar Pasta
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
-          ) : (
-            <>
+          )}
+
+          {/* =======================================================
+              MODO 2: EDITOR CANVAS 100% DA ALTURA ESTILO LUCIDSPARK
+             ======================================================= */}
+          {lucidViewMode === 'canvas' && selectedMap && (
+            <div className="relative w-full h-[calc(100vh-100px)] min-h-[720px] rounded-3xl bg-[#0b0c10] border border-white/[0.08] shadow-2xl flex flex-col overflow-hidden select-none animate-in fade-in duration-150">
               {/* Top Lucidspark Header Bar */}
               <div className="h-14 px-4 bg-slate-900/90 border-b border-white/[0.08] flex items-center justify-between z-20 backdrop-blur-md shrink-0">
-                {/* Left Header: Logo, Title, Sync, Boards menu */}
+                {/* Botão de Retorno para Pastas + Título + Status */}
                 <div className="flex items-center gap-3">
-                  <div className="p-1.5 rounded-xl bg-gradient-to-tr from-amber-400 via-rose-500 to-indigo-500 text-white shadow-md shadow-indigo-500/30">
-                    <Sparkles className="w-4 h-4" />
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setLucidViewMode('folders')}
+                    className="px-3 py-1.5 rounded-xl bg-slate-800/90 hover:bg-slate-700 text-slate-200 text-xs font-bold flex items-center gap-1.5 border border-slate-700/80 transition shadow"
+                    title="Retornar para o Hub de Pastas e Documentos"
+                  >
+                    <ArrowLeft className="w-3.5 h-3.5" />
+                    <span>Pastas</span>
+                  </button>
+
+                  <div className="h-4 w-px bg-white/10" />
 
                   <input
                     type="text"
                     value={selectedMap.title}
                     onChange={(e) => saveMapNodes(selectedMap.id, selectedMap.nodes, e.target.value)}
-                    className="bg-transparent text-sm font-black text-white focus:outline-none focus:bg-slate-800/80 px-2.5 py-1 rounded-xl border border-transparent focus:border-indigo-500/50 transition max-w-[240px]"
-                    title="Clique para renomear este quadro"
+                    className="bg-transparent text-sm font-black text-white focus:outline-none focus:bg-slate-800/80 px-2.5 py-1 rounded-xl border border-transparent focus:border-indigo-500/50 transition max-w-[220px]"
+                    title="Renomear este quadro"
                   />
+
+                  {/* Seletor de Pasta do Quadro Atual */}
+                  <select
+                    value={selectedMap.description || 'Geral'}
+                    onChange={(e) => {
+                      if (window.electronAPI?.updateMindmap) {
+                        window.electronAPI.updateMindmap(selectedMap.id, {
+                          description: e.target.value,
+                        });
+                        setMindmaps((prev) =>
+                          prev.map((b) =>
+                            b.id === selectedMap.id ? { ...b, description: e.target.value } : b
+                          )
+                        );
+                        showToast(`Quadro associado à pasta "${e.target.value}".`, 'info');
+                      }
+                    }}
+                    className="bg-slate-950 border border-slate-800 rounded-lg px-2 py-1 text-[11px] text-slate-300 focus:outline-none hidden sm:inline"
+                    title="Alterar pasta deste quadro"
+                  >
+                    {folders.map((f) => (
+                      <option key={f} value={f}>
+                        Pasta: {f}
+                      </option>
+                    ))}
+                  </select>
 
                   <div className="flex items-center gap-1 text-[11px] text-emerald-400 font-semibold px-2 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/20">
                     <Cloud className="w-3.5 h-3.5" />
-                    <span>Salvo</span>
+                    <span className="hidden md:inline">Salvo</span>
                   </div>
 
-                  {/* Boards Menu Dropdown */}
-                  <div className="relative">
+                  {/* Indicador de Conexão Ativa */}
+                  {connectingFromNodeId && (
+                    <div className="px-2.5 py-1 rounded-xl bg-indigo-600/30 border border-indigo-400 text-indigo-200 text-xs font-bold animate-pulse flex items-center gap-1.5">
+                      <Link2 className="w-3.5 h-3.5" />
+                      <span>Modo Conectar: Clique no nó de destino</span>
+                      <button
+                        type="button"
+                        onClick={() => setConnectingFromNodeId(null)}
+                        className="ml-1 text-slate-400 hover:text-white"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Right Header: Timer, Style, Share */}
+                <div className="flex items-center gap-2">
+                  {/* Seletor de Estilo de Conexão */}
+                  <div className="flex items-center rounded-xl bg-slate-950 p-0.5 border border-slate-800">
                     <button
                       type="button"
-                      onClick={() => setLucidBoardsMenuOpen((v) => !v)}
-                      className="px-2.5 py-1 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-bold flex items-center gap-1.5 transition"
-                      title="Gerenciar Quadros Lucidspark"
+                      onClick={() => setConnectorStyle('curved')}
+                      className={`px-2 py-1 text-[10px] font-bold rounded-lg transition ${
+                        connectorStyle === 'curved' ? 'bg-indigo-600 text-white' : 'text-slate-400'
+                      }`}
+                      title="Conexões Curvas Bézier"
                     >
-                      <Layers className="w-3.5 h-3.5 text-indigo-400" />
-                      <span className="hidden sm:inline">Quadros ({mindmaps.length})</span>
-                      <ChevronDown className="w-3 h-3 text-slate-400" />
+                      Curva
                     </button>
-
-                    {lucidBoardsMenuOpen && (
-                      <div className="absolute left-0 top-full mt-2 w-72 p-3 rounded-2xl bg-slate-900 border border-slate-700 shadow-2xl z-50 space-y-2.5">
-                        <div className="flex items-center justify-between pb-1.5 border-b border-slate-800">
-                          <span className="text-xs font-extrabold text-white">Seus Quadros</span>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              handleCreateMindmap();
-                              setLucidBoardsMenuOpen(false);
-                            }}
-                            className="text-[11px] text-indigo-400 hover:text-indigo-300 font-bold flex items-center gap-1"
-                          >
-                            <Plus className="w-3 h-3" /> Novo
-                          </button>
-                        </div>
-
-                        <div className="space-y-1 max-h-48 overflow-y-auto custom-scrollbar">
-                          {mindmaps.map((m) => (
-                            <div
-                              key={m.id}
-                              onClick={() => {
-                                setSelectedMapId(m.id);
-                                setSelectedNodeId('root');
-                                setLucidBoardsMenuOpen(false);
-                              }}
-                              className={`p-2 rounded-xl flex items-center justify-between cursor-pointer text-xs font-bold transition ${
-                                m.id === selectedMapId
-                                  ? 'bg-indigo-600 text-white'
-                                  : 'bg-slate-950/70 text-slate-300 hover:bg-slate-800'
-                              }`}
-                            >
-                              <span className="truncate">{m.title}</span>
-                              <span className="text-[10px] opacity-75">{m.nodes.length} nós</span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
+                    <button
+                      type="button"
+                      onClick={() => setConnectorStyle('elbow')}
+                      className={`px-2 py-1 text-[10px] font-bold rounded-lg transition ${
+                        connectorStyle === 'elbow' ? 'bg-indigo-600 text-white' : 'text-slate-400'
+                      }`}
+                      title="Conexões Angulares 90°"
+                    >
+                      Angular
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setConnectorStyle('straight')}
+                      className={`px-2 py-1 text-[10px] font-bold rounded-lg transition ${
+                        connectorStyle === 'straight' ? 'bg-indigo-600 text-white' : 'text-slate-400'
+                      }`}
+                      title="Conexões Retas"
+                    >
+                      Reta
+                    </button>
                   </div>
 
-                  {/* Auto-Organize button */}
+                  {/* Auto-Organizar */}
                   <button
                     type="button"
                     onClick={handleAutoLayout}
                     className="p-1.5 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white transition"
-                    title="Auto-organizar layout radial"
+                    title="Auto-organizar layout"
                   >
-                    <Layout className="w-3.5 h-3.5 text-indigo-400" />
+                    <Layout className="w-4 h-4 text-indigo-400" />
                   </button>
-                </div>
 
-                {/* Right Header: Timer, Share, Avatar */}
-                <div className="flex items-center gap-2.5">
-                  {/* Timer widget (from screenshot top right) */}
+                  {/* Timer de Brainstorming */}
                   <div className="relative">
                     <button
                       type="button"
@@ -1779,7 +2290,7 @@ export const ToolsView: React.FC = () => {
                           ? 'bg-amber-500/20 border-amber-400 text-amber-300 animate-pulse'
                           : 'bg-slate-800/90 border-slate-700 text-slate-300 hover:text-white'
                       }`}
-                      title="Timer de Brainstorming"
+                      title="Timer de Sessão"
                     >
                       <Timer className="w-3.5 h-3.5 text-amber-400" />
                       <span className="font-mono">
@@ -1790,7 +2301,7 @@ export const ToolsView: React.FC = () => {
                     {lucidTimerOpen && (
                       <div className="absolute right-0 top-full mt-2 w-60 p-3.5 rounded-2xl bg-slate-900 border border-slate-700 shadow-2xl z-50 space-y-3">
                         <div className="flex items-center justify-between text-xs font-bold text-white">
-                          <span>⏱️ Timer de Sessão</span>
+                          <span>Timer de Sessão</span>
                           <span className="font-mono text-amber-400 text-sm">
                             {Math.floor(lucidTimerSeconds / 60)}:{(lucidTimerSeconds % 60).toString().padStart(2, '0')}
                           </span>
@@ -1835,45 +2346,24 @@ export const ToolsView: React.FC = () => {
                     )}
                   </div>
 
-                  {/* Share button (from screenshot in vibrant purple) */}
+                  {/* Botão de Compartilhar */}
                   <button
                     type="button"
                     onClick={() => {
                       copyToClipboard(window.location.href, 'Quadro Lucidspark');
                       showToast('Link do quadro copiado!', 'success');
                     }}
-                    className="px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-extrabold flex items-center gap-1.5 shadow-lg shadow-indigo-600/30 transition transform hover:scale-105"
+                    className="px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-black flex items-center gap-1.5 shadow-lg shadow-indigo-600/30 transition"
                   >
                     <Share2 className="w-3.5 h-3.5" />
-                    <span>Share</span>
+                    <span>Compartilhar</span>
                   </button>
-
-                  {/* User avatar badge (from screenshot: AG) */}
-                  <div
-                    className="w-8 h-8 rounded-full bg-gradient-to-tr from-purple-600 to-indigo-500 text-white text-xs font-black flex items-center justify-center border-2 border-white/20 select-none shadow-md"
-                    title="Usuário Ativo"
-                  >
-                    AG
-                  </div>
                 </div>
               </div>
 
-              {/* Lucidspark Primary Left Dock (Vertical Floating Bar) */}
+              {/* Dock Lateral Flutuante Profissional (Sem emojis) */}
               <div className="absolute left-4 top-20 z-20 flex flex-col items-center bg-slate-900/95 border border-white/[0.08] rounded-2xl p-1.5 shadow-2xl space-y-1.5 backdrop-blur-xl">
-                {/* AI / Magic Brainstorming (Rocket) */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    handleAddChildNode('cloud');
-                    showToast('🚀 Ideia expandida via Brainstorming!', 'info');
-                  }}
-                  className="p-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition"
-                  title="Gerar Ideia / Expandir Ramo (Rocket)"
-                >
-                  <Rocket className="w-5 h-5 text-indigo-400" />
-                </button>
-
-                {/* Sticky Notes Tool Button (Highlighted in yellow like screenshot!) */}
+                {/* Criar Post-it com Leque de Cores */}
                 <button
                   type="button"
                   onClick={() => {
@@ -1885,12 +2375,12 @@ export const ToolsView: React.FC = () => {
                       ? 'bg-amber-400 text-slate-900 shadow-lg shadow-amber-400/30'
                       : 'text-amber-400 hover:bg-amber-400/20'
                   }`}
-                  title="Post-its & Leque de Cores (Lucidspark Fan)"
+                  title="Post-its & Leque de Cores"
                 >
                   <StickyNote className="w-5 h-5" />
                 </button>
 
-                {/* Shapes Tool Button (Cloud, Capsule, Octagon, Diamond, Card) */}
+                {/* Menu de Formas */}
                 <div className="relative">
                   <button
                     type="button"
@@ -1903,12 +2393,11 @@ export const ToolsView: React.FC = () => {
                         ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30'
                         : 'text-slate-400 hover:text-white hover:bg-white/10'
                     }`}
-                    title="Formas: Nuvem, Cápsula, Octógono, Losango"
+                    title="Inserir Formas: Nuvem, Cápsula, Octógono, Losango, Cartão"
                   >
                     <Layers className="w-5 h-5 text-cyan-400" />
                   </button>
 
-                  {/* Shapes Picker Menu */}
                   {lucidShapesMenuOpen && (
                     <div className="absolute left-full top-0 ml-3 w-56 p-2 rounded-2xl bg-slate-900 border border-slate-700 shadow-2xl z-40 space-y-1">
                       <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 px-2 block">
@@ -1921,7 +2410,14 @@ export const ToolsView: React.FC = () => {
                           onClick={() => handleAddShape(shape.type)}
                           className="w-full px-2.5 py-2 rounded-xl hover:bg-slate-800 text-left text-xs font-bold text-slate-200 flex items-center gap-2.5 transition"
                         >
-                          <span className="text-base">{shape.icon}</span>
+                          <span className="p-1 rounded bg-slate-800 text-indigo-400">
+                            {shape.type === 'cloud' && <Cloud className="w-3.5 h-3.5" />}
+                            {shape.type === 'capsule' && <Circle className="w-3.5 h-3.5" />}
+                            {shape.type === 'octagon' && <Octagon className="w-3.5 h-3.5" />}
+                            {shape.type === 'diamond' && <Diamond className="w-3.5 h-3.5" />}
+                            {shape.type === 'sticky' && <StickyNote className="w-3.5 h-3.5" />}
+                            {shape.type === 'rectangle' && <Square className="w-3.5 h-3.5" />}
+                          </span>
                           <div>
                             <div>{shape.label}</div>
                             <span className="text-[10px] font-normal text-slate-400">{shape.desc}</span>
@@ -1932,42 +2428,49 @@ export const ToolsView: React.FC = () => {
                   )}
                 </div>
 
-                {/* Connector Line Style Button */}
+                {/* Modo Conectar Livre */}
                 <button
                   type="button"
-                  onClick={() =>
-                    setConnectorStyle((c) =>
-                      c === 'curved' ? 'elbow' : c === 'elbow' ? 'straight' : 'curved'
-                    )
-                  }
-                  className="p-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition"
-                  title={`Estilo de Linha: ${connectorStyle}`}
+                  onClick={() => {
+                    if (selectedNode) {
+                      setConnectingFromNodeId(selectedNode.id);
+                      showToast('Clique no elemento de destino para criar a conexão.', 'info');
+                    } else {
+                      showToast('Selecione primeiro um elemento e clique para conectar.', 'info');
+                    }
+                  }}
+                  className={`p-2.5 rounded-xl transition ${
+                    connectingFromNodeId
+                      ? 'bg-indigo-600 text-white shadow-lg'
+                      : 'text-slate-400 hover:text-white hover:bg-white/10'
+                  }`}
+                  title="Conectar Elementos Livremente"
                 >
-                  <ArrowRight className="w-5 h-5 text-fuchsia-400" />
+                  <Link2 className="w-5 h-5 text-indigo-400" />
                 </button>
 
-                {/* Batch Stickies Creator Button */}
+                {/* Criar em Lote */}
                 <button
                   type="button"
                   onClick={() => setLucidBatchModalOpen(true)}
                   className="p-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition"
-                  title="Criar Post-its em Lote (Colar lista)"
+                  title="Criar Post-its em Lote (Colar Lista)"
                 >
                   <ListOrdered className="w-5 h-5 text-pink-400" />
                 </button>
 
-                {/* Add Child (Tab) */}
+                {/* Adicionar Rápido */}
                 <button
                   type="button"
                   onClick={() => handleAddChildNode()}
                   className="p-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition"
-                  title="Adicionar Subtópico Conectado (+)"
+                  title="Adicionar Subtópico"
                 >
                   <Plus className="w-5 h-5 text-emerald-400" />
                 </button>
               </div>
 
-              {/* The Lucidspark Color Fan Drawer (Reverse-engineered exactly from user screenshot!) */}
+              {/* Gaveta de Leques de Cores do Lucidspark (Sem Emojis) */}
               {lucidStickyDrawerOpen && (
                 <div className="absolute left-20 top-20 z-30 w-88 bg-slate-900/98 border border-slate-700/80 rounded-2xl p-4 shadow-2xl backdrop-blur-2xl space-y-3.5 select-none animate-in fade-in zoom-in-95 duration-150">
                   <div className="flex items-center justify-between pb-1 border-b border-slate-800">
@@ -1980,11 +2483,11 @@ export const ToolsView: React.FC = () => {
                       onClick={() => setLucidStickyDrawerOpen(false)}
                       className="text-slate-500 hover:text-white text-xs p-1"
                     >
-                      ✕
+                      <X className="w-3.5 h-3.5" />
                     </button>
                   </div>
 
-                  {/* 4 Fan Color Arcs */}
+                  {/* 4 Linhas de Leques */}
                   <div className="space-y-2 py-1">
                     {LUCID_FAN_PALETTES.map((palette, pIdx) => (
                       <div key={pIdx} className="flex items-center justify-center gap-1">
@@ -2003,7 +2506,7 @@ export const ToolsView: React.FC = () => {
                               }`}
                               title={c}
                             >
-                              {isChosen && <Star className="w-3.5 h-3.5 text-white fill-white drop-shadow" />}
+                              {isChosen && <Check className="w-3.5 h-3.5 text-white drop-shadow font-black" />}
                             </button>
                           );
                         })}
@@ -2011,7 +2514,7 @@ export const ToolsView: React.FC = () => {
                     ))}
                   </div>
 
-                  {/* Form: Type and press enter to add sticky */}
+                  {/* Digitar e Enter */}
                   <div className="space-y-2 pt-2 border-t border-slate-800">
                     <span className="text-[11px] font-bold text-slate-300 block">
                       Digite e pressione Enter para criar post-it:
@@ -2019,7 +2522,7 @@ export const ToolsView: React.FC = () => {
                     <div className="flex items-center gap-1.5">
                       <input
                         type="text"
-                        placeholder="Ex: Virtude traz realização..."
+                        placeholder="Escreva sua ideia aqui..."
                         value={lucidStickyInput}
                         onChange={(e) => setLucidStickyInput(e.target.value)}
                         onKeyDown={(e) => {
@@ -2035,7 +2538,7 @@ export const ToolsView: React.FC = () => {
                         onClick={handleAddStickyFromDrawer}
                         className="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition"
                       >
-                        Adicionar
+                        Criar
                       </button>
                     </div>
 
@@ -2054,7 +2557,7 @@ export const ToolsView: React.FC = () => {
                 </div>
               )}
 
-              {/* Batch Stickies Creation Modal */}
+              {/* Modal de Criação em Lote */}
               {lucidBatchModalOpen && (
                 <div className="absolute inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
                   <div className="w-full max-w-md bg-slate-900 border border-slate-700 rounded-3xl p-5 shadow-2xl space-y-4">
@@ -2073,14 +2576,14 @@ export const ToolsView: React.FC = () => {
                     </div>
 
                     <p className="text-xs text-slate-400 leading-relaxed">
-                      Cole uma lista de ideias, tópicos ou frases. Cada linha será transformada automaticamente em um post-it separado na cor selecionada!
+                      Cole sua lista de ideias ou parágrafos. Cada linha será transformada em um post-it separado na cor selecionada.
                     </p>
 
                     <textarea
                       rows={6}
                       value={lucidBatchInput}
                       onChange={(e) => setLucidBatchInput(e.target.value)}
-                      placeholder="• Primeira ideia&#10;• Segunda ideia&#10;• Terceira reflexão..."
+                      placeholder="Primeira ideia&#10;Segunda ideia&#10;Terceira reflexão..."
                       className="w-full bg-slate-950 border border-slate-800 rounded-2xl p-3 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-indigo-500 custom-scrollbar resize-none"
                     />
 
@@ -2105,13 +2608,14 @@ export const ToolsView: React.FC = () => {
                 </div>
               )}
 
-              {/* Interactive Canvas */}
+              {/* Canvas 100% da Altura com Grade de Pontos */}
               <div
                 ref={canvasRef}
                 onMouseDown={handleCanvasMouseDown}
                 onMouseMove={handleCanvasMouseMove}
                 onMouseUp={handleCanvasMouseUp}
                 onMouseLeave={handleCanvasMouseUp}
+                onDoubleClick={handleCanvasDoubleClick}
                 className={`relative w-full flex-1 overflow-hidden select-none ${
                   isPanning ? 'cursor-grabbing' : 'cursor-grab'
                 }`}
@@ -2132,98 +2636,180 @@ export const ToolsView: React.FC = () => {
                     left: 0,
                   }}
                 >
-                  {/* SVG Connector Lines & Floating Line Labels (Lucidspark style) */}
-                  <svg className="absolute inset-0 w-[4000px] h-[4000px] pointer-events-none overflow-visible">
-                    {selectedMap.nodes.map((node) => {
-                      if (!node.parentId) return null;
-                      const parent = selectedMap.nodes.find((p) => p.id === node.parentId);
-                      if (!parent) return null;
+                  {/* Conexões Livres M:N com Rótulos de Texto */}
+                  <svg className="absolute inset-0 w-[5000px] h-[5000px] pointer-events-none overflow-visible">
+                    {getBoardEdges(selectedMap.nodes).map((edge) => {
+                      const source = selectedMap.nodes.find((n) => n.id === edge.sourceId);
+                      const target = selectedMap.nodes.find((n) => n.id === edge.targetId);
+                      if (!source || !target) return null;
 
-                      const midX = (parent.x + node.x) / 2;
-                      const midY = (parent.y + node.y) / 2;
+                      const midX = (source.x + target.x) / 2;
+                      const midY = (source.y + target.y) / 2;
 
                       let pathData = '';
                       if (connectorStyle === 'straight') {
-                        pathData = `M ${parent.x} ${parent.y} L ${node.x} ${node.y}`;
+                        pathData = `M ${source.x} ${source.y} L ${target.x} ${target.y}`;
                       } else if (connectorStyle === 'elbow') {
-                        pathData = `M ${parent.x} ${parent.y} L ${midX} ${parent.y} L ${midX} ${node.y} L ${node.x} ${node.y}`;
+                        pathData = `M ${source.x} ${source.y} L ${midX} ${source.y} L ${midX} ${target.y} L ${target.x} ${target.y}`;
                       } else {
                         // Curved Bézier
-                        pathData = `M ${parent.x} ${parent.y} C ${midX} ${parent.y}, ${midX} ${node.y}, ${node.x} ${node.y}`;
+                        pathData = `M ${source.x} ${source.y} C ${midX} ${source.y}, ${midX} ${target.y}, ${target.x} ${target.y}`;
                       }
 
+                      const isEdgeSelected = selectedEdgeId === edge.id;
+
                       return (
-                        <g key={`edge_${parent.id}_${node.id}`}>
+                        <g key={edge.id}>
                           <path
                             d={pathData}
-                            stroke={node.color || '#6366f1'}
-                            strokeWidth={2.5}
-                            strokeOpacity={0.75}
+                            stroke={isEdgeSelected ? '#ffffff' : edge.color || '#6366f1'}
+                            strokeWidth={isEdgeSelected ? 3.5 : 2.5}
+                            strokeOpacity={isEdgeSelected ? 1 : 0.75}
                             fill="none"
                             strokeLinecap="round"
+                            className="cursor-pointer pointer-events-auto"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedEdgeId(edge.id);
+                            }}
                           />
-                          {node.lineLabel && (
-                            <g className="cursor-pointer">
-                              <rect
-                                x={midX - 85}
-                                y={midY - 14}
-                                width={170}
-                                height={28}
-                                rx={8}
-                                fill="#0f172a"
-                                stroke="#334155"
-                                strokeWidth={1.5}
-                                className="drop-shadow-lg"
-                              />
-                              <text
-                                x={midX}
-                                y={midY + 4}
-                                textAnchor="middle"
-                                fill="#e2e8f0"
-                                fontSize={10}
-                                fontWeight="bold"
-                                className="select-none pointer-events-none"
+
+                          {/* Rótulo de Linha e Controles de Conexão */}
+                          {(edge.label || isEdgeSelected) && (
+                            <foreignObject
+                              x={midX - 90}
+                              y={midY - 18}
+                              width={180}
+                              height={36}
+                              className="overflow-visible pointer-events-auto"
+                            >
+                              <div
+                                onClick={(e) => e.stopPropagation()}
+                                className={`px-2.5 py-1 rounded-xl bg-slate-900 border text-center flex items-center justify-between gap-1 shadow-xl backdrop-blur-md ${
+                                  isEdgeSelected ? 'border-indigo-400 ring-2 ring-indigo-500/40' : 'border-slate-700'
+                                }`}
                               >
-                                {node.lineLabel.length > 28
-                                  ? `${node.lineLabel.slice(0, 27)}...`
-                                  : node.lineLabel}
-                              </text>
-                            </g>
+                                <input
+                                  type="text"
+                                  placeholder="Rótulo da linha..."
+                                  value={edge.label || ''}
+                                  onChange={(e) =>
+                                    handleUpdateEdgeLabel(edge.sourceId, edge.targetId, e.target.value)
+                                  }
+                                  className="bg-transparent text-[10px] font-bold text-slate-200 focus:outline-none w-full text-center"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => handleDisconnect(edge.sourceId, edge.targetId)}
+                                  className="text-slate-500 hover:text-rose-400 p-0.5"
+                                  title="Remover conexão"
+                                >
+                                  <Unlink className="w-3 h-3" />
+                                </button>
+                              </div>
+                            </foreignObject>
                           )}
                         </g>
                       );
                     })}
                   </svg>
 
-                  {/* Interactive Nodes Rendered as Lucidspark Shapes */}
+                  {/* Nós / Elementos Criados Livremente no Canvas */}
                   {selectedMap.nodes.map((node) => {
                     const isSelected = node.id === selectedNode?.id;
-                    const shape: LucidShapeType =
-                      node.shape || (node.parentId === null ? 'cloud' : 'rectangle');
-                    const votes = lucidVotes[node.id] || 0;
+                    const shape: LucidShapeType = node.shape || 'cloud';
 
                     return (
                       <div
                         key={node.id}
                         onMouseDown={(e) => {
                           e.stopPropagation();
-                          setSelectedNodeId(node.id);
-                          setDraggingNodeId(node.id);
+                          if (connectingFromNodeId && connectingFromNodeId !== node.id) {
+                            handleConnectNodes(connectingFromNodeId, node.id);
+                          } else {
+                            setSelectedNodeId(node.id);
+                            setDraggingNodeId(node.id);
+                          }
                         }}
                         style={{
                           left: `${node.x}px`,
                           top: `${node.y}px`,
                           transform: 'translate(-50%, -50%)',
                         }}
-                        className="absolute cursor-grab active:cursor-grabbing transition-transform"
+                        className={`group absolute cursor-grab active:cursor-grabbing transition-transform ${
+                          connectingFromNodeId && connectingFromNodeId !== node.id
+                            ? 'ring-4 ring-indigo-400 animate-pulse cursor-pointer'
+                            : ''
+                        }`}
                       >
-                        {/* Floating Selection Toolbar above active node */}
+                        {/* 4 Âncoras de Conexão Livre (Top, Right, Bottom, Left) */}
+                        <div
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (connectingFromNodeId && connectingFromNodeId !== node.id) {
+                              handleConnectNodes(connectingFromNodeId, node.id);
+                            } else {
+                              setConnectingFromNodeId(node.id);
+                              showToast('Modo Conectar: Clique no nó de destino.', 'info');
+                            }
+                          }}
+                          className="opacity-0 group-hover:opacity-100 absolute -top-2 left-1/2 -translate-x-1/2 w-4 h-4 rounded-full bg-indigo-500 hover:bg-white text-white hover:text-slate-900 flex items-center justify-center text-[10px] font-black shadow-lg cursor-pointer transition z-30"
+                          title="Conectar por cima"
+                        >
+                          +
+                        </div>
+                        <div
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (connectingFromNodeId && connectingFromNodeId !== node.id) {
+                              handleConnectNodes(connectingFromNodeId, node.id);
+                            } else {
+                              setConnectingFromNodeId(node.id);
+                              showToast('Modo Conectar: Clique no nó de destino.', 'info');
+                            }
+                          }}
+                          className="opacity-0 group-hover:opacity-100 absolute top-1/2 -right-2 -translate-y-1/2 w-4 h-4 rounded-full bg-indigo-500 hover:bg-white text-white hover:text-slate-900 flex items-center justify-center text-[10px] font-black shadow-lg cursor-pointer transition z-30"
+                          title="Conectar pela direita"
+                        >
+                          +
+                        </div>
+                        <div
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (connectingFromNodeId && connectingFromNodeId !== node.id) {
+                              handleConnectNodes(connectingFromNodeId, node.id);
+                            } else {
+                              setConnectingFromNodeId(node.id);
+                              showToast('Modo Conectar: Clique no nó de destino.', 'info');
+                            }
+                          }}
+                          className="opacity-0 group-hover:opacity-100 absolute -bottom-2 left-1/2 -translate-x-1/2 w-4 h-4 rounded-full bg-indigo-500 hover:bg-white text-white hover:text-slate-900 flex items-center justify-center text-[10px] font-black shadow-lg cursor-pointer transition z-30"
+                          title="Conectar por baixo"
+                        >
+                          +
+                        </div>
+                        <div
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (connectingFromNodeId && connectingFromNodeId !== node.id) {
+                              handleConnectNodes(connectingFromNodeId, node.id);
+                            } else {
+                              setConnectingFromNodeId(node.id);
+                              showToast('Modo Conectar: Clique no nó de destino.', 'info');
+                            }
+                          }}
+                          className="opacity-0 group-hover:opacity-100 absolute top-1/2 -left-2 -translate-y-1/2 w-4 h-4 rounded-full bg-indigo-500 hover:bg-white text-white hover:text-slate-900 flex items-center justify-center text-[10px] font-black shadow-lg cursor-pointer transition z-30"
+                          title="Conectar pela esquerda"
+                        >
+                          +
+                        </div>
+
+                        {/* Barra de Ações Rápidas Flutuante sobre o Nó Selecionado */}
                         {isSelected && (
                           <div
                             onMouseDown={(e) => e.stopPropagation()}
                             className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 px-2 py-1 rounded-xl bg-slate-900 border border-slate-700 shadow-2xl flex items-center gap-1.5 z-40 select-none animate-in fade-in duration-100"
                           >
-                            {/* Shape Selector */}
                             <select
                               value={shape}
                               onChange={(e) => {
@@ -2234,18 +2820,17 @@ export const ToolsView: React.FC = () => {
                                 );
                                 saveMapNodes(selectedMap.id, nextNodes);
                               }}
-                              className="text-[10px] bg-slate-950 border border-slate-700 text-slate-200 rounded px-1.5 py-0.5 focus:outline-none"
-                              title="Mudar forma"
+                              className="text-[10px] bg-slate-950 border border-slate-700 text-slate-200 rounded px-1.5 py-0.5 focus:outline-none cursor-pointer"
+                              title="Alterar forma"
                             >
-                              <option value="cloud">☁️ Nuvem</option>
-                              <option value="capsule">💊 Cápsula</option>
-                              <option value="octagon">🛑 Octógono</option>
-                              <option value="diamond">💎 Losango</option>
-                              <option value="sticky">🟨 Post-it</option>
-                              <option value="rectangle">⏹️ Cartão</option>
+                              <option value="cloud">Nuvem</option>
+                              <option value="capsule">Cápsula</option>
+                              <option value="octagon">Octógono</option>
+                              <option value="diamond">Losango</option>
+                              <option value="sticky">Post-it</option>
+                              <option value="rectangle">Cartão</option>
                             </select>
 
-                            {/* Color Swatch */}
                             <input
                               type="color"
                               value={node.color}
@@ -2256,71 +2841,42 @@ export const ToolsView: React.FC = () => {
                                 saveMapNodes(selectedMap.id, nextNodes);
                               }}
                               className="w-5 h-5 rounded cursor-pointer bg-transparent border-0"
-                              title="Mudar cor"
+                              title="Alterar cor"
                             />
 
-                            {/* Add Line Annotation */}
                             <button
                               type="button"
                               onClick={() => {
-                                const promptLabel = window.prompt(
-                                  'Texto da conexão (rótulo da linha):',
-                                  node.lineLabel || ''
-                                );
-                                if (promptLabel !== null) {
-                                  const nextNodes = selectedMap.nodes.map((n) =>
-                                    n.id === node.id ? { ...n, lineLabel: promptLabel.trim() } : n
-                                  );
-                                  saveMapNodes(selectedMap.id, nextNodes);
-                                }
+                                setConnectingFromNodeId(node.id);
+                                showToast('Clique no nó de destino para estabelecer a conexão.', 'info');
                               }}
-                              className="p-1 rounded text-slate-400 hover:text-white"
-                              title="Adicionar anotação na linha"
+                              className="p-1 rounded text-slate-400 hover:text-indigo-300"
+                              title="Conectar a outro nó"
                             >
-                              <Type className="w-3.5 h-3.5" />
+                              <Link2 className="w-3.5 h-3.5" />
                             </button>
 
-                            {/* Add Child */}
                             <button
                               type="button"
                               onClick={() => handleAddChildNode()}
                               className="p-1 rounded text-slate-400 hover:text-emerald-400"
-                              title="Adicionar filho (+)"
+                              title="Adicionar nó conectado"
                             >
                               <Plus className="w-3.5 h-3.5" />
                             </button>
 
-                            {/* Delete Node */}
-                            {node.parentId !== null && (
-                              <button
-                                type="button"
-                                onClick={handleDeleteSelectedNode}
-                                className="p-1 rounded text-slate-400 hover:text-rose-400"
-                                title="Excluir"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            )}
-
-                            {/* Vote button */}
                             <button
                               type="button"
-                              onClick={() => {
-                                setLucidVotes((prev) => ({
-                                  ...prev,
-                                  [node.id]: (prev[node.id] || 0) + 1,
-                                }));
-                              }}
-                              className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-indigo-600/30 text-indigo-300 hover:bg-indigo-600/50 flex items-center gap-1"
-                              title="Votar nesta ideia"
+                              onClick={handleDeleteSelectedNode}
+                              className="p-1 rounded text-slate-400 hover:text-rose-400"
+                              title="Excluir nó"
                             >
-                              <ThumbsUp className="w-3 h-3" />
-                              <span>{votes}</span>
+                              <Trash2 className="w-3.5 h-3.5" />
                             </button>
                           </div>
                         )}
 
-                        {/* Shape: CLOUD (Nuvem Fluffy igual screenshot) */}
+                        {/* FORMA 1: NUVEM (CLOUD) */}
                         {shape === 'cloud' && (
                           <div className="relative flex items-center justify-center min-w-[150px] max-w-[210px] min-h-[95px] p-6">
                             <svg
@@ -2349,7 +2905,7 @@ export const ToolsView: React.FC = () => {
                           </div>
                         )}
 
-                        {/* Shape: CAPSULE (Cápsula magenta igual screenshot) */}
+                        {/* FORMA 2: CÁPSULA (PILL) */}
                         {shape === 'capsule' && (
                           <div
                             style={{
@@ -2374,7 +2930,7 @@ export const ToolsView: React.FC = () => {
                           </div>
                         )}
 
-                        {/* Shape: OCTAGON (Octógono vermelho/coral igual screenshot) */}
+                        {/* FORMA 3: OCTÓGONO */}
                         {shape === 'octagon' && (
                           <div
                             style={{
@@ -2399,7 +2955,7 @@ export const ToolsView: React.FC = () => {
                           </div>
                         )}
 
-                        {/* Shape: DIAMOND (Losango verde/teal igual screenshot) */}
+                        {/* FORMA 4: LOSANGO (DIAMOND) */}
                         {shape === 'diamond' && (
                           <div
                             style={{
@@ -2423,7 +2979,7 @@ export const ToolsView: React.FC = () => {
                           </div>
                         )}
 
-                        {/* Shape: STICKY (Post-it adesivo quadrado) */}
+                        {/* FORMA 5: POST-IT (STICKY NOTE) */}
                         {shape === 'sticky' && (
                           <div
                             style={{
@@ -2447,7 +3003,7 @@ export const ToolsView: React.FC = () => {
                                 node.color === '#ffffff' ||
                                 node.color.endsWith('8a') ||
                                 node.color.endsWith('e8') ||
-                                node.color.endsWith('fd')
+                                node.color.endsWith('fa')
                                   ? 'text-slate-900'
                                   : 'text-white'
                               }`}
@@ -2468,7 +3024,7 @@ export const ToolsView: React.FC = () => {
                           </div>
                         )}
 
-                        {/* Shape: RECTANGLE / CARD (Cartão moderno padrão) */}
+                        {/* FORMA 6: CARTÃO (RECTANGLE) */}
                         {shape === 'rectangle' && (
                           <div
                             style={{
@@ -2498,21 +3054,19 @@ export const ToolsView: React.FC = () => {
                 </div>
               </div>
 
-              {/* Bottom Right Floating Controls (Zoom, Outline, Fullscreen identical to Lucidspark screenshot) */}
+              {/* Controles Flutuantes Inferiores (Zoom, Outline, Atalhos) */}
               <div className="absolute right-4 bottom-4 z-20 flex items-center gap-1.5 bg-slate-900/95 border border-white/[0.08] rounded-2xl p-1.5 shadow-2xl backdrop-blur-xl">
-                {/* Outline Toggle */}
                 <button
                   type="button"
                   onClick={() => setLucidOutlineOpen((v) => !v)}
                   className={`p-2 rounded-xl transition ${
                     lucidOutlineOpen ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'
                   }`}
-                  title="Lista de Tópicos (Outline)"
+                  title="Estrutura de Ideias (Outline)"
                 >
                   <ListTree className="w-4 h-4" />
                 </button>
 
-                {/* Zoom Out (-) */}
                 <button
                   type="button"
                   onClick={() => setZoom((z) => Math.max(0.3, Number((z - 0.1).toFixed(2))))}
@@ -2522,19 +3076,17 @@ export const ToolsView: React.FC = () => {
                   <ZoomOut className="w-4 h-4" />
                 </button>
 
-                {/* Zoom Percentage */}
                 <span
                   onClick={() => {
                     setZoom(1);
                     setPanOffset({ x: 0, y: 0 });
                   }}
                   className="px-2 py-1 text-xs font-mono font-bold text-slate-200 cursor-pointer hover:text-indigo-400 select-none"
-                  title="Clique para resetar em 100%"
+                  title="Resetar 100%"
                 >
                   {Math.round(zoom * 100)}%
                 </span>
 
-                {/* Zoom In (+) */}
                 <button
                   type="button"
                   onClick={() => setZoom((z) => Math.min(2.0, Number((z + 0.1).toFixed(2))))}
@@ -2544,7 +3096,6 @@ export const ToolsView: React.FC = () => {
                   <ZoomIn className="w-4 h-4" />
                 </button>
 
-                {/* Reset Zoom & Pan */}
                 <button
                   type="button"
                   onClick={() => {
@@ -2552,34 +3103,33 @@ export const ToolsView: React.FC = () => {
                     setPanOffset({ x: 0, y: 0 });
                   }}
                   className="p-2 rounded-xl text-slate-400 hover:text-white transition"
-                  title="Centralizar Quadro"
+                  title="Centralizar Visualização"
                 >
                   <RotateCcw className="w-4 h-4" />
                 </button>
 
-                {/* Shortcuts & Help */}
                 <button
                   type="button"
                   onClick={() => {
                     showToast(
-                      'Atalhos Lucidspark: Tab (novo nó) • Enter (mesmo nível) • Del (remover) • Arraste o fundo para mover',
+                      'Dicas: Clique duas vezes no canvas para criar livremente. Clique nos pontos nas bordas dos nós para conectá-los.',
                       'info'
                     );
                   }}
                   className="p-2 rounded-xl text-slate-400 hover:text-white transition"
-                  title="Atalhos e Dicas"
+                  title="Dicas de Uso"
                 >
                   <HelpCircle className="w-4 h-4" />
                 </button>
               </div>
 
-              {/* Outline Side Drawer (When ListTree button clicked) */}
+              {/* Gaveta de Outline Retrátil */}
               {lucidOutlineOpen && (
-                <div className="absolute right-4 top-20 bottom-16 z-30 w-72 bg-slate-900/98 border border-slate-700/80 rounded-2xl p-4 shadow-2xl backdrop-blur-2xl flex flex-col select-none animate-in fade-in slide-in-from-right-4 duration-150">
+                <div className="absolute right-4 top-16 bottom-16 z-30 w-72 bg-slate-900/98 border border-slate-700/80 rounded-2xl p-4 shadow-2xl backdrop-blur-2xl flex flex-col select-none animate-in fade-in slide-in-from-right-4 duration-150">
                   <div className="flex items-center justify-between pb-2 border-b border-slate-800">
                     <span className="text-xs font-black text-white flex items-center gap-1.5">
                       <ListTree className="w-4 h-4 text-indigo-400" />
-                      <span>Estrutura de Ideias ({selectedMap.nodes.length})</span>
+                      <span>Estrutura do Quadro ({selectedMap.nodes.length})</span>
                     </span>
                     <button
                       type="button"
@@ -2616,7 +3166,7 @@ export const ToolsView: React.FC = () => {
                   </div>
                 </div>
               )}
-            </>
+            </div>
           )}
         </div>
       )}
