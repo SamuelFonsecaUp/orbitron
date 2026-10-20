@@ -223,6 +223,7 @@ export interface BoardEdge {
 
 export function getBoardEdges(nodes: MindmapNode[]): BoardEdge[] {
   const edges: BoardEdge[] = [];
+  if (!Array.isArray(nodes)) return edges;
   const edgeSet = new Set<string>();
 
   nodes.forEach((node) => {
@@ -323,6 +324,8 @@ const NOTE_CATEGORIES = [
   { id: 'pessoal', label: 'Pessoal', color: '#ec4899' },
 ];
 
+const NOTE_ICONS = ['📝', '💡', '🚀', '💰', '🎯', '🧠', '🔥', '⭐', '📊', '⚡', '📚', '🛠️', '✨'];
+
 const NOTE_COVERS = [
   { id: 'cov_purple', label: 'Roxo Cyber', class: 'from-purple-900/60 via-fuchsia-900/30 to-transparent' },
   { id: 'cov_emerald', label: 'Esmeralda', class: 'from-emerald-900/60 via-teal-900/30 to-transparent' },
@@ -342,7 +345,7 @@ const VAULT_CATEGORIES = [
 
 const NODE_COLORS = ['#a855f7', '#10b981', '#38bdf8', '#f59e0b', '#ec4899', '#ef4444', '#6366f1', '#14b8a6'];
 
-export const ToolsView: React.FC = () => {
+const ToolsViewInner: React.FC = () => {
   const { currentView, setCurrentView, showToast, refreshGame } = useFinancial();
 
   const activeTool: 'notes' | 'mindmap' | 'vault' =
@@ -799,6 +802,10 @@ export const ToolsView: React.FC = () => {
 
     saveMapNodes(selectedMap.id, [...nextNodes, newNode]);
     setSelectedNodeId(newNodeId);
+  };
+
+  const handleAddSiblingNode = () => {
+    handleAddChildNode();
   };
 
   // Criar post-it do leque
@@ -1989,7 +1996,8 @@ export const ToolsView: React.FC = () => {
                           (!folderSearch || m.title.toLowerCase().includes(folderSearch.toLowerCase()))
                       )
                       .map((board) => {
-                        const edges = getBoardEdges(board.nodes);
+                        const boardNodes = Array.isArray(board.nodes) ? board.nodes : [];
+                        const edges = getBoardEdges(boardNodes);
                         return (
                           <div
                             key={board.id}
@@ -2000,7 +2008,7 @@ export const ToolsView: React.FC = () => {
                               <div
                                 onClick={() => {
                                   setSelectedMapId(board.id);
-                                  setSelectedNodeId(board.nodes[0]?.id || 'root');
+                                  setSelectedNodeId(boardNodes[0]?.id || 'root');
                                   setLucidViewMode('canvas');
                                 }}
                                 className="h-32 w-full rounded-2xl bg-slate-950 border border-slate-800 flex items-center justify-center p-3 relative overflow-hidden cursor-pointer group-hover:border-indigo-500/30"
@@ -2011,7 +2019,7 @@ export const ToolsView: React.FC = () => {
                                 }}
                               >
                                 <div className="flex flex-wrap items-center justify-center gap-1.5 opacity-80 pointer-events-none">
-                                  {board.nodes.slice(0, 4).map((n) => (
+                                  {boardNodes.slice(0, 4).map((n) => (
                                     <span
                                       key={n.id}
                                       style={{ backgroundColor: n.color }}
@@ -2038,7 +2046,7 @@ export const ToolsView: React.FC = () => {
                                     <span>{board.description || 'Geral'}</span>
                                   </span>
                                   <span>•</span>
-                                  <span>{board.nodes.length} nós</span>
+                                  <span>{boardNodes.length} nós</span>
                                   <span>•</span>
                                   <span>{edges.length} conexões</span>
                                 </div>
@@ -3474,3 +3482,60 @@ export const ToolsView: React.FC = () => {
     </div>
   );
 };
+
+interface ErrorBoundaryProps {
+  children: React.ReactNode;
+}
+
+interface ErrorBoundaryState {
+  hasError: boolean;
+  error: Error | null;
+}
+
+class ToolsErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  constructor(props: ErrorBoundaryProps) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error('ToolsView error:', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="p-8 text-center bg-slate-900/90 border border-slate-800 rounded-3xl max-w-lg mx-auto my-12 text-slate-200 shadow-2xl backdrop-blur-xl">
+          <div className="w-12 h-12 rounded-2xl bg-rose-500/15 border border-rose-500/30 text-rose-400 flex items-center justify-center mx-auto mb-3">
+            <X className="w-6 h-6" />
+          </div>
+          <h3 className="text-base font-bold text-white mb-2">Ops! Ocorreu um problema ao carregar as Ferramentas.</h3>
+          <p className="text-xs text-slate-400 mb-5 font-mono bg-slate-950/80 p-2.5 rounded-xl border border-white/5 break-words">
+            {this.state.error?.message || 'Erro inesperado'}
+          </p>
+          <button
+            type="button"
+            onClick={() => {
+              this.setState({ hasError: false, error: null });
+            }}
+            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold transition shadow-lg shadow-indigo-600/30"
+          >
+            Tentar Novamente
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+export const ToolsView: React.FC = () => (
+  <ToolsErrorBoundary>
+    <ToolsViewInner />
+  </ToolsErrorBoundary>
+);
+
