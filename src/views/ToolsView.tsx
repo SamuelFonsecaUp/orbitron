@@ -43,6 +43,23 @@ import {
   MoveUp,
   MoveDown,
   GripVertical,
+  Timer,
+  ThumbsUp,
+  Undo2,
+  Redo2,
+  Cloud,
+  Type,
+  Play,
+  Pause,
+  HelpCircle,
+  Layers,
+  PenTool,
+  ArrowRight,
+  ChevronUp,
+  Smile,
+  Rocket,
+  Menu,
+  ListTree,
 } from 'lucide-react';
 import { useFinancial } from '../context/FinancialContext';
 
@@ -162,7 +179,9 @@ interface NoteItem {
   updatedAt: string;
 }
 
-interface MindmapNode {
+export type LucidShapeType = 'cloud' | 'capsule' | 'octagon' | 'diamond' | 'sticky' | 'rectangle';
+
+export interface MindmapNode {
   id: string;
   label: string;
   parentId: string | null;
@@ -171,7 +190,37 @@ interface MindmapNode {
   color: string;
   icon?: string;
   notes?: string;
+  shape?: LucidShapeType;
+  lineLabel?: string;
 }
+
+export const LUCID_FAN_PALETTES = [
+  {
+    name: 'Purples & Pinks',
+    colors: ['#5b21b6', '#7c3aed', '#8b5cf6', '#a855f7', '#c084fc', '#d946ef', '#f472b6', '#fbcfe8'],
+  },
+  {
+    name: 'Reds & Yellows',
+    colors: ['#b91c1c', '#dc2626', '#ea580c', '#f97316', '#fb923c', '#f59e0b', '#facc15', '#fef08a'],
+  },
+  {
+    name: 'Teals & Blues',
+    colors: ['#047857', '#10b981', '#14b8a6', '#06b6d4', '#0284c7', '#2563eb', '#3b82f6', '#93c5fa'],
+  },
+  {
+    name: 'Earth & Grays',
+    colors: ['#57534e', '#78716c', '#a8a29e', '#1e293b', '#334155', '#64748b', '#94a3b8', '#f8fafc'],
+  },
+];
+
+export const LUCID_SHAPES: { type: LucidShapeType; label: string; icon: string; desc: string }[] = [
+  { type: 'cloud', label: 'Nuvem', icon: '☁️', desc: 'Ideia central & pensamentos' },
+  { type: 'capsule', label: 'Cápsula', icon: '💊', desc: 'Conceito & desejos' },
+  { type: 'octagon', label: 'Octógono', icon: '🛑', desc: 'Questão crítica ou parada' },
+  { type: 'diamond', label: 'Losango', icon: '💎', desc: 'Decisão ou dilema' },
+  { type: 'sticky', label: 'Post-it', icon: '🟨', desc: 'Nota rápida adesiva' },
+  { type: 'rectangle', label: 'Cartão', icon: '⏹️', desc: 'Bloco estruturado' },
+];
 
 interface MindmapBoard {
   id: string;
@@ -247,7 +296,7 @@ export const ToolsView: React.FC = () => {
   const [newCheckItemText, setNewCheckItemText] = useState('');
 
   // =========================================================
-  // 2. MAPA MENTAL ESTILO MINDMASTER
+  // 2. QUADRO VISUAL INTERATIVO ESTILO LUCIDSPARK
   // =========================================================
   const [mindmaps, setMindmaps] = useState<MindmapBoard[]>([]);
   const [selectedMapId, setSelectedMapId] = useState<string | null>(null);
@@ -260,6 +309,22 @@ export const ToolsView: React.FC = () => {
   const [panStart, setPanStart] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [connectorStyle, setConnectorStyle] = useState<'curved' | 'straight' | 'elbow'>('curved');
   const canvasRef = useRef<HTMLDivElement | null>(null);
+
+  // Estados específicos estilo Lucidspark
+  const [lucidStickyDrawerOpen, setLucidStickyDrawerOpen] = useState(false);
+  const [lucidShapesMenuOpen, setLucidShapesMenuOpen] = useState(false);
+  const [lucidBoardsMenuOpen, setLucidBoardsMenuOpen] = useState(false);
+  const [lucidActiveColor, setLucidActiveColor] = useState<string>('#6366f1');
+  const [lucidStickyInput, setLucidStickyInput] = useState<string>('');
+  const [lucidBatchInput, setLucidBatchInput] = useState<string>('');
+  const [lucidBatchModalOpen, setLucidBatchModalOpen] = useState<boolean>(false);
+  const [lucidOutlineOpen, setLucidOutlineOpen] = useState<boolean>(false);
+  const [lucidTimerOpen, setLucidTimerOpen] = useState<boolean>(false);
+  const [lucidTimerSeconds, setLucidTimerSeconds] = useState<number>(300); // 5 min
+  const [lucidTimerActive, setLucidTimerActive] = useState<boolean>(false);
+  const [lucidVotes, setLucidVotes] = useState<Record<string, number>>({});
+  const [editingLineLabelNodeId, setEditingLineLabelNodeId] = useState<string | null>(null);
+  const [lineLabelInput, setLineLabelInput] = useState<string>('');
 
   // =========================================================
   // 3. COFRE DE SENHAS CRIPTOGRAFADO
@@ -446,14 +511,40 @@ export const ToolsView: React.FC = () => {
     await refreshGame();
   };
 
+  // Timer countdown do Lucidspark
+  useEffect(() => {
+    let interval: NodeJS.Timeout | null = null;
+    if (lucidTimerActive && lucidTimerSeconds > 0) {
+      interval = setInterval(() => {
+        setLucidTimerSeconds((s) => {
+          if (s <= 1) {
+            setLucidTimerActive(false);
+            showToast('⏱️ O tempo do Brainstorming no Lucidspark terminou!', 'info');
+            return 0;
+          }
+          return s - 1;
+        });
+      }, 1000);
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [lucidTimerActive, lucidTimerSeconds, showToast]);
+
   const handleCreateMindmap = async () => {
     if (!window.electronAPI?.createMindmap) return;
-    const title = newMapTitle.trim() || `Mapa Mental #${mindmaps.length + 1}`;
+    const title = newMapTitle.trim() || `Brainstorming #${mindmaps.length + 1}`;
     const defaultNodes: MindmapNode[] = [
-      { id: 'root', label: title, parentId: null, x: 450, y: 260, color: '#a855f7', icon: '🎯', notes: 'Tópico Central' },
-      { id: 'b1', label: 'Estratégia 1', parentId: 'root', x: 200, y: 150, color: '#10b981', icon: '⭐', notes: '' },
-      { id: 'b2', label: 'Estratégia 2', parentId: 'root', x: 700, y: 150, color: '#38bdf8', icon: '⚡', notes: '' },
-      { id: 'b3', label: 'Próximos Passos', parentId: 'root', x: 450, y: 440, color: '#f59e0b', icon: '🔥', notes: '' },
+      { id: 'root', label: 'Main Idea', parentId: null, x: 520, y: 260, color: '#6366f1', shape: 'cloud', notes: 'Ideia Central da Sessão' },
+      { id: 'b1', label: 'Mental happiness is more important than physical happiness', parentId: 'root', x: 260, y: 150, color: '#8b5cf6', shape: 'cloud', lineLabel: 'John Stuart Mill & Dalai Lama agree' },
+      { id: 'b2', label: 'Virtue helps people reach happiness', parentId: 'root', x: 780, y: 150, color: '#8b5cf6', shape: 'cloud' },
+      { id: 'b3', label: 'Utility is to look upon the mental desires within people', parentId: 'b1', x: 200, y: 310, color: '#d946ef', shape: 'capsule' },
+      { id: 'b4', label: 'What topics or current issues did it make you think of?', parentId: 'b3', x: 200, y: 460, color: '#ef4444', shape: 'octagon' },
+      { id: 'b5', label: 'Urban life makes people isolated', parentId: 'b4', x: 120, y: 590, color: '#10b981', shape: 'diamond' },
+      { id: 'b6', label: "Today's people are easily satisfied by physical goods", parentId: 'b4', x: 290, y: 590, color: '#10b981', shape: 'diamond' },
+      { id: 'b7', label: 'Virtue is a component of happiness', parentId: 'root', x: 520, y: 400, color: '#6366f1', shape: 'cloud' },
+      { id: 'b8', label: 'People want virtue because they want happiness', parentId: 'b7', x: 520, y: 530, color: '#d946ef', shape: 'capsule' },
+      { id: 'b9', label: 'Utilitarianism: an aggregated happiness needs to be achieved in society', parentId: 'root', x: 780, y: 380, color: '#8b5cf6', shape: 'cloud' },
     ];
     const created = await window.electronAPI.createMindmap({ title, nodes: defaultNodes });
     setNewMapTitle('');
@@ -466,7 +557,7 @@ export const ToolsView: React.FC = () => {
       setPanOffset({ x: 0, y: 0 });
     }
     await refreshGame();
-    showToast(`Mapa Mental "${title}" criado!`, 'success');
+    showToast(`Quadro Lucidspark "${title}" criado com sucesso!`, 'success');
   };
 
   const handleDeleteMindmap = async (id: string) => {
@@ -475,11 +566,11 @@ export const ToolsView: React.FC = () => {
     const updated = await window.electronAPI.getMindmaps();
     setMindmaps(updated);
     setSelectedMapId(updated[0]?.id || null);
-    showToast('Mapa Mental excluído.', 'info');
+    showToast('Quadro excluído.', 'info');
   };
 
-  // Subtópico (Filho) estilo MindMaster (Tab)
-  const handleAddChildNode = () => {
+  // Subtópico estilo Lucidspark
+  const handleAddChildNode = (shape?: LucidShapeType) => {
     if (!selectedMap) return;
     const parent = selectedNode || selectedMap.nodes[0];
     if (!parent) return;
@@ -487,23 +578,23 @@ export const ToolsView: React.FC = () => {
     const siblings = selectedMap.nodes.filter((n) => n.parentId === parent.id);
     const count = siblings.length;
     const isRoot = parent.parentId === null;
-    let newX = parent.x + 220;
-    let newY = parent.y + (count - 1) * 75;
+    let newX = parent.x + 240;
+    let newY = parent.y + (count - 1) * 90;
 
     if (isRoot) {
-      // Distribui radialmente ao redor do nó central
-      const angle = (count * 60 - 30) * (Math.PI / 180);
-      newX = Math.round(parent.x + Math.cos(angle) * 230);
-      newY = Math.round(parent.y + Math.sin(angle) * 160);
+      const angle = (count * 50 - 25) * (Math.PI / 180);
+      newX = Math.round(parent.x + Math.cos(angle) * 260);
+      newY = Math.round(parent.y + Math.sin(angle) * 180);
     }
 
     const newNode: MindmapNode = {
       id: `node_${Date.now()}_${Math.random().toString(36).slice(2, 5)}`,
-      label: 'Novo Subtópico',
+      label: 'Novo Tópico',
       parentId: parent.id,
       x: newX,
       y: newY,
-      color: NODE_COLORS[(selectedMap.nodes.length + 1) % NODE_COLORS.length],
+      color: lucidActiveColor || parent.color || '#6366f1',
+      shape: shape || parent.shape || 'cloud',
       notes: '',
     };
 
@@ -511,7 +602,7 @@ export const ToolsView: React.FC = () => {
     setSelectedNodeId(newNode.id);
   };
 
-  // Tópico Irmão no mesmo nível estilo MindMaster (Enter)
+  // Tópico Irmão no mesmo nível
   const handleAddSiblingNode = () => {
     if (!selectedMap || !selectedNode) return;
     if (selectedNode.parentId === null) {
@@ -526,13 +617,98 @@ export const ToolsView: React.FC = () => {
       label: 'Novo Tópico',
       parentId: parent.id,
       x: selectedNode.x,
-      y: selectedNode.y + 80,
+      y: selectedNode.y + 90,
       color: selectedNode.color,
+      shape: selectedNode.shape || 'cloud',
       notes: '',
     };
 
     saveMapNodes(selectedMap.id, [...selectedMap.nodes, newNode]);
     setSelectedNodeId(newNode.id);
+  };
+
+  // Adicionar Post-it direto da gaveta de cores Lucidspark
+  const handleAddStickyFromDrawer = () => {
+    if (!selectedMap || !lucidStickyInput.trim()) return;
+    const parent = selectedNode || selectedMap.nodes[0];
+    const newNode: MindmapNode = {
+      id: `sticky_${Date.now()}_${Math.random().toString(36).slice(2, 5)}`,
+      label: lucidStickyInput.trim(),
+      parentId: parent ? parent.id : null,
+      x: (parent ? parent.x + 180 : 500) + (Math.random() * 40 - 20),
+      y: (parent ? parent.y + 50 : 300) + (Math.random() * 40 - 20),
+      color: lucidActiveColor,
+      shape: 'sticky',
+      notes: '',
+    };
+    saveMapNodes(selectedMap.id, [...selectedMap.nodes, newNode]);
+    setSelectedNodeId(newNode.id);
+    setLucidStickyInput('');
+    showToast('Post-it adicionado ao quadro!', 'success');
+  };
+
+  // Adicionar Post-its em lote (Batch Create)
+  const handleBatchAddStickies = () => {
+    if (!selectedMap || !lucidBatchInput.trim()) return;
+    const lines = lucidBatchInput
+      .split('\n')
+      .map((l) => l.trim().replace(/^[-*•\d.]+\s*/, ''))
+      .filter((l) => l.length > 0);
+
+    if (lines.length === 0) return;
+
+    const startX = 260;
+    const startY = 220;
+    const perRow = 3;
+    const parent = selectedNode || selectedMap.nodes[0];
+    const newNodes: MindmapNode[] = lines.map((line, idx) => {
+      const col = idx % perRow;
+      const row = Math.floor(idx / perRow);
+      return {
+        id: `sticky_batch_${Date.now()}_${idx}`,
+        label: line,
+        parentId: parent ? parent.id : null,
+        x: startX + col * 170,
+        y: startY + row * 150,
+        color: lucidActiveColor,
+        shape: 'sticky',
+        notes: '',
+      };
+    });
+
+    saveMapNodes(selectedMap.id, [...selectedMap.nodes, ...newNodes]);
+    setLucidBatchInput('');
+    setLucidBatchModalOpen(false);
+    showToast(`${newNodes.length} post-its adicionados em lote!`, 'success');
+  };
+
+  // Adicionar forma rápida pelo menu de formas
+  const handleAddShape = (shape: LucidShapeType) => {
+    if (!selectedMap) return;
+    const parent = selectedNode || selectedMap.nodes[0];
+    const newNode: MindmapNode = {
+      id: `shape_${Date.now()}_${Math.random().toString(36).slice(2, 5)}`,
+      label:
+        shape === 'cloud'
+          ? 'Ideia Nuvem'
+          : shape === 'capsule'
+          ? 'Desejo Mental'
+          : shape === 'octagon'
+          ? 'Tópico Crítico'
+          : shape === 'diamond'
+          ? 'Decisão / Dilema'
+          : 'Novo Bloco',
+      parentId: parent ? parent.id : null,
+      x: (parent ? parent.x + 220 : 500) + (Math.random() * 40 - 20),
+      y: (parent ? parent.y + 40 : 280) + (Math.random() * 60 - 30),
+      color: lucidActiveColor,
+      shape,
+      notes: '',
+    };
+    saveMapNodes(selectedMap.id, [...selectedMap.nodes, newNode]);
+    setSelectedNodeId(newNode.id);
+    setLucidShapesMenuOpen(false);
+    showToast(`Forma "${shape}" adicionada!`, 'success');
   };
 
   const handleDeleteSelectedNode = () => {
@@ -1483,422 +1659,965 @@ export const ToolsView: React.FC = () => {
       )}
 
       {/* =========================================================
-          ABA 2: MAPA MENTAL ESTILO MINDMASTER / XMIND
+          ABA 2: QUADRO VISUAL DE IDEIAS ESTILO LUCIDSPARK
          ========================================================= */}
       {activeTool === 'mindmap' && (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
-          {/* Left Panel: Boards & Inspector */}
-          <div className="lg:col-span-4 space-y-4">
-            {/* Mindmaps List */}
-            <div className="bg-slate-900/80 border border-white/[0.07] rounded-3xl p-4 space-y-3">
-              <div className="flex items-center justify-between">
-                <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-400">
-                  Quadros de Mapas Mentais
-                </h3>
-                <span className="text-[10px] text-fuchsia-300 font-bold bg-fuchsia-500/10 px-2 py-0.5 rounded-md border border-fuchsia-500/25">
-                  MindMaster
-                </span>
+        <div className="relative w-full h-[760px] rounded-3xl bg-[#0b0c10] border border-white/[0.08] shadow-2xl flex flex-col overflow-hidden select-none">
+          {!selectedMap ? (
+            <div className="h-full flex flex-col items-center justify-center text-center p-6 space-y-4">
+              <div className="p-4 rounded-3xl bg-indigo-500/10 border border-indigo-500/30 text-indigo-400">
+                <Sparkles className="w-12 h-12 animate-pulse" />
               </div>
-
-              <div className="flex items-center gap-2">
-                <input
-                  type="text"
-                  placeholder="Nome do novo mapa..."
-                  value={newMapTitle}
-                  onChange={(e) => setNewMapTitle(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault();
-                      handleCreateMindmap();
-                    }
-                  }}
-                  className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-fuchsia-400"
-                />
-                <button
-                  onClick={handleCreateMindmap}
-                  className="liquid-glass-cta px-3.5 py-2 rounded-xl bg-gradient-to-r from-fuchsia-600 to-purple-500 text-white text-xs font-extrabold flex items-center gap-1 shrink-0"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>Criar</span>
-                </button>
-              </div>
-
-              <div className="space-y-1.5 max-h-44 overflow-y-auto pr-1 custom-scrollbar">
-                {mindmaps.map((m) => (
-                  <div
-                    key={m.id}
-                    onClick={() => {
-                      setSelectedMapId(m.id);
-                      setSelectedNodeId('root');
-                      setZoom(1);
-                      setPanOffset({ x: 0, y: 0 });
-                    }}
-                    className={`p-2.5 rounded-xl border flex items-center justify-between cursor-pointer transition ${
-                      m.id === selectedMapId
-                        ? 'bg-fuchsia-500/15 border-fuchsia-500/40 text-white shadow-md'
-                        : 'bg-slate-950/60 border-slate-800 text-slate-300 hover:border-slate-700'
-                    }`}
-                  >
-                    <div className="min-w-0">
-                      <p className="text-xs font-bold truncate">{m.title}</p>
-                      <span className="text-[10px] text-slate-400">{m.nodes.length} tópicos</span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDeleteMindmap(m.id);
-                      }}
-                      className="text-slate-500 hover:text-rose-400 p-1"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                ))}
-              </div>
+              <h3 className="text-xl font-black text-white">Quadro Infinito Lucidspark</h3>
+              <p className="text-xs text-slate-400 max-w-md">
+                Faça tempestades de ideias, organize projetos e crie teias visuais com nuvens, cápsulas, post-its, octógonos e conexões anotadas.
+              </p>
+              <button
+                onClick={handleCreateMindmap}
+                className="px-6 py-3 rounded-2xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-xs font-black flex items-center gap-2 shadow-xl shadow-indigo-600/30 transition transform hover:scale-105"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Criar Primeiro Quadro Lucidspark</span>
+              </button>
             </div>
+          ) : (
+            <>
+              {/* Top Lucidspark Header Bar */}
+              <div className="h-14 px-4 bg-slate-900/90 border-b border-white/[0.08] flex items-center justify-between z-20 backdrop-blur-md shrink-0">
+                {/* Left Header: Logo, Title, Sync, Boards menu */}
+                <div className="flex items-center gap-3">
+                  <div className="p-1.5 rounded-xl bg-gradient-to-tr from-amber-400 via-rose-500 to-indigo-500 text-white shadow-md shadow-indigo-500/30">
+                    <Sparkles className="w-4 h-4" />
+                  </div>
 
-            {/* MindMaster Inspector for the Selected Node */}
-            {selectedMap && selectedNode && (
-              <div className="bg-slate-900/80 border border-white/[0.07] rounded-3xl p-4 space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-extrabold text-white flex items-center gap-1.5">
-                    <Sliders className="w-4 h-4 text-fuchsia-400" />
-                    <span>Propriedades do Tópico</span>
-                  </span>
-                  <span className="text-[10px] text-slate-400">
-                    {selectedNode.parentId === null ? 'Tópico Central' : 'Subtópico'}
-                  </span>
-                </div>
-
-                <div>
-                  <label className="block text-[11px] text-slate-400 mb-1">Texto do Tópico:</label>
                   <input
                     type="text"
-                    value={selectedNode.label}
-                    onChange={(e) => {
-                      const nextNodes = selectedMap.nodes.map((n) =>
-                        n.id === selectedNode.id ? { ...n, label: e.target.value } : n
-                      );
-                      saveMapNodes(selectedMap.id, nextNodes);
-                    }}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-fuchsia-400 font-bold"
+                    value={selectedMap.title}
+                    onChange={(e) => saveMapNodes(selectedMap.id, selectedMap.nodes, e.target.value)}
+                    className="bg-transparent text-sm font-black text-white focus:outline-none focus:bg-slate-800/80 px-2.5 py-1 rounded-xl border border-transparent focus:border-indigo-500/50 transition max-w-[240px]"
+                    title="Clique para renomear este quadro"
                   />
+
+                  <div className="flex items-center gap-1 text-[11px] text-emerald-400 font-semibold px-2 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/20">
+                    <Cloud className="w-3.5 h-3.5" />
+                    <span>Salvo</span>
+                  </div>
+
+                  {/* Boards Menu Dropdown */}
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => setLucidBoardsMenuOpen((v) => !v)}
+                      className="px-2.5 py-1 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-bold flex items-center gap-1.5 transition"
+                      title="Gerenciar Quadros Lucidspark"
+                    >
+                      <Layers className="w-3.5 h-3.5 text-indigo-400" />
+                      <span className="hidden sm:inline">Quadros ({mindmaps.length})</span>
+                      <ChevronDown className="w-3 h-3 text-slate-400" />
+                    </button>
+
+                    {lucidBoardsMenuOpen && (
+                      <div className="absolute left-0 top-full mt-2 w-72 p-3 rounded-2xl bg-slate-900 border border-slate-700 shadow-2xl z-50 space-y-2.5">
+                        <div className="flex items-center justify-between pb-1.5 border-b border-slate-800">
+                          <span className="text-xs font-extrabold text-white">Seus Quadros</span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              handleCreateMindmap();
+                              setLucidBoardsMenuOpen(false);
+                            }}
+                            className="text-[11px] text-indigo-400 hover:text-indigo-300 font-bold flex items-center gap-1"
+                          >
+                            <Plus className="w-3 h-3" /> Novo
+                          </button>
+                        </div>
+
+                        <div className="space-y-1 max-h-48 overflow-y-auto custom-scrollbar">
+                          {mindmaps.map((m) => (
+                            <div
+                              key={m.id}
+                              onClick={() => {
+                                setSelectedMapId(m.id);
+                                setSelectedNodeId('root');
+                                setLucidBoardsMenuOpen(false);
+                              }}
+                              className={`p-2 rounded-xl flex items-center justify-between cursor-pointer text-xs font-bold transition ${
+                                m.id === selectedMapId
+                                  ? 'bg-indigo-600 text-white'
+                                  : 'bg-slate-950/70 text-slate-300 hover:bg-slate-800'
+                              }`}
+                            >
+                              <span className="truncate">{m.title}</span>
+                              <span className="text-[10px] opacity-75">{m.nodes.length} nós</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Auto-Organize button */}
+                  <button
+                    type="button"
+                    onClick={handleAutoLayout}
+                    className="p-1.5 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white transition"
+                    title="Auto-organizar layout radial"
+                  >
+                    <Layout className="w-3.5 h-3.5 text-indigo-400" />
+                  </button>
                 </div>
 
-                {/* Icon Marker / Badge */}
-                <div>
-                  <label className="block text-[11px] text-slate-400 mb-1">Ícone / Marcador:</label>
-                  <div className="flex items-center gap-1.5">
-                    {NODE_ICONS.map((ico, idx) => (
-                      <button
-                        key={idx}
-                        type="button"
-                        onClick={() => {
-                          const nextNodes = selectedMap.nodes.map((n) =>
-                            n.id === selectedNode.id ? { ...n, icon: ico } : n
-                          );
-                          saveMapNodes(selectedMap.id, nextNodes);
-                        }}
-                        className={`w-7 h-7 rounded-lg border text-sm flex items-center justify-center transition ${
-                          selectedNode.icon === ico
-                            ? 'bg-fuchsia-500/20 border-fuchsia-400 text-white'
-                            : 'bg-slate-950 border-slate-800 hover:border-slate-700'
-                        }`}
-                      >
-                        {ico || '∅'}
-                      </button>
-                    ))}
+                {/* Right Header: Timer, Share, Avatar */}
+                <div className="flex items-center gap-2.5">
+                  {/* Timer widget (from screenshot top right) */}
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => setLucidTimerOpen((v) => !v)}
+                      className={`px-3 py-1.5 rounded-xl border text-xs font-bold flex items-center gap-1.5 transition ${
+                        lucidTimerActive
+                          ? 'bg-amber-500/20 border-amber-400 text-amber-300 animate-pulse'
+                          : 'bg-slate-800/90 border-slate-700 text-slate-300 hover:text-white'
+                      }`}
+                      title="Timer de Brainstorming"
+                    >
+                      <Timer className="w-3.5 h-3.5 text-amber-400" />
+                      <span className="font-mono">
+                        {Math.floor(lucidTimerSeconds / 60)}:{(lucidTimerSeconds % 60).toString().padStart(2, '0')}
+                      </span>
+                    </button>
+
+                    {lucidTimerOpen && (
+                      <div className="absolute right-0 top-full mt-2 w-60 p-3.5 rounded-2xl bg-slate-900 border border-slate-700 shadow-2xl z-50 space-y-3">
+                        <div className="flex items-center justify-between text-xs font-bold text-white">
+                          <span>⏱️ Timer de Sessão</span>
+                          <span className="font-mono text-amber-400 text-sm">
+                            {Math.floor(lucidTimerSeconds / 60)}:{(lucidTimerSeconds % 60).toString().padStart(2, '0')}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          {[60, 180, 300, 600].map((sec) => (
+                            <button
+                              key={sec}
+                              type="button"
+                              onClick={() => {
+                                setLucidTimerSeconds(sec);
+                                setLucidTimerActive(false);
+                              }}
+                              className="flex-1 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-[10px] font-bold text-slate-300"
+                            >
+                              {sec / 60}m
+                            </button>
+                          ))}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setLucidTimerActive((v) => !v)}
+                            className="flex-1 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold flex items-center justify-center gap-1 transition"
+                          >
+                            {lucidTimerActive ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
+                            <span>{lucidTimerActive ? 'Pausar' : 'Iniciar'}</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setLucidTimerSeconds(300);
+                              setLucidTimerActive(false);
+                            }}
+                            className="p-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300"
+                            title="Resetar 5 min"
+                          >
+                            <RotateCcw className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Share button (from screenshot in vibrant purple) */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      copyToClipboard(window.location.href, 'Quadro Lucidspark');
+                      showToast('Link do quadro copiado!', 'success');
+                    }}
+                    className="px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-extrabold flex items-center gap-1.5 shadow-lg shadow-indigo-600/30 transition transform hover:scale-105"
+                  >
+                    <Share2 className="w-3.5 h-3.5" />
+                    <span>Share</span>
+                  </button>
+
+                  {/* User avatar badge (from screenshot: AG) */}
+                  <div
+                    className="w-8 h-8 rounded-full bg-gradient-to-tr from-purple-600 to-indigo-500 text-white text-xs font-black flex items-center justify-center border-2 border-white/20 select-none shadow-md"
+                    title="Usuário Ativo"
+                  >
+                    AG
                   </div>
                 </div>
-
-                {/* Node Color Swatches */}
-                <div>
-                  <label className="block text-[11px] text-slate-400 mb-1">Cor do Ramo:</label>
-                  <div className="flex items-center gap-2">
-                    {NODE_COLORS.map((c) => (
-                      <button
-                        key={c}
-                        type="button"
-                        onClick={() => {
-                          const nextNodes = selectedMap.nodes.map((n) =>
-                            n.id === selectedNode.id ? { ...n, color: c } : n
-                          );
-                          saveMapNodes(selectedMap.id, nextNodes);
-                        }}
-                        className={`w-6 h-6 rounded-full transition-transform ${
-                          selectedNode.color === c ? 'scale-125 ring-2 ring-white' : 'opacity-70 hover:opacity-100'
-                        }`}
-                        style={{ backgroundColor: c }}
-                      />
-                    ))}
-                  </div>
-                </div>
-
-                {/* Node Notes */}
-                <div>
-                  <label className="block text-[11px] text-slate-400 mb-1">Notas / Detalhes Adicionais:</label>
-                  <textarea
-                    rows={2}
-                    value={selectedNode.notes || ''}
-                    onChange={(e) => {
-                      const nextNodes = selectedMap.nodes.map((n) =>
-                        n.id === selectedNode.id ? { ...n, notes: e.target.value } : n
-                      );
-                      saveMapNodes(selectedMap.id, nextNodes);
-                    }}
-                    placeholder="Adicione notas rápidas sobre esta ideia..."
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-slate-200 focus:outline-none resize-none"
-                  />
-                </div>
-
-                {/* Fast Action Buttons */}
-                <div className="grid grid-cols-2 gap-2 pt-1">
-                  <button
-                    type="button"
-                    onClick={handleAddChildNode}
-                    className="py-2 px-2.5 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/35 text-emerald-300 text-xs font-bold flex items-center justify-center gap-1.5 transition"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    <span>Filho (Tab)</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleAddSiblingNode}
-                    className="py-2 px-2.5 rounded-xl bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-500/35 text-cyan-300 text-xs font-bold flex items-center justify-center gap-1.5 transition"
-                  >
-                    <GitBranch className="w-3.5 h-3.5" />
-                    <span>Irmão (Enter)</span>
-                  </button>
-                </div>
-
-                {selectedNode.parentId !== null && (
-                  <button
-                    type="button"
-                    onClick={handleDeleteSelectedNode}
-                    className="w-full py-2 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-300 text-xs font-bold flex items-center justify-center gap-1.5 transition mt-1"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                    <span>Excluir Tópico (Del)</span>
-                  </button>
-                )}
               </div>
-            )}
-          </div>
 
-          {/* Right Panel: Interactive MindMaster Infinite Canvas */}
-          <div className="lg:col-span-8 bg-slate-900/80 border border-white/[0.07] rounded-3xl p-4 flex flex-col">
-            {!selectedMap ? (
-              <div className="h-[560px] flex flex-col items-center justify-center text-center p-6">
-                <Network className="w-12 h-12 text-fuchsia-400 mb-3" />
-                <h3 className="text-base font-black text-white">Criador de Mapas Mentais (MindMaster)</h3>
-                <p className="text-xs text-slate-400 max-w-md mt-1 mb-4">
-                  Planeje projetos, estratégias financeiras e estudos com navegação por teclado (Tab e Enter), zoom e conexões visuais.
-                </p>
+              {/* Lucidspark Primary Left Dock (Vertical Floating Bar) */}
+              <div className="absolute left-4 top-20 z-20 flex flex-col items-center bg-slate-900/95 border border-white/[0.08] rounded-2xl p-1.5 shadow-2xl space-y-1.5 backdrop-blur-xl">
+                {/* AI / Magic Brainstorming (Rocket) */}
                 <button
-                  onClick={handleCreateMindmap}
-                  className="liquid-glass-cta px-5 py-2.5 rounded-xl bg-gradient-to-r from-fuchsia-600 to-purple-500 text-white text-xs font-extrabold flex items-center gap-2"
+                  type="button"
+                  onClick={() => {
+                    handleAddChildNode('cloud');
+                    showToast('🚀 Ideia expandida via Brainstorming!', 'info');
+                  }}
+                  className="p-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition"
+                  title="Gerar Ideia / Expandir Ramo (Rocket)"
                 >
-                  <Plus className="w-4 h-4" />
-                  <span>Criar Primeiro Mapa Mental</span>
+                  <Rocket className="w-5 h-5 text-indigo-400" />
+                </button>
+
+                {/* Sticky Notes Tool Button (Highlighted in yellow like screenshot!) */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setLucidStickyDrawerOpen((v) => !v);
+                    setLucidShapesMenuOpen(false);
+                  }}
+                  className={`p-2.5 rounded-xl transition ${
+                    lucidStickyDrawerOpen
+                      ? 'bg-amber-400 text-slate-900 shadow-lg shadow-amber-400/30'
+                      : 'text-amber-400 hover:bg-amber-400/20'
+                  }`}
+                  title="Post-its & Leque de Cores (Lucidspark Fan)"
+                >
+                  <StickyNote className="w-5 h-5" />
+                </button>
+
+                {/* Shapes Tool Button (Cloud, Capsule, Octagon, Diamond, Card) */}
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setLucidShapesMenuOpen((v) => !v);
+                      setLucidStickyDrawerOpen(false);
+                    }}
+                    className={`p-2.5 rounded-xl transition ${
+                      lucidShapesMenuOpen
+                        ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30'
+                        : 'text-slate-400 hover:text-white hover:bg-white/10'
+                    }`}
+                    title="Formas: Nuvem, Cápsula, Octógono, Losango"
+                  >
+                    <Layers className="w-5 h-5 text-cyan-400" />
+                  </button>
+
+                  {/* Shapes Picker Menu */}
+                  {lucidShapesMenuOpen && (
+                    <div className="absolute left-full top-0 ml-3 w-56 p-2 rounded-2xl bg-slate-900 border border-slate-700 shadow-2xl z-40 space-y-1">
+                      <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 px-2 block">
+                        Inserir Forma
+                      </span>
+                      {LUCID_SHAPES.map((shape) => (
+                        <button
+                          key={shape.type}
+                          type="button"
+                          onClick={() => handleAddShape(shape.type)}
+                          className="w-full px-2.5 py-2 rounded-xl hover:bg-slate-800 text-left text-xs font-bold text-slate-200 flex items-center gap-2.5 transition"
+                        >
+                          <span className="text-base">{shape.icon}</span>
+                          <div>
+                            <div>{shape.label}</div>
+                            <span className="text-[10px] font-normal text-slate-400">{shape.desc}</span>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Connector Line Style Button */}
+                <button
+                  type="button"
+                  onClick={() =>
+                    setConnectorStyle((c) =>
+                      c === 'curved' ? 'elbow' : c === 'elbow' ? 'straight' : 'curved'
+                    )
+                  }
+                  className="p-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition"
+                  title={`Estilo de Linha: ${connectorStyle}`}
+                >
+                  <ArrowRight className="w-5 h-5 text-fuchsia-400" />
+                </button>
+
+                {/* Batch Stickies Creator Button */}
+                <button
+                  type="button"
+                  onClick={() => setLucidBatchModalOpen(true)}
+                  className="p-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition"
+                  title="Criar Post-its em Lote (Colar lista)"
+                >
+                  <ListOrdered className="w-5 h-5 text-pink-400" />
+                </button>
+
+                {/* Add Child (Tab) */}
+                <button
+                  type="button"
+                  onClick={() => handleAddChildNode()}
+                  className="p-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition"
+                  title="Adicionar Subtópico Conectado (+)"
+                >
+                  <Plus className="w-5 h-5 text-emerald-400" />
                 </button>
               </div>
-            ) : (
-              <>
-                {/* MindMaster Toolbar: Zoom, Style & Auto-Layout */}
-                <div className="flex flex-wrap items-center justify-between gap-3 pb-3 mb-2 border-b border-white/[0.06]">
-                  <div className="flex items-center gap-2">
-                    <h3 className="text-sm font-black text-white">{selectedMap.title}</h3>
-                    <span className="text-[10px] text-slate-400 bg-slate-800/80 px-2 py-0.5 rounded-md border border-slate-700">
-                      {Math.round(zoom * 100)}%
+
+              {/* The Lucidspark Color Fan Drawer (Reverse-engineered exactly from user screenshot!) */}
+              {lucidStickyDrawerOpen && (
+                <div className="absolute left-20 top-20 z-30 w-88 bg-slate-900/98 border border-slate-700/80 rounded-2xl p-4 shadow-2xl backdrop-blur-2xl space-y-3.5 select-none animate-in fade-in zoom-in-95 duration-150">
+                  <div className="flex items-center justify-between pb-1 border-b border-slate-800">
+                    <span className="text-xs font-extrabold text-white flex items-center gap-1.5">
+                      <StickyNote className="w-4 h-4 text-amber-400" />
+                      <span>Adicionar Post-its ao Quadro</span>
                     </span>
+                    <button
+                      type="button"
+                      onClick={() => setLucidStickyDrawerOpen(false)}
+                      className="text-slate-500 hover:text-white text-xs p-1"
+                    >
+                      ✕
+                    </button>
                   </div>
 
-                  <div className="flex items-center gap-1.5">
-                    {/* Connector Style Switcher */}
-                    <div className="flex items-center rounded-xl bg-slate-950 p-0.5 border border-slate-800">
+                  {/* 4 Fan Color Arcs */}
+                  <div className="space-y-2 py-1">
+                    {LUCID_FAN_PALETTES.map((palette, pIdx) => (
+                      <div key={pIdx} className="flex items-center justify-center gap-1">
+                        {palette.colors.map((c) => {
+                          const isChosen = lucidActiveColor === c;
+                          return (
+                            <button
+                              key={c}
+                              type="button"
+                              onClick={() => setLucidActiveColor(c)}
+                              style={{ backgroundColor: c }}
+                              className={`w-7 h-10 rounded-md transition-all flex items-center justify-center ${
+                                isChosen
+                                  ? 'scale-115 ring-2 ring-white shadow-xl -translate-y-1 z-10'
+                                  : 'hover:scale-105 opacity-85 hover:opacity-100'
+                              }`}
+                              title={c}
+                            >
+                              {isChosen && <Star className="w-3.5 h-3.5 text-white fill-white drop-shadow" />}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Form: Type and press enter to add sticky */}
+                  <div className="space-y-2 pt-2 border-t border-slate-800">
+                    <span className="text-[11px] font-bold text-slate-300 block">
+                      Digite e pressione Enter para criar post-it:
+                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <input
+                        type="text"
+                        placeholder="Ex: Virtude traz realização..."
+                        value={lucidStickyInput}
+                        onChange={(e) => setLucidStickyInput(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            handleAddStickyFromDrawer();
+                          }
+                        }}
+                        className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-400"
+                      />
                       <button
                         type="button"
-                        onClick={() => setConnectorStyle('curved')}
-                        className={`px-2 py-1 text-[10px] font-bold rounded-lg transition ${
-                          connectorStyle === 'curved' ? 'bg-fuchsia-500 text-white' : 'text-slate-400'
-                        }`}
-                        title="Conexões Curvas"
+                        onClick={handleAddStickyFromDrawer}
+                        className="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition"
                       >
-                        Curva
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setConnectorStyle('elbow')}
-                        className={`px-2 py-1 text-[10px] font-bold rounded-lg transition ${
-                          connectorStyle === 'elbow' ? 'bg-fuchsia-500 text-white' : 'text-slate-400'
-                        }`}
-                        title="Conexões Angulares"
-                      >
-                        Angular
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setConnectorStyle('straight')}
-                        className={`px-2 py-1 text-[10px] font-bold rounded-lg transition ${
-                          connectorStyle === 'straight' ? 'bg-fuchsia-500 text-white' : 'text-slate-400'
-                        }`}
-                        title="Conexões Retas"
-                      >
-                        Reta
+                        Adicionar
                       </button>
                     </div>
 
-                    {/* Auto Layout */}
-                    <button
-                      type="button"
-                      onClick={handleAutoLayout}
-                      title="Organizar layout automaticamente"
-                      className="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold flex items-center gap-1 transition"
-                    >
-                      <Layout className="w-3.5 h-3.5 text-cyan-300" />
-                      <span className="hidden sm:inline">Auto-Organizar</span>
-                    </button>
-
-                    {/* Zoom Buttons */}
-                    <button
-                      type="button"
-                      onClick={() => setZoom((z) => Math.min(1.8, z + 0.15))}
-                      className="p-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300"
-                      title="Aproximar (+)"
-                    >
-                      <ZoomIn className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setZoom((z) => Math.max(0.5, z - 0.15))}
-                      className="p-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300"
-                      title="Afastar (-)"
-                    >
-                      <ZoomOut className="w-3.5 h-3.5" />
-                    </button>
                     <button
                       type="button"
                       onClick={() => {
-                        setZoom(1);
-                        setPanOffset({ x: 0, y: 0 });
+                        setLucidStickyDrawerOpen(false);
+                        setLucidBatchModalOpen(true);
                       }}
-                      className="p-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300"
-                      title="Resetar Zoom e Centralizar"
+                      className="w-full text-left text-[11px] text-indigo-400 hover:text-indigo-300 font-semibold flex items-center gap-1.5 pt-1 transition"
                     >
-                      <RotateCcw className="w-3.5 h-3.5" />
+                      <ListOrdered className="w-3.5 h-3.5" />
+                      <span>Colar listas ou parágrafos para criar em lote</span>
                     </button>
                   </div>
                 </div>
+              )}
 
-                {/* Canvas Container */}
+              {/* Batch Stickies Creation Modal */}
+              {lucidBatchModalOpen && (
+                <div className="absolute inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                  <div className="w-full max-w-md bg-slate-900 border border-slate-700 rounded-3xl p-5 shadow-2xl space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-sm font-black text-white flex items-center gap-2">
+                        <ListOrdered className="w-4 h-4 text-indigo-400" />
+                        <span>Criar Post-its em Lote</span>
+                      </h4>
+                      <button
+                        type="button"
+                        onClick={() => setLucidBatchModalOpen(false)}
+                        className="text-slate-400 hover:text-white"
+                      >
+                        ✕
+                      </button>
+                    </div>
+
+                    <p className="text-xs text-slate-400 leading-relaxed">
+                      Cole uma lista de ideias, tópicos ou frases. Cada linha será transformada automaticamente em um post-it separado na cor selecionada!
+                    </p>
+
+                    <textarea
+                      rows={6}
+                      value={lucidBatchInput}
+                      onChange={(e) => setLucidBatchInput(e.target.value)}
+                      placeholder="• Primeira ideia&#10;• Segunda ideia&#10;• Terceira reflexão..."
+                      className="w-full bg-slate-950 border border-slate-800 rounded-2xl p-3 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-indigo-500 custom-scrollbar resize-none"
+                    />
+
+                    <div className="flex items-center justify-end gap-2 pt-1">
+                      <button
+                        type="button"
+                        onClick={() => setLucidBatchModalOpen(false)}
+                        className="px-4 py-2 rounded-xl bg-slate-800 text-slate-300 text-xs font-bold"
+                      >
+                        Cancelar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleBatchAddStickies}
+                        className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold flex items-center gap-1.5 transition"
+                      >
+                        <Plus className="w-4 h-4" />
+                        <span>Gerar Post-its</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Interactive Canvas */}
+              <div
+                ref={canvasRef}
+                onMouseDown={handleCanvasMouseDown}
+                onMouseMove={handleCanvasMouseMove}
+                onMouseUp={handleCanvasMouseUp}
+                onMouseLeave={handleCanvasMouseUp}
+                className={`relative w-full flex-1 overflow-hidden select-none ${
+                  isPanning ? 'cursor-grabbing' : 'cursor-grab'
+                }`}
+                style={{
+                  backgroundImage:
+                    'radial-gradient(rgba(255,255,255,0.18) 1.5px, transparent 1.5px)',
+                  backgroundSize: '28px 28px',
+                }}
+              >
                 <div
-                  ref={canvasRef}
-                  onMouseDown={handleCanvasMouseDown}
-                  onMouseMove={handleCanvasMouseMove}
-                  onMouseUp={handleCanvasMouseUp}
-                  onMouseLeave={handleCanvasMouseUp}
-                  className={`relative w-full h-[520px] rounded-2xl bg-[#0a0a0c] border border-white/[0.06] overflow-hidden select-none ${
-                    isPanning ? 'cursor-grabbing' : 'cursor-grab'
-                  }`}
                   style={{
-                    backgroundImage:
-                      'radial-gradient(rgba(255,255,255,0.08) 1px, transparent 1px)',
-                    backgroundSize: '24px 24px',
+                    transform: `translate(${panOffset.x}px, ${panOffset.y}px) scale(${zoom})`,
+                    transformOrigin: '0 0',
+                    width: '100%',
+                    height: '100%',
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
                   }}
                 >
-                  <div
-                    style={{
-                      transform: `translate(${panOffset.x}px, ${panOffset.y}px) scale(${zoom})`,
-                      transformOrigin: '0 0',
-                      width: '100%',
-                      height: '100%',
-                      position: 'absolute',
-                      top: 0,
-                      left: 0,
-                    }}
-                  >
-                    {/* SVG Connector Lines */}
-                    <svg className="absolute inset-0 w-[2000px] h-[2000px] pointer-events-none">
-                      {selectedMap.nodes.map((node) => {
-                        if (!node.parentId) return null;
-                        const parent = selectedMap.nodes.find((p) => p.id === node.parentId);
-                        if (!parent) return null;
+                  {/* SVG Connector Lines & Floating Line Labels (Lucidspark style) */}
+                  <svg className="absolute inset-0 w-[4000px] h-[4000px] pointer-events-none overflow-visible">
+                    {selectedMap.nodes.map((node) => {
+                      if (!node.parentId) return null;
+                      const parent = selectedMap.nodes.find((p) => p.id === node.parentId);
+                      if (!parent) return null;
 
-                        let pathData = '';
-                        if (connectorStyle === 'straight') {
-                          pathData = `M ${parent.x} ${parent.y} L ${node.x} ${node.y}`;
-                        } else if (connectorStyle === 'elbow') {
-                          const midX = (parent.x + node.x) / 2;
-                          pathData = `M ${parent.x} ${parent.y} L ${midX} ${parent.y} L ${midX} ${node.y} L ${node.x} ${node.y}`;
-                        } else {
-                          // Curved Bézier
-                          const midX = (parent.x + node.x) / 2;
-                          pathData = `M ${parent.x} ${parent.y} C ${midX} ${parent.y}, ${midX} ${node.y}, ${node.x} ${node.y}`;
-                        }
+                      const midX = (parent.x + node.x) / 2;
+                      const midY = (parent.y + node.y) / 2;
 
-                        return (
+                      let pathData = '';
+                      if (connectorStyle === 'straight') {
+                        pathData = `M ${parent.x} ${parent.y} L ${node.x} ${node.y}`;
+                      } else if (connectorStyle === 'elbow') {
+                        pathData = `M ${parent.x} ${parent.y} L ${midX} ${parent.y} L ${midX} ${node.y} L ${node.x} ${node.y}`;
+                      } else {
+                        // Curved Bézier
+                        pathData = `M ${parent.x} ${parent.y} C ${midX} ${parent.y}, ${midX} ${node.y}, ${node.x} ${node.y}`;
+                      }
+
+                      return (
+                        <g key={`edge_${parent.id}_${node.id}`}>
                           <path
-                            key={`edge_${parent.id}_${node.id}`}
                             d={pathData}
-                            stroke={node.color || '#a855f7'}
-                            strokeWidth={3}
-                            strokeOpacity={0.65}
+                            stroke={node.color || '#6366f1'}
+                            strokeWidth={2.5}
+                            strokeOpacity={0.75}
                             fill="none"
                             strokeLinecap="round"
                           />
-                        );
-                      })}
-                    </svg>
-
-                    {/* Interactive Nodes */}
-                    {selectedMap.nodes.map((node) => {
-                      const isSelected = node.id === selectedNode?.id;
-                      const isRoot = node.parentId === null;
-                      return (
-                        <div
-                          key={node.id}
-                          onMouseDown={(e) => {
-                            e.stopPropagation();
-                            setSelectedNodeId(node.id);
-                            setDraggingNodeId(node.id);
-                          }}
-                          style={{
-                            left: `${node.x}px`,
-                            top: `${node.y}px`,
-                            transform: 'translate(-50%, -50%)',
-                            borderColor: isSelected ? '#ffffff' : `${node.color}90`,
-                            boxShadow: isSelected
-                              ? `0 0 26px -2px ${node.color}`
-                              : '0 8px 22px -4px rgba(0,0,0,0.65)',
-                          }}
-                          className={`absolute px-4 py-2.5 rounded-2xl cursor-grab active:cursor-grabbing border-2 transition-shadow select-none ${
-                            isRoot
-                              ? 'bg-slate-900 font-black text-sm text-white ring-2 ring-fuchsia-500/50'
-                              : 'bg-slate-900/95 font-bold text-xs text-slate-100 hover:scale-[1.02]'
-                          }`}
-                        >
-                          <div className="flex items-center gap-2 whitespace-nowrap">
-                            {node.icon && <span className="text-sm">{node.icon}</span>}
-                            <span
-                              className="w-2.5 h-2.5 rounded-full shrink-0"
-                              style={{ backgroundColor: node.color }}
-                            />
-                            <span>{node.label}</span>
-                          </div>
-                        </div>
+                          {node.lineLabel && (
+                            <g className="cursor-pointer">
+                              <rect
+                                x={midX - 85}
+                                y={midY - 14}
+                                width={170}
+                                height={28}
+                                rx={8}
+                                fill="#0f172a"
+                                stroke="#334155"
+                                strokeWidth={1.5}
+                                className="drop-shadow-lg"
+                              />
+                              <text
+                                x={midX}
+                                y={midY + 4}
+                                textAnchor="middle"
+                                fill="#e2e8f0"
+                                fontSize={10}
+                                fontWeight="bold"
+                                className="select-none pointer-events-none"
+                              >
+                                {node.lineLabel.length > 28
+                                  ? `${node.lineLabel.slice(0, 27)}...`
+                                  : node.lineLabel}
+                              </text>
+                            </g>
+                          )}
+                        </g>
                       );
                     })}
+                  </svg>
+
+                  {/* Interactive Nodes Rendered as Lucidspark Shapes */}
+                  {selectedMap.nodes.map((node) => {
+                    const isSelected = node.id === selectedNode?.id;
+                    const shape: LucidShapeType =
+                      node.shape || (node.parentId === null ? 'cloud' : 'rectangle');
+                    const votes = lucidVotes[node.id] || 0;
+
+                    return (
+                      <div
+                        key={node.id}
+                        onMouseDown={(e) => {
+                          e.stopPropagation();
+                          setSelectedNodeId(node.id);
+                          setDraggingNodeId(node.id);
+                        }}
+                        style={{
+                          left: `${node.x}px`,
+                          top: `${node.y}px`,
+                          transform: 'translate(-50%, -50%)',
+                        }}
+                        className="absolute cursor-grab active:cursor-grabbing transition-transform"
+                      >
+                        {/* Floating Selection Toolbar above active node */}
+                        {isSelected && (
+                          <div
+                            onMouseDown={(e) => e.stopPropagation()}
+                            className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 px-2 py-1 rounded-xl bg-slate-900 border border-slate-700 shadow-2xl flex items-center gap-1.5 z-40 select-none animate-in fade-in duration-100"
+                          >
+                            {/* Shape Selector */}
+                            <select
+                              value={shape}
+                              onChange={(e) => {
+                                const nextNodes = selectedMap.nodes.map((n) =>
+                                  n.id === node.id
+                                    ? { ...n, shape: e.target.value as LucidShapeType }
+                                    : n
+                                );
+                                saveMapNodes(selectedMap.id, nextNodes);
+                              }}
+                              className="text-[10px] bg-slate-950 border border-slate-700 text-slate-200 rounded px-1.5 py-0.5 focus:outline-none"
+                              title="Mudar forma"
+                            >
+                              <option value="cloud">☁️ Nuvem</option>
+                              <option value="capsule">💊 Cápsula</option>
+                              <option value="octagon">🛑 Octógono</option>
+                              <option value="diamond">💎 Losango</option>
+                              <option value="sticky">🟨 Post-it</option>
+                              <option value="rectangle">⏹️ Cartão</option>
+                            </select>
+
+                            {/* Color Swatch */}
+                            <input
+                              type="color"
+                              value={node.color}
+                              onChange={(e) => {
+                                const nextNodes = selectedMap.nodes.map((n) =>
+                                  n.id === node.id ? { ...n, color: e.target.value } : n
+                                );
+                                saveMapNodes(selectedMap.id, nextNodes);
+                              }}
+                              className="w-5 h-5 rounded cursor-pointer bg-transparent border-0"
+                              title="Mudar cor"
+                            />
+
+                            {/* Add Line Annotation */}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const promptLabel = window.prompt(
+                                  'Texto da conexão (rótulo da linha):',
+                                  node.lineLabel || ''
+                                );
+                                if (promptLabel !== null) {
+                                  const nextNodes = selectedMap.nodes.map((n) =>
+                                    n.id === node.id ? { ...n, lineLabel: promptLabel.trim() } : n
+                                  );
+                                  saveMapNodes(selectedMap.id, nextNodes);
+                                }
+                              }}
+                              className="p-1 rounded text-slate-400 hover:text-white"
+                              title="Adicionar anotação na linha"
+                            >
+                              <Type className="w-3.5 h-3.5" />
+                            </button>
+
+                            {/* Add Child */}
+                            <button
+                              type="button"
+                              onClick={() => handleAddChildNode()}
+                              className="p-1 rounded text-slate-400 hover:text-emerald-400"
+                              title="Adicionar filho (+)"
+                            >
+                              <Plus className="w-3.5 h-3.5" />
+                            </button>
+
+                            {/* Delete Node */}
+                            {node.parentId !== null && (
+                              <button
+                                type="button"
+                                onClick={handleDeleteSelectedNode}
+                                className="p-1 rounded text-slate-400 hover:text-rose-400"
+                                title="Excluir"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+
+                            {/* Vote button */}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setLucidVotes((prev) => ({
+                                  ...prev,
+                                  [node.id]: (prev[node.id] || 0) + 1,
+                                }));
+                              }}
+                              className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-indigo-600/30 text-indigo-300 hover:bg-indigo-600/50 flex items-center gap-1"
+                              title="Votar nesta ideia"
+                            >
+                              <ThumbsUp className="w-3 h-3" />
+                              <span>{votes}</span>
+                            </button>
+                          </div>
+                        )}
+
+                        {/* Shape: CLOUD (Nuvem Fluffy igual screenshot) */}
+                        {shape === 'cloud' && (
+                          <div className="relative flex items-center justify-center min-w-[150px] max-w-[210px] min-h-[95px] p-6">
+                            <svg
+                              className="absolute inset-0 w-full h-full pointer-events-none overflow-visible drop-shadow-xl"
+                              preserveAspectRatio="none"
+                              viewBox="0 0 160 100"
+                            >
+                              <path
+                                d="M 28,75 A 20,20 0 0,1 18,38 A 26,26 0 0,1 65,16 A 35,35 0 0,1 122,20 A 24,24 0 0,1 146,48 A 20,20 0 0,1 138,76 A 16,16 0 0,1 115,86 L 45,86 A 18,18 0 0,1 28,75 Z"
+                                fill={node.color}
+                                stroke={isSelected ? '#ffffff' : 'rgba(255,255,255,0.25)'}
+                                strokeWidth={isSelected ? 3 : 1.5}
+                              />
+                            </svg>
+                            <input
+                              type="text"
+                              value={node.label}
+                              onChange={(e) => {
+                                const nextNodes = selectedMap.nodes.map((n) =>
+                                  n.id === node.id ? { ...n, label: e.target.value } : n
+                                );
+                                saveMapNodes(selectedMap.id, nextNodes);
+                              }}
+                              className="relative z-10 bg-transparent text-white font-extrabold text-xs text-center leading-snug w-full focus:outline-none select-text"
+                            />
+                          </div>
+                        )}
+
+                        {/* Shape: CAPSULE (Cápsula magenta igual screenshot) */}
+                        {shape === 'capsule' && (
+                          <div
+                            style={{
+                              backgroundColor: node.color,
+                              borderColor: isSelected ? '#ffffff' : 'rgba(255,255,255,0.3)',
+                            }}
+                            className={`rounded-full px-5 py-3 border-2 shadow-2xl flex items-center justify-center min-w-[140px] max-w-[220px] text-center ${
+                              isSelected ? 'ring-4 ring-white/30 scale-105' : ''
+                            }`}
+                          >
+                            <input
+                              type="text"
+                              value={node.label}
+                              onChange={(e) => {
+                                const nextNodes = selectedMap.nodes.map((n) =>
+                                  n.id === node.id ? { ...n, label: e.target.value } : n
+                                );
+                                saveMapNodes(selectedMap.id, nextNodes);
+                              }}
+                              className="bg-transparent text-white font-bold text-xs leading-snug w-full text-center focus:outline-none select-text"
+                            />
+                          </div>
+                        )}
+
+                        {/* Shape: OCTAGON (Octógono vermelho/coral igual screenshot) */}
+                        {shape === 'octagon' && (
+                          <div
+                            style={{
+                              backgroundColor: node.color,
+                              clipPath:
+                                'polygon(28% 0%, 72% 0%, 100% 28%, 100% 72%, 72% 100%, 28% 100%, 0% 72%, 0% 28%)',
+                              outline: isSelected ? '3px solid #ffffff' : 'none',
+                            }}
+                            className="w-[145px] h-[100px] shadow-2xl flex items-center justify-center p-4 text-center"
+                          >
+                            <input
+                              type="text"
+                              value={node.label}
+                              onChange={(e) => {
+                                const nextNodes = selectedMap.nodes.map((n) =>
+                                  n.id === node.id ? { ...n, label: e.target.value } : n
+                                );
+                                saveMapNodes(selectedMap.id, nextNodes);
+                              }}
+                              className="bg-transparent text-white font-bold text-xs leading-snug w-full text-center focus:outline-none select-text px-1"
+                            />
+                          </div>
+                        )}
+
+                        {/* Shape: DIAMOND (Losango verde/teal igual screenshot) */}
+                        {shape === 'diamond' && (
+                          <div
+                            style={{
+                              backgroundColor: node.color,
+                              clipPath: 'polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%)',
+                              outline: isSelected ? '3px solid #ffffff' : 'none',
+                            }}
+                            className="w-[140px] h-[100px] shadow-2xl flex items-center justify-center p-5 text-center"
+                          >
+                            <input
+                              type="text"
+                              value={node.label}
+                              onChange={(e) => {
+                                const nextNodes = selectedMap.nodes.map((n) =>
+                                  n.id === node.id ? { ...n, label: e.target.value } : n
+                                );
+                                saveMapNodes(selectedMap.id, nextNodes);
+                              }}
+                              className="bg-transparent text-white font-bold text-[11px] leading-tight w-full text-center focus:outline-none select-text"
+                            />
+                          </div>
+                        )}
+
+                        {/* Shape: STICKY (Post-it adesivo quadrado) */}
+                        {shape === 'sticky' && (
+                          <div
+                            style={{
+                              backgroundColor: node.color,
+                              borderColor: isSelected ? '#ffffff' : 'rgba(0,0,0,0.15)',
+                            }}
+                            className={`w-[145px] min-h-[115px] p-3 rounded-sm shadow-2xl flex flex-col justify-between text-left border-2 transform rotate-[-0.5deg] ${
+                              isSelected ? 'ring-4 ring-amber-400/50 scale-105' : ''
+                            }`}
+                          >
+                            <textarea
+                              rows={3}
+                              value={node.label}
+                              onChange={(e) => {
+                                const nextNodes = selectedMap.nodes.map((n) =>
+                                  n.id === node.id ? { ...n, label: e.target.value } : n
+                                );
+                                saveMapNodes(selectedMap.id, nextNodes);
+                              }}
+                              className={`bg-transparent font-semibold text-xs leading-snug w-full resize-none focus:outline-none select-text ${
+                                node.color === '#ffffff' ||
+                                node.color.endsWith('8a') ||
+                                node.color.endsWith('e8') ||
+                                node.color.endsWith('fd')
+                                  ? 'text-slate-900'
+                                  : 'text-white'
+                              }`}
+                            />
+                            {node.notes && (
+                              <span
+                                className={`text-[10px] truncate pt-1 opacity-75 ${
+                                  node.color === '#ffffff' ||
+                                  node.color.endsWith('8a') ||
+                                  node.color.endsWith('e8')
+                                    ? 'text-slate-700'
+                                    : 'text-slate-200'
+                                }`}
+                              >
+                                {node.notes}
+                              </span>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Shape: RECTANGLE / CARD (Cartão moderno padrão) */}
+                        {shape === 'rectangle' && (
+                          <div
+                            style={{
+                              backgroundColor: node.color,
+                              borderColor: isSelected ? '#ffffff' : 'rgba(255,255,255,0.25)',
+                            }}
+                            className={`rounded-2xl px-4 py-3 border-2 shadow-2xl flex items-center justify-center min-w-[140px] max-w-[210px] text-center ${
+                              isSelected ? 'ring-4 ring-white/30 scale-105' : ''
+                            }`}
+                          >
+                            <input
+                              type="text"
+                              value={node.label}
+                              onChange={(e) => {
+                                const nextNodes = selectedMap.nodes.map((n) =>
+                                  n.id === node.id ? { ...n, label: e.target.value } : n
+                                );
+                                saveMapNodes(selectedMap.id, nextNodes);
+                              }}
+                              className="bg-transparent text-white font-bold text-xs leading-snug w-full text-center focus:outline-none select-text"
+                            />
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Bottom Right Floating Controls (Zoom, Outline, Fullscreen identical to Lucidspark screenshot) */}
+              <div className="absolute right-4 bottom-4 z-20 flex items-center gap-1.5 bg-slate-900/95 border border-white/[0.08] rounded-2xl p-1.5 shadow-2xl backdrop-blur-xl">
+                {/* Outline Toggle */}
+                <button
+                  type="button"
+                  onClick={() => setLucidOutlineOpen((v) => !v)}
+                  className={`p-2 rounded-xl transition ${
+                    lucidOutlineOpen ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'
+                  }`}
+                  title="Lista de Tópicos (Outline)"
+                >
+                  <ListTree className="w-4 h-4" />
+                </button>
+
+                {/* Zoom Out (-) */}
+                <button
+                  type="button"
+                  onClick={() => setZoom((z) => Math.max(0.3, Number((z - 0.1).toFixed(2))))}
+                  className="p-2 rounded-xl text-slate-400 hover:text-white transition"
+                  title="Afastar (-)"
+                >
+                  <ZoomOut className="w-4 h-4" />
+                </button>
+
+                {/* Zoom Percentage */}
+                <span
+                  onClick={() => {
+                    setZoom(1);
+                    setPanOffset({ x: 0, y: 0 });
+                  }}
+                  className="px-2 py-1 text-xs font-mono font-bold text-slate-200 cursor-pointer hover:text-indigo-400 select-none"
+                  title="Clique para resetar em 100%"
+                >
+                  {Math.round(zoom * 100)}%
+                </span>
+
+                {/* Zoom In (+) */}
+                <button
+                  type="button"
+                  onClick={() => setZoom((z) => Math.min(2.0, Number((z + 0.1).toFixed(2))))}
+                  className="p-2 rounded-xl text-slate-400 hover:text-white transition"
+                  title="Aproximar (+)"
+                >
+                  <ZoomIn className="w-4 h-4" />
+                </button>
+
+                {/* Reset Zoom & Pan */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setZoom(1);
+                    setPanOffset({ x: 0, y: 0 });
+                  }}
+                  className="p-2 rounded-xl text-slate-400 hover:text-white transition"
+                  title="Centralizar Quadro"
+                >
+                  <RotateCcw className="w-4 h-4" />
+                </button>
+
+                {/* Shortcuts & Help */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    showToast(
+                      'Atalhos Lucidspark: Tab (novo nó) • Enter (mesmo nível) • Del (remover) • Arraste o fundo para mover',
+                      'info'
+                    );
+                  }}
+                  className="p-2 rounded-xl text-slate-400 hover:text-white transition"
+                  title="Atalhos e Dicas"
+                >
+                  <HelpCircle className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Outline Side Drawer (When ListTree button clicked) */}
+              {lucidOutlineOpen && (
+                <div className="absolute right-4 top-20 bottom-16 z-30 w-72 bg-slate-900/98 border border-slate-700/80 rounded-2xl p-4 shadow-2xl backdrop-blur-2xl flex flex-col select-none animate-in fade-in slide-in-from-right-4 duration-150">
+                  <div className="flex items-center justify-between pb-2 border-b border-slate-800">
+                    <span className="text-xs font-black text-white flex items-center gap-1.5">
+                      <ListTree className="w-4 h-4 text-indigo-400" />
+                      <span>Estrutura de Ideias ({selectedMap.nodes.length})</span>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setLucidOutlineOpen(false)}
+                      className="text-slate-400 hover:text-white text-xs"
+                    >
+                      ✕
+                    </button>
+                  </div>
+
+                  <div className="flex-1 overflow-y-auto space-y-1.5 pt-2 custom-scrollbar pr-1">
+                    {selectedMap.nodes.map((n) => (
+                      <div
+                        key={n.id}
+                        onClick={() => setSelectedNodeId(n.id)}
+                        className={`p-2 rounded-xl flex items-center justify-between cursor-pointer text-xs font-bold transition ${
+                          n.id === selectedNode?.id
+                            ? 'bg-indigo-600 text-white'
+                            : 'bg-slate-950/70 text-slate-300 hover:bg-slate-800'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2 truncate">
+                          <span
+                            className="w-2.5 h-2.5 rounded-full shrink-0"
+                            style={{ backgroundColor: n.color }}
+                          />
+                          <span className="truncate">{n.label}</span>
+                        </div>
+                        <span className="text-[10px] opacity-75 shrink-0 uppercase font-mono">
+                          {n.shape || 'cloud'}
+                        </span>
+                      </div>
+                    ))}
                   </div>
                 </div>
-
-                <div className="flex items-center justify-between text-[11px] text-slate-500 pt-2 px-1">
-                  <span>💡 Atalhos MindMaster: <strong>Tab</strong> (novo filho) • <strong>Enter</strong> (novo irmão) • <strong>Del</strong> (excluir)</span>
-                  <span>Arraste o fundo para mover a tela</span>
-                </div>
-              </>
-            )}
-          </div>
+              )}
+            </>
+          )}
         </div>
       )}
 
