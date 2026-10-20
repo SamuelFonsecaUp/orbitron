@@ -81,6 +81,10 @@ import {
   Grid,
   Unlock,
   Scan,
+  Hand,
+  Heart,
+  AlertCircle,
+  ArrowUpRight,
 } from 'lucide-react';
 import { useFinancial } from '../context/FinancialContext';
 
@@ -210,7 +214,9 @@ export type LucidShapeType =
   | 'circle'
   | 'text'
   | 'frame'
-  | 'image';
+  | 'image'
+  | 'drawing'
+  | 'stamp';
 
 export interface NodeConnection {
   targetId: string;
@@ -236,6 +242,8 @@ export interface MindmapNode {
   groupId?: string;
   imageUrl?: string;
   fontSize?: number;
+  pathData?: string;
+  strokeWidth?: number;
 }
 
 export interface BoardEdge {
@@ -446,6 +454,25 @@ const ToolsViewInner: React.FC = () => {
   const [gridSnap, setGridSnap] = useState<boolean>(false);
   const imageInputRef = useRef<HTMLInputElement | null>(null);
   const projectFileInputRef = useRef<HTMLInputElement | null>(null);
+
+  // Estados da Barra de Ferramentas de Quadro Branco (Whiteboard Lucidspark)
+  const [whiteboardTool, setWhiteboardTool] = useState<
+    'select' | 'pan' | 'sticky' | 'shape' | 'text' | 'pen' | 'line' | 'frame' | 'stamp'
+  >('select');
+  const [penColor, setPenColor] = useState<string>('#6366f1');
+  const [penWidth, setPenWidth] = useState<number>(3);
+  const [penDrawerOpen, setPenDrawerOpen] = useState<boolean>(false);
+  const [currentDrawingPath, setCurrentDrawingPath] = useState<{ x: number; y: number }[] | null>(null);
+  const [stampDrawerOpen, setStampDrawerOpen] = useState<boolean>(false);
+  const [activeStampType, setActiveStampType] = useState<
+    'star' | 'check' | 'flame' | 'bulb' | 'heart' | 'alert'
+  >('star');
+  const [marqueeBox, setMarqueeBox] = useState<{
+    startX: number;
+    startY: number;
+    currentX: number;
+    currentY: number;
+  } | null>(null);
 
   // =========================================================
   // 3. COFRE DE SENHAS CRIPTOGRAFADO
@@ -820,6 +847,90 @@ const ToolsViewInner: React.FC = () => {
     saveMapNodes(selectedMap.id, nextNodes);
   };
 
+  // Criar Post-it na posição do clique
+  const handleAddStickyAt = (clickX: number, clickY: number) => {
+    if (!selectedMap) return;
+    const newNode: MindmapNode = {
+      id: `sticky_${Date.now()}_${Math.random().toString(36).slice(2, 5)}`,
+      label: 'Nota adesiva',
+      x: clickX,
+      y: clickY,
+      color: lucidActiveColor,
+      shape: 'sticky',
+      connections: [],
+      notes: '',
+    };
+    saveMapNodes(selectedMap.id, [...selectedMap.nodes, newNode]);
+    setSelectedNodeId(newNode.id);
+    setSelectedNodeIds([newNode.id]);
+    showToast('Post-it adicionado no quadro!', 'info');
+  };
+
+  // Criar Caixa de Texto Livre na posição do clique
+  const handleAddTextAt = (clickX: number, clickY: number) => {
+    if (!selectedMap) return;
+    const newNode: MindmapNode = {
+      id: `text_${Date.now()}_${Math.random().toString(36).slice(2, 5)}`,
+      label: 'Digite seu texto...',
+      x: clickX,
+      y: clickY,
+      color: '#f8fafc',
+      shape: 'text',
+      connections: [],
+      notes: '',
+    };
+    saveMapNodes(selectedMap.id, [...selectedMap.nodes, newNode]);
+    setSelectedNodeId(newNode.id);
+    setSelectedNodeIds([newNode.id]);
+    showToast('Texto livre adicionado!', 'info');
+  };
+
+  // Criar Forma Geométrica na posição do clique
+  const handleAddShapeAt = (clickX: number, clickY: number, shape: LucidShapeType = 'rectangle') => {
+    if (!selectedMap) return;
+    const newNode: MindmapNode = {
+      id: `shape_${Date.now()}_${Math.random().toString(36).slice(2, 5)}`,
+      label: shape === 'frame' ? 'Área de Trabalho' : 'Elemento',
+      x: clickX,
+      y: clickY,
+      color: lucidActiveColor,
+      shape,
+      connections: [],
+      notes: '',
+    };
+    saveMapNodes(selectedMap.id, [...selectedMap.nodes, newNode]);
+    setSelectedNodeId(newNode.id);
+    setSelectedNodeIds([newNode.id]);
+    showToast(`Elemento (${shape}) adicionado!`, 'info');
+  };
+
+  // Carimbar Reação no Canvas
+  const handleAddStampAt = (clickX: number, clickY: number) => {
+    if (!selectedMap) return;
+    const stampColors: Record<string, string> = {
+      star: '#f59e0b',
+      check: '#10b981',
+      flame: '#ef4444',
+      bulb: '#a855f7',
+      heart: '#ec4899',
+      alert: '#f97316',
+    };
+    const newNode: MindmapNode = {
+      id: `stamp_${Date.now()}_${Math.random().toString(36).slice(2, 5)}`,
+      label: activeStampType,
+      x: clickX,
+      y: clickY,
+      color: stampColors[activeStampType] || '#f59e0b',
+      shape: 'stamp',
+      connections: [],
+      notes: '',
+    };
+    saveMapNodes(selectedMap.id, [...selectedMap.nodes, newNode]);
+    setSelectedNodeId(newNode.id);
+    setSelectedNodeIds([newNode.id]);
+    showToast('Carimbo aplicado no quadro!', 'info');
+  };
+
   // Criar elemento livremente ao dar clique duplo no canvas
   const handleCanvasDoubleClick = (e: React.MouseEvent) => {
     if (e.target !== canvasRef.current && (e.target as HTMLElement).tagName !== 'svg') return;
@@ -829,20 +940,7 @@ const ToolsViewInner: React.FC = () => {
     const clickX = Math.round((e.clientX - rect.left - panOffset.x) / zoom);
     const clickY = Math.round((e.clientY - rect.top - panOffset.y) / zoom);
 
-    const newNode: MindmapNode = {
-      id: `node_${Date.now()}_${Math.random().toString(36).slice(2, 5)}`,
-      label: 'Novo Tópico',
-      x: clickX,
-      y: clickY,
-      color: lucidActiveColor,
-      shape: 'sticky',
-      connections: [],
-      notes: '',
-    };
-
-    saveMapNodes(selectedMap.id, [...selectedMap.nodes, newNode]);
-    setSelectedNodeId(newNode.id);
-    showToast('Novo elemento adicionado livremente no canvas!', 'info');
+    handleAddStickyAt(clickX, clickY);
   };
 
   // Subtópico conectado
@@ -1071,6 +1169,21 @@ const ToolsViewInner: React.FC = () => {
         const ny = node.y - minY;
         const shape = node.shape || 'cloud';
         let shapeSvg = '';
+
+        if (shape === 'drawing' && node.pathData) {
+          return `<path d="${node.pathData}" stroke="${node.color || '#6366f1'}" stroke-width="${node.strokeWidth || 3}" fill="none" stroke-linecap="round" stroke-linejoin="round" transform="translate(${-minX}, ${-minY})" />`;
+        }
+
+        if (shape === 'stamp') {
+          return `
+            <g transform="translate(${nx}, ${ny})">
+              <circle r="20" fill="${node.color || '#f59e0b'}" />
+              <text y="5" text-anchor="middle" fill="#ffffff" font-size="14" font-weight="bold" font-family="system-ui, sans-serif">
+                ${node.label === 'star' ? '★' : node.label === 'check' ? '✓' : node.label === 'flame' ? '▲' : '●'}
+              </text>
+            </g>
+          `;
+        }
 
         if (shape === 'sticky') {
           shapeSvg = `<rect x="${nx - 60}" y="${ny - 40}" width="120" height="80" rx="4" fill="${node.color}" />`;
@@ -1314,7 +1427,37 @@ const ToolsViewInner: React.FC = () => {
       ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
       ctx.lineWidth = 1.5;
 
-      if (shape === 'frame') {
+      if (shape === 'drawing' && node.pathData) {
+        ctx.save();
+        ctx.translate(-minX, -minY);
+        ctx.strokeStyle = node.color || '#6366f1';
+        ctx.lineWidth = node.strokeWidth || 3;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        const p2d = new Path2D(node.pathData);
+        ctx.stroke(p2d);
+        ctx.restore();
+        return;
+      } else if (shape === 'stamp') {
+        ctx.save();
+        ctx.fillStyle = node.color || '#f59e0b';
+        ctx.beginPath();
+        if (typeof ctx.roundRect === 'function') {
+          ctx.roundRect(nx - 22, ny - 22, 44, 44, 14);
+        } else {
+          ctx.arc(nx, ny, 22, 0, Math.PI * 2);
+        }
+        ctx.fill();
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 16px system-ui, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        const iconSym =
+          node.label === 'star' ? '★' : node.label === 'check' ? '✓' : node.label === 'flame' ? '▲' : '●';
+        ctx.fillText(iconSym, nx, ny);
+        ctx.restore();
+        return;
+      } else if (shape === 'frame') {
         ctx.strokeStyle = node.color || '#818cf8';
         ctx.lineWidth = 2;
         ctx.fillStyle = 'rgba(30, 41, 59, 0.4)';
@@ -1687,6 +1830,26 @@ const ToolsViewInner: React.FC = () => {
         }
       }
 
+      // Atalhos diretos de ferramentas de Quadro Branco Lucidspark
+      const k = e.key.toLowerCase();
+      if (!e.ctrlKey && !e.metaKey && !e.altKey) {
+        if (k === 'v') {
+          setWhiteboardTool('select');
+        } else if (k === 'h') {
+          setWhiteboardTool('pan');
+        } else if (k === 's') {
+          setWhiteboardTool('sticky');
+        } else if (k === 't') {
+          setWhiteboardTool('text');
+        } else if (k === 'p') {
+          setWhiteboardTool('pen');
+        } else if (k === 'f') {
+          setWhiteboardTool('shape');
+        } else if (k === 'l') {
+          setWhiteboardTool('line');
+        }
+      }
+
       if (e.key === 'Tab') {
         e.preventDefault();
         handleAddChildNode();
@@ -1718,16 +1881,65 @@ const ToolsViewInner: React.FC = () => {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [activeTool, selectedMap, selectedNode, selectedEdgeId, selectedNodeIds, clipboardNodes, undoStack, redoStack]);
+  }, [activeTool, selectedMap, selectedNode, selectedEdgeId, selectedNodeIds, clipboardNodes, undoStack, redoStack, whiteboardTool]);
 
-  // Pan & Drag Handlers
+  // Pan & Drag Handlers do Quadro Branco
   const handleCanvasMouseDown = (e: React.MouseEvent) => {
-    if (e.target === canvasRef.current || (e.target as HTMLElement).tagName === 'svg') {
+    if (e.target !== canvasRef.current && (e.target as HTMLElement).tagName !== 'svg') return;
+    if (!canvasRef.current || !selectedMap) return;
+
+    const rect = canvasRef.current.getBoundingClientRect();
+    const clickX = Math.round((e.clientX - rect.left - panOffset.x) / zoom);
+    const clickY = Math.round((e.clientY - rect.top - panOffset.y) / zoom);
+
+    if (whiteboardTool === 'pan' || e.button === 1 || e.altKey) {
       setIsPanning(true);
       setPanStart({ x: e.clientX - panOffset.x, y: e.clientY - panOffset.y });
+      return;
+    }
+
+    if (whiteboardTool === 'pen') {
+      setCurrentDrawingPath([{ x: clickX, y: clickY }]);
       setSelectedEdgeId(null);
       setSelectedNodeId('');
+      setSelectedNodeIds([]);
+      return;
     }
+
+    if (whiteboardTool === 'sticky') {
+      handleAddStickyAt(clickX, clickY);
+      setWhiteboardTool('select');
+      return;
+    }
+
+    if (whiteboardTool === 'text') {
+      handleAddTextAt(clickX, clickY);
+      setWhiteboardTool('select');
+      return;
+    }
+
+    if (whiteboardTool === 'shape') {
+      handleAddShapeAt(clickX, clickY, 'rectangle');
+      setWhiteboardTool('select');
+      return;
+    }
+
+    if (whiteboardTool === 'frame') {
+      handleAddShapeAt(clickX, clickY, 'frame');
+      setWhiteboardTool('select');
+      return;
+    }
+
+    if (whiteboardTool === 'stamp') {
+      handleAddStampAt(clickX, clickY);
+      return;
+    }
+
+    // Ferramenta Selecionar Padrão: Marquee Selection Box
+    setMarqueeBox({ startX: clickX, startY: clickY, currentX: clickX, currentY: clickY });
+    setSelectedEdgeId(null);
+    setSelectedNodeId('');
+    setSelectedNodeIds([]);
   };
 
   const handleCanvasMouseMove = (e: React.MouseEvent) => {
@@ -1738,15 +1950,27 @@ const ToolsViewInner: React.FC = () => {
       });
       return;
     }
-    if (!draggingNodeId || !selectedMap || !canvasRef.current) return;
+    if (!canvasRef.current) return;
+    const rect = canvasRef.current.getBoundingClientRect();
+    const curX = Math.round((e.clientX - rect.left - panOffset.x) / zoom);
+    const curY = Math.round((e.clientY - rect.top - panOffset.y) / zoom);
+
+    if (currentDrawingPath) {
+      setCurrentDrawingPath((prev) => (prev ? [...prev, { x: curX, y: curY }] : null));
+      return;
+    }
+
+    if (marqueeBox) {
+      setMarqueeBox((prev) => (prev ? { ...prev, currentX: curX, currentY: curY } : null));
+      return;
+    }
+
+    if (!draggingNodeId || !selectedMap) return;
     const draggingNode = selectedMap.nodes.find((n) => n.id === draggingNodeId);
     if (draggingNode?.locked) return;
 
-    const rect = canvasRef.current.getBoundingClientRect();
-    const rawX = (e.clientX - rect.left - panOffset.x) / zoom;
-    const rawY = (e.clientY - rect.top - panOffset.y) / zoom;
-    const newX = gridSnap ? Math.round(rawX / 20) * 20 : Math.round(rawX);
-    const newY = gridSnap ? Math.round(rawY / 20) * 20 : Math.round(rawY);
+    const newX = gridSnap ? Math.round(curX / 20) * 20 : curX;
+    const newY = gridSnap ? Math.round(curY / 20) * 20 : curY;
 
     const deltaX = newX - (draggingNode?.x || newX);
     const deltaY = newY - (draggingNode?.y || newY);
@@ -1777,6 +2001,50 @@ const ToolsViewInner: React.FC = () => {
       setIsPanning(false);
       return;
     }
+
+    // Concluir traço de caneta livre
+    if (currentDrawingPath && currentDrawingPath.length > 1 && selectedMap) {
+      const d = currentDrawingPath.reduce(
+        (acc, pt, idx) => (idx === 0 ? `M ${pt.x} ${pt.y}` : `${acc} L ${pt.x} ${pt.y}`),
+        ''
+      );
+      const drawId = `draw_${Date.now()}`;
+      const drawNode: MindmapNode = {
+        id: drawId,
+        label: 'Desenho',
+        shape: 'drawing',
+        pathData: d,
+        color: penColor,
+        strokeWidth: penWidth,
+        x: currentDrawingPath[0].x,
+        y: currentDrawingPath[0].y,
+        connections: [],
+      };
+      saveMapNodes(selectedMap.id, [...selectedMap.nodes, drawNode]);
+      setCurrentDrawingPath(null);
+      return;
+    }
+    setCurrentDrawingPath(null);
+
+    // Concluir seleção por retângulo (Marquee Selection)
+    if (marqueeBox && selectedMap) {
+      const minX = Math.min(marqueeBox.startX, marqueeBox.currentX);
+      const maxX = Math.max(marqueeBox.startX, marqueeBox.currentX);
+      const minY = Math.min(marqueeBox.startY, marqueeBox.currentY);
+      const maxY = Math.max(marqueeBox.startY, marqueeBox.currentY);
+
+      if (Math.abs(maxX - minX) > 8 || Math.abs(maxY - minY) > 8) {
+        const hits = selectedMap.nodes.filter(
+          (n) => n.x >= minX - 70 && n.x <= maxX + 70 && n.y >= minY - 50 && n.y <= maxY + 50
+        );
+        setSelectedNodeIds(hits.map((h) => h.id));
+        if (hits.length > 0) setSelectedNodeId(hits[0].id);
+      }
+      setMarqueeBox(null);
+      return;
+    }
+    setMarqueeBox(null);
+
     if (!draggingNodeId || !selectedMap) return;
     const draggedId = draggingNodeId;
     setDraggingNodeId(null);
@@ -1867,7 +2135,7 @@ const ToolsViewInner: React.FC = () => {
                 Pigo Ferramentas & Segundo Cérebro
               </h1>
               <p className="text-xs text-slate-400">
-                Anotações estilo Notion, mapas mentais no padrão MindMaster e cofre de senhas criptografado localmente.
+                Anotações completas estilo Notion, quadro branco visual estilo Lucidspark e cofre de senhas blindado.
               </p>
             </div>
           </div>
@@ -1877,7 +2145,7 @@ const ToolsViewInner: React.FC = () => {
         <div className="liquid-glass-well p-1.5 rounded-2xl flex items-center gap-1 self-start">
           {[
             { id: 'tools_notes', key: 'notes', label: 'Anotações (Notion)', icon: StickyNote, count: notes.length },
-            { id: 'tools_mindmap', key: 'mindmap', label: 'Mapas Mentais (MindMaster)', icon: Network, count: mindmaps.length },
+            { id: 'tools_mindmap', key: 'mindmap', label: 'Quadro Branco (Lucidspark)', icon: Layers, count: mindmaps.length },
             { id: 'tools_vault', key: 'vault', label: 'Cofre de Senhas', icon: KeyRound, count: vaultItems.length },
           ].map((tab) => {
             const Icon = tab.icon;
@@ -3233,47 +3501,97 @@ const ToolsViewInner: React.FC = () => {
                 className="hidden"
               />
 
-              {/* Dock Lateral Flutuante Profissional (Sem emojis) */}
-              <div className="absolute left-4 top-20 z-20 flex flex-col items-center bg-slate-900/95 border border-white/[0.08] rounded-2xl p-1.5 shadow-2xl space-y-1.5 backdrop-blur-xl">
-                {/* Criar Post-it com Leque de Cores */}
+              {/* Barra de Ferramentas Primária Flutuante do Lucidspark (Whiteboard Toolbar) */}
+              <div className="absolute left-4 top-20 z-20 flex flex-col items-center bg-slate-900/95 border border-white/[0.08] rounded-2xl p-1.5 shadow-2xl space-y-1 backdrop-blur-xl">
+                {/* 1. Selecionar (V) */}
                 <button
                   type="button"
                   onClick={() => {
-                    setLucidStickyDrawerOpen((v) => !v);
+                    setWhiteboardTool('select');
+                    setPenDrawerOpen(false);
+                    setStampDrawerOpen(false);
                     setLucidShapesMenuOpen(false);
                   }}
                   className={`p-2.5 rounded-xl transition ${
-                    lucidStickyDrawerOpen
-                      ? 'bg-amber-400 text-slate-900 shadow-lg shadow-amber-400/30'
-                      : 'text-amber-400 hover:bg-amber-400/20'
+                    whiteboardTool === 'select'
+                      ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30'
+                      : 'text-slate-400 hover:text-white hover:bg-white/10'
                   }`}
-                  title="Post-its & Leque de Cores"
+                  title="Selecionar / Mover (V) - Arraste no vazio para seleção em lote"
                 >
-                  <StickyNote className="w-5 h-5" />
+                  <MousePointer className="w-5 h-5" />
                 </button>
 
-                {/* Menu de Formas */}
+                {/* 2. Mão / Pan (H) */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setWhiteboardTool('pan');
+                    setPenDrawerOpen(false);
+                    setStampDrawerOpen(false);
+                    setLucidShapesMenuOpen(false);
+                  }}
+                  className={`p-2.5 rounded-xl transition ${
+                    whiteboardTool === 'pan'
+                      ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30'
+                      : 'text-slate-400 hover:text-white hover:bg-white/10'
+                  }`}
+                  title="Navegar / Mão (H) - Arraste a tela livremente"
+                >
+                  <Hand className="w-5 h-5" />
+                </button>
+
+                {/* 3. Post-it (S) */}
                 <div className="relative">
                   <button
                     type="button"
                     onClick={() => {
+                      setWhiteboardTool('sticky');
+                      setLucidStickyDrawerOpen((v) => !v);
+                      setPenDrawerOpen(false);
+                      setStampDrawerOpen(false);
+                      setLucidShapesMenuOpen(false);
+                    }}
+                    className={`p-2.5 rounded-xl transition relative ${
+                      whiteboardTool === 'sticky' || lucidStickyDrawerOpen
+                        ? 'bg-amber-400 text-slate-900 shadow-lg shadow-amber-400/30'
+                        : 'text-amber-400 hover:bg-amber-400/20'
+                    }`}
+                    title="Notas Adesivas / Post-its (S)"
+                  >
+                    <StickyNote className="w-5 h-5" />
+                    <span
+                      style={{ backgroundColor: lucidActiveColor }}
+                      className="absolute bottom-1.5 right-1.5 w-2 h-2 rounded-full border border-slate-900"
+                    />
+                  </button>
+                </div>
+
+                {/* 4. Formas Geométricas (F) */}
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setWhiteboardTool('shape');
                       setLucidShapesMenuOpen((v) => !v);
                       setLucidStickyDrawerOpen(false);
+                      setPenDrawerOpen(false);
+                      setStampDrawerOpen(false);
                     }}
                     className={`p-2.5 rounded-xl transition ${
-                      lucidShapesMenuOpen
-                        ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30'
+                      whiteboardTool === 'shape' || lucidShapesMenuOpen
+                        ? 'bg-cyan-500 text-slate-950 shadow-lg shadow-cyan-500/30 font-bold'
                         : 'text-slate-400 hover:text-white hover:bg-white/10'
                     }`}
-                    title="Inserir Formas: Nuvem, Cápsula, Octógono, Losango, Cartão, Círculo, Texto, Frame"
+                    title="Formas: Retângulo, Círculo, Losango, Nuvem, Cápsula, Octógono (F)"
                   >
-                    <Layers className="w-5 h-5 text-cyan-400" />
+                    <Square className="w-5 h-5 text-cyan-400" />
                   </button>
 
                   {lucidShapesMenuOpen && (
                     <div className="absolute left-full top-0 ml-3 w-60 p-2 rounded-2xl bg-slate-900 border border-slate-700 shadow-2xl z-40 space-y-1">
                       <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 px-2 block">
-                        Inserir Elemento
+                        Inserir Forma
                       </span>
                       {LUCID_SHAPES.map((shape) => (
                         <button
@@ -3306,6 +3624,232 @@ const ToolsViewInner: React.FC = () => {
                   )}
                 </div>
 
+                {/* 5. Texto Livre (T) */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setWhiteboardTool('text');
+                    setPenDrawerOpen(false);
+                    setStampDrawerOpen(false);
+                    setLucidShapesMenuOpen(false);
+                    setLucidStickyDrawerOpen(false);
+                  }}
+                  className={`p-2.5 rounded-xl transition ${
+                    whiteboardTool === 'text'
+                      ? 'bg-indigo-600 text-white shadow-lg'
+                      : 'text-slate-400 hover:text-white hover:bg-white/10'
+                  }`}
+                  title="Texto Livre (T) - Clique no quadro para digitar"
+                >
+                  <Type className="w-5 h-5 text-indigo-300" />
+                </button>
+
+                {/* 6. Caneta / Desenho Livre (P) */}
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setWhiteboardTool('pen');
+                      setPenDrawerOpen((v) => !v);
+                      setStampDrawerOpen(false);
+                      setLucidShapesMenuOpen(false);
+                      setLucidStickyDrawerOpen(false);
+                    }}
+                    className={`p-2.5 rounded-xl transition ${
+                      whiteboardTool === 'pen'
+                        ? 'bg-purple-600 text-white shadow-lg shadow-purple-600/30'
+                        : 'text-slate-400 hover:text-white hover:bg-white/10'
+                    }`}
+                    title="Caneta / Desenho Livre (P) - Desenhe na lousa à mão livre"
+                  >
+                    <PenTool className="w-5 h-5 text-purple-400" />
+                  </button>
+
+                  {/* Gaveta Flutuante de Caneta */}
+                  {penDrawerOpen && (
+                    <div className="absolute left-full top-0 ml-3 w-56 p-3 rounded-2xl bg-slate-900 border border-slate-700 shadow-2xl z-40 space-y-3 animate-in fade-in zoom-in-95 duration-100">
+                      <div className="flex items-center justify-between text-xs font-bold text-white pb-1 border-b border-slate-800">
+                        <span className="flex items-center gap-1.5">
+                          <PenTool className="w-3.5 h-3.5 text-purple-400" />
+                          <span>Caneta do Quadro</span>
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setPenDrawerOpen(false)}
+                          className="text-slate-500 hover:text-white"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                      <div className="space-y-1.5">
+                        <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
+                          Cor da Caneta
+                        </span>
+                        <div className="flex items-center gap-1.5">
+                          {['#ffffff', '#6366f1', '#10b981', '#f59e0b', '#ef4444', '#ec4899'].map((c) => (
+                            <button
+                              key={c}
+                              type="button"
+                              onClick={() => {
+                                setPenColor(c);
+                                setWhiteboardTool('pen');
+                              }}
+                              style={{ backgroundColor: c }}
+                              className={`w-6 h-6 rounded-full transition ${
+                                penColor === c
+                                  ? 'ring-2 ring-white scale-110 shadow-md'
+                                  : 'opacity-80 hover:opacity-100'
+                              }`}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                      <div className="space-y-1.5">
+                        <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
+                          Espessura do Traço
+                        </span>
+                        <div className="flex items-center gap-1.5">
+                          {[
+                            { label: 'Fina', w: 2 },
+                            { label: 'Média', w: 4 },
+                            { label: 'Marcador', w: 8 },
+                          ].map((item) => (
+                            <button
+                              key={item.w}
+                              type="button"
+                              onClick={() => {
+                                setPenWidth(item.w);
+                                setWhiteboardTool('pen');
+                              }}
+                              className={`flex-1 py-1 rounded-lg text-[10px] font-bold transition ${
+                                penWidth === item.w
+                                  ? 'bg-purple-600 text-white shadow'
+                                  : 'bg-slate-800 text-slate-300 hover:text-white'
+                              }`}
+                            >
+                              {item.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* 7. Conexões / Linhas (L) */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setWhiteboardTool('line');
+                    if (selectedNode) {
+                      setConnectingFromNodeId(selectedNode.id);
+                      showToast('Clique no elemento de destino para criar a conexão.', 'info');
+                    } else {
+                      showToast('Selecione primeiro um elemento e clique para conectar.', 'info');
+                    }
+                  }}
+                  className={`p-2.5 rounded-xl transition ${
+                    connectingFromNodeId || whiteboardTool === 'line'
+                      ? 'bg-indigo-600 text-white shadow-lg'
+                      : 'text-slate-400 hover:text-white hover:bg-white/10'
+                  }`}
+                  title="Conectar Elementos Livremente (L)"
+                >
+                  <Link2 className="w-5 h-5 text-indigo-400" />
+                </button>
+
+                {/* 8. Área / Frame */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setWhiteboardTool('frame');
+                    showToast('Clique em qualquer ponto do quadro para posicionar o Frame!', 'info');
+                  }}
+                  className={`p-2.5 rounded-xl transition ${
+                    whiteboardTool === 'frame'
+                      ? 'bg-indigo-600 text-white shadow-lg'
+                      : 'text-slate-400 hover:text-white hover:bg-white/10'
+                  }`}
+                  title="Criar Área de Organização / Frame"
+                >
+                  <Scan className="w-5 h-5 text-indigo-400" />
+                </button>
+
+                {/* 9. Carimbos de Reação (Stamps) */}
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setStampDrawerOpen((v) => !v);
+                      setPenDrawerOpen(false);
+                      setLucidShapesMenuOpen(false);
+                      setLucidStickyDrawerOpen(false);
+                    }}
+                    className={`p-2.5 rounded-xl transition ${
+                      whiteboardTool === 'stamp' || stampDrawerOpen
+                        ? 'bg-amber-500 text-slate-950 shadow-lg shadow-amber-500/30'
+                        : 'text-slate-400 hover:text-white hover:bg-white/10'
+                    }`}
+                    title="Carimbos e Reações Visuais de Votação"
+                  >
+                    <Star className="w-5 h-5 text-amber-400 fill-amber-400/60" />
+                  </button>
+
+                  {/* Gaveta de Carimbos */}
+                  {stampDrawerOpen && (
+                    <div className="absolute left-full top-0 ml-3 w-56 p-3 rounded-2xl bg-slate-900 border border-slate-700 shadow-2xl z-40 space-y-2 animate-in fade-in zoom-in-95 duration-100">
+                      <div className="flex items-center justify-between text-xs font-bold text-white pb-1 border-b border-slate-800">
+                        <span className="flex items-center gap-1.5">
+                          <Star className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
+                          <span>Carimbos de Reação</span>
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setStampDrawerOpen(false)}
+                          className="text-slate-500 hover:text-white"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                      <div className="grid grid-cols-3 gap-1.5 pt-1">
+                        {[
+                          { type: 'star', label: 'Estrela', icon: Star, color: 'text-amber-400 fill-amber-400' },
+                          { type: 'check', label: 'Aprovado', icon: Check, color: 'text-emerald-400' },
+                          { type: 'flame', label: 'Fogo', icon: Flame, color: 'text-rose-400' },
+                          { type: 'bulb', label: 'Ideia', icon: Sparkles, color: 'text-purple-400' },
+                          { type: 'heart', label: 'Amei', icon: Heart, color: 'text-pink-400 fill-pink-400' },
+                          { type: 'alert', label: 'Atenção', icon: AlertCircle, color: 'text-orange-400' },
+                        ].map((st) => {
+                          const Icon = st.icon;
+                          const isSel = activeStampType === st.type && whiteboardTool === 'stamp';
+                          return (
+                            <button
+                              key={st.type}
+                              type="button"
+                              onClick={() => {
+                                setActiveStampType(st.type as any);
+                                setWhiteboardTool('stamp');
+                                setStampDrawerOpen(false);
+                                showToast(`Carimbo "${st.label}" ativo. Clique no quadro para carimbar!`, 'info');
+                              }}
+                              className={`p-2 rounded-xl border flex flex-col items-center gap-1 transition ${
+                                isSel
+                                  ? 'bg-indigo-600/30 border-indigo-500 shadow'
+                                  : 'bg-slate-950 border-slate-800 hover:border-slate-700'
+                              }`}
+                            >
+                              <Icon className={`w-4 h-4 ${st.color}`} />
+                              <span className="text-[9px] text-slate-300 font-bold">{st.label}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="w-6 h-px bg-slate-800 my-0.5" />
+
                 {/* Inserir Imagem Local do Computador */}
                 <button
                   type="button"
@@ -3316,37 +3860,6 @@ const ToolsViewInner: React.FC = () => {
                   <ImageIcon className="w-5 h-5 text-emerald-400" />
                 </button>
 
-                {/* Modo Conectar Livre */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (selectedNode) {
-                      setConnectingFromNodeId(selectedNode.id);
-                      showToast('Clique no elemento de destino para criar a conexão.', 'info');
-                    } else {
-                      showToast('Selecione primeiro um elemento e clique para conectar.', 'info');
-                    }
-                  }}
-                  className={`p-2.5 rounded-xl transition ${
-                    connectingFromNodeId
-                      ? 'bg-indigo-600 text-white shadow-lg'
-                      : 'text-slate-400 hover:text-white hover:bg-white/10'
-                  }`}
-                  title="Conectar Elementos Livremente"
-                >
-                  <Link2 className="w-5 h-5 text-indigo-400" />
-                </button>
-
-                {/* Duplicar Seleção */}
-                <button
-                  type="button"
-                  onClick={handleDuplicate}
-                  className="p-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition"
-                  title="Duplicar Seleção (Ctrl+D)"
-                >
-                  <Copy className="w-5 h-5 text-sky-400" />
-                </button>
-
                 {/* Criar em Lote */}
                 <button
                   type="button"
@@ -3355,16 +3868,6 @@ const ToolsViewInner: React.FC = () => {
                   title="Criar Post-its em Lote (Colar Lista)"
                 >
                   <ListOrdered className="w-5 h-5 text-pink-400" />
-                </button>
-
-                {/* Adicionar Rápido */}
-                <button
-                  type="button"
-                  onClick={() => handleAddChildNode()}
-                  className="p-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition"
-                  title="Adicionar Subtópico"
-                >
-                  <Plus className="w-5 h-5 text-emerald-400" />
                 </button>
               </div>
 
@@ -3506,7 +4009,7 @@ const ToolsViewInner: React.FC = () => {
                 </div>
               )}
 
-              {/* Canvas 100% da Altura com Grade de Pontos */}
+              {/* Canvas 100% da Altura com Grade de Pontos do Quadro Branco */}
               <div
                 ref={canvasRef}
                 onMouseDown={handleCanvasMouseDown}
@@ -3515,7 +4018,19 @@ const ToolsViewInner: React.FC = () => {
                 onMouseLeave={handleCanvasMouseUp}
                 onDoubleClick={handleCanvasDoubleClick}
                 className={`relative w-full flex-1 overflow-hidden select-none ${
-                  isPanning ? 'cursor-grabbing' : 'cursor-grab'
+                  whiteboardTool === 'pan'
+                    ? isPanning
+                      ? 'cursor-grabbing'
+                      : 'cursor-grab'
+                    : whiteboardTool === 'pen'
+                    ? 'cursor-crosshair'
+                    : whiteboardTool === 'sticky' ||
+                      whiteboardTool === 'text' ||
+                      whiteboardTool === 'shape' ||
+                      whiteboardTool === 'stamp' ||
+                      whiteboardTool === 'frame'
+                    ? 'cursor-copy'
+                    : 'cursor-default'
                 }`}
                 style={{
                   backgroundImage:
@@ -3534,8 +4049,65 @@ const ToolsViewInner: React.FC = () => {
                     left: 0,
                   }}
                 >
-                  {/* Conexões Livres M:N com Rótulos de Texto */}
+                  {/* Conexões e Traços Vetoriais de Desenho do Quadro */}
                   <svg className="absolute inset-0 w-[5000px] h-[5000px] pointer-events-none overflow-visible">
+                    {/* Traços Vetoriais de Desenho Livre da Caneta */}
+                    {selectedMap.nodes
+                      .filter((n) => n.shape === 'drawing' && n.pathData)
+                      .map((drawNode) => {
+                        const isSelected =
+                          selectedNodeIds.includes(drawNode.id) || selectedNodeId === drawNode.id;
+                        return (
+                          <g
+                            key={drawNode.id}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedNodeId(drawNode.id);
+                              setSelectedNodeIds([drawNode.id]);
+                              setSelectedEdgeId(null);
+                            }}
+                            className="cursor-pointer pointer-events-auto"
+                          >
+                            {isSelected && (
+                              <path
+                                d={drawNode.pathData}
+                                stroke="#818cf8"
+                                strokeWidth={(drawNode.strokeWidth || 3) + 8}
+                                strokeOpacity={0.5}
+                                fill="none"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                className="animate-pulse"
+                              />
+                            )}
+                            <path
+                              d={drawNode.pathData}
+                              stroke={drawNode.color || '#6366f1'}
+                              strokeWidth={drawNode.strokeWidth || 3}
+                              fill="none"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            />
+                          </g>
+                        );
+                      })}
+
+                    {/* Traço em Tempo Real enquanto o usuário desenha */}
+                    {currentDrawingPath && currentDrawingPath.length > 1 && (
+                      <path
+                        d={currentDrawingPath.reduce(
+                          (acc, pt, idx) => (idx === 0 ? `M ${pt.x} ${pt.y}` : `${acc} L ${pt.x} ${pt.y}`),
+                          ''
+                        )}
+                        stroke={penColor}
+                        strokeWidth={penWidth}
+                        fill="none"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    )}
+
+                    {/* Conexões e Linhas M:N */}
                     {getBoardEdges(selectedMap.nodes).map((edge) => {
                       const source = selectedMap.nodes.find((n) => n.id === edge.sourceId);
                       const target = selectedMap.nodes.find((n) => n.id === edge.targetId);
@@ -3664,8 +4236,23 @@ const ToolsViewInner: React.FC = () => {
                     })}
                   </svg>
 
-                  {/* Nós / Elementos Criados Livremente no Canvas */}
-                  {selectedMap.nodes.map((node) => {
+                  {/* Caixa de Seleção por Arraste (Marquee Drag Selection) */}
+                  {marqueeBox && (
+                    <div
+                      style={{
+                        left: Math.min(marqueeBox.startX, marqueeBox.currentX),
+                        top: Math.min(marqueeBox.startY, marqueeBox.currentY),
+                        width: Math.abs(marqueeBox.currentX - marqueeBox.startX),
+                        height: Math.abs(marqueeBox.currentY - marqueeBox.startY),
+                      }}
+                      className="absolute border-2 border-indigo-500 bg-indigo-500/20 rounded pointer-events-none z-50 backdrop-blur-[0.5px]"
+                    />
+                  )}
+
+                  {/* Elementos e Formas do Quadro Branco (exceto desenhos SVG) */}
+                  {selectedMap.nodes
+                    .filter((n) => n.shape !== 'drawing')
+                    .map((node) => {
                     const isSelected = node.id === selectedNode?.id;
                     const shape: LucidShapeType = node.shape || 'cloud';
 
@@ -4212,6 +4799,24 @@ const ToolsViewInner: React.FC = () => {
                                 className="bg-transparent text-white text-xs font-semibold text-center w-full focus:outline-none select-text"
                               />
                             </div>
+                          </div>
+                        )}
+
+                        {/* FORMA 11: CARIMBO DE REAÇÃO (STAMP) */}
+                        {shape === 'stamp' && (
+                          <div
+                            style={{ backgroundColor: node.color || '#f59e0b' }}
+                            className={`p-3.5 rounded-2xl shadow-xl flex items-center justify-center transition-transform cursor-pointer ${
+                              isSelected ? 'ring-4 ring-white/60 scale-110' : 'hover:scale-105'
+                            }`}
+                            title={`Carimbo: ${node.label}`}
+                          >
+                            {node.label === 'check' && <Check className="w-6 h-6 text-white stroke-[3]" />}
+                            {node.label === 'star' && <Star className="w-6 h-6 text-white fill-white" />}
+                            {node.label === 'flame' && <Flame className="w-6 h-6 text-white" />}
+                            {node.label === 'bulb' && <Sparkles className="w-6 h-6 text-white" />}
+                            {node.label === 'heart' && <Heart className="w-6 h-6 text-white fill-white" />}
+                            {node.label === 'alert' && <AlertCircle className="w-6 h-6 text-white" />}
                           </div>
                         )}
                       </div>
