@@ -26,6 +26,7 @@ import { ImportView } from './views/ImportView';
 import { ReserveView } from './views/ReserveView';
 import { JourneyView } from './views/JourneyView';
 import { HabitsView } from './views/HabitsView';
+import { ToolsView } from './views/ToolsView';
 import { GameCelebration } from './components/GameWidgets';
 import { IntelligenceView } from './views/IntelligenceView';
 
@@ -95,6 +96,8 @@ export const App: React.FC = () => {
       ? 'from-cyan-500/[0.07] via-sky-500/[0.02] to-transparent'
       : activeModule === 'journey'
       ? 'from-amber-500/[0.08] via-orange-500/[0.02] to-transparent'
+      : activeModule === 'tools'
+      ? 'from-fuchsia-500/[0.08] via-purple-500/[0.02] to-transparent'
       : 'from-brand-500/[0.06] via-emerald-500/[0.02] to-transparent';
 
   return (
@@ -159,6 +162,7 @@ export const App: React.FC = () => {
             {currentView.startsWith('journey') && <JourneyView />}
             {currentView.startsWith('habits') && <HabitsView />}
             {currentView === 'intelligence' && <IntelligenceView />}
+            {currentView.startsWith('tools') && <ToolsView />}
           </div>
         </main>
       </div>

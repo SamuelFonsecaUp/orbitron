@@ -886,6 +886,22 @@ export interface ElectronAPI {
 
   seedDemoData: () => Promise<boolean>;
   clearDemoData: () => Promise<boolean>;
+
+  // Tools Module
+  getNotes: () => Promise<any[]>;
+  createNote: (data: any) => Promise<any>;
+  updateNote: (id: string, data: any) => Promise<any>;
+  deleteNote: (id: string) => Promise<boolean>;
+
+  getMindmaps: () => Promise<any[]>;
+  createMindmap: (data: any) => Promise<any>;
+  updateMindmap: (id: string, data: any) => Promise<any>;
+  deleteMindmap: (id: string) => Promise<boolean>;
+
+  getVaultItems: () => Promise<any[]>;
+  createVaultItem: (data: any) => Promise<any>;
+  updateVaultItem: (id: string, data: any) => Promise<any>;
+  deleteVaultItem: (id: string) => Promise<boolean>;
 }
 
 export interface CloudSession {

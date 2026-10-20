@@ -469,6 +469,22 @@ app.whenReady().then(() => {
   handleIpc('habits:getHeatmap', (habitId, year) => service.getHabitHeatmap(habitId, year));
   handleIpc('habits:getOverview', () => service.getHabitsOverview());
 
+  // Tools Module: Notes, Mindmaps & Password Vault
+  handleIpc('tools:getNotes', () => service.getNotes());
+  handleIpc('tools:createNote', (data) => service.createNote(data));
+  handleIpc('tools:updateNote', (id, data) => service.updateNote(id, data));
+  handleIpc('tools:deleteNote', (id) => service.deleteNote(id));
+
+  handleIpc('tools:getMindmaps', () => service.getMindmaps());
+  handleIpc('tools:createMindmap', (data) => service.createMindmap(data));
+  handleIpc('tools:updateMindmap', (id, data) => service.updateMindmap(id, data));
+  handleIpc('tools:deleteMindmap', (id) => service.deleteMindmap(id));
+
+  handleIpc('tools:getVaultItems', () => service.getVaultItems());
+  handleIpc('tools:createVaultItem', (data) => service.createVaultItem(data));
+  handleIpc('tools:updateVaultItem', (id, data) => service.updateVaultItem(id, data));
+  handleIpc('tools:deleteVaultItem', (id) => service.deleteVaultItem(id));
+
 
   createWindow();
   setupAutoUpdater();

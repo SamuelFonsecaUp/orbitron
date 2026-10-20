@@ -29,6 +29,10 @@ const MODULE_BADGE: Record<AppModule, { label: string; className: string }> = {
     label: 'Pigo Hábitos',
     className: 'bg-cyan-500/12 text-cyan-300 border-cyan-500/25',
   },
+  tools: {
+    label: 'Pigo Ferramentas',
+    className: 'bg-fuchsia-500/12 text-fuchsia-300 border-fuchsia-500/25',
+  },
   journey: {
     label: 'Pigo Jornada',
     className: 'bg-amber-500/12 text-amber-300 border-amber-500/25',
@@ -99,6 +103,9 @@ export const Navbar: React.FC = () => {
     journey_missions: 'Missões da Semana',
     journey_achievements: 'Sala de Troféus & Conquistas',
     journey_history: 'Histórico de XP',
+    tools_notes: 'Anotações & Segundo Cérebro',
+    tools_mindmap: 'Mapas Mentais Interativos',
+    tools_vault: 'Cofre de Senhas Criptografado',
     settings: 'Configurações do Sistema',
   };
 

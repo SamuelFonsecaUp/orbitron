@@ -261,6 +261,40 @@ function initDatabase(customPath = null) {
       UNIQUE(habit_id, date)
     );
 
+    CREATE TABLE IF NOT EXISTS notes (
+      id TEXT PRIMARY KEY,
+      title TEXT NOT NULL,
+      content TEXT DEFAULT '',
+      category TEXT DEFAULT 'ideias',
+      color TEXT DEFAULT '#a855f7',
+      pinned INTEGER DEFAULT 0,
+      checklist_json TEXT DEFAULT '[]',
+      created_at TEXT,
+      updated_at TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS mindmaps (
+      id TEXT PRIMARY KEY,
+      title TEXT NOT NULL,
+      description TEXT DEFAULT '',
+      nodes_json TEXT NOT NULL DEFAULT '[]',
+      created_at TEXT,
+      updated_at TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS password_vault (
+      id TEXT PRIMARY KEY,
+      title TEXT NOT NULL,
+      category TEXT DEFAULT 'outros',
+      username TEXT DEFAULT '',
+      password_encrypted TEXT NOT NULL,
+      url TEXT DEFAULT '',
+      notes TEXT DEFAULT '',
+      favorite INTEGER DEFAULT 0,
+      created_at TEXT,
+      updated_at TEXT
+    );
+
     CREATE TABLE IF NOT EXISTS cloud_session (
       id TEXT PRIMARY KEY DEFAULT 'current_session',
       user_id TEXT,

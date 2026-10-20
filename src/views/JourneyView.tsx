@@ -62,6 +62,7 @@ const CATEGORIES_LIST = [
   { id: 'intelligence', label: 'Inteligência' },
   { id: 'habits', label: 'Hábitos' },
   { id: 'goals', label: 'Metas' },
+  { id: 'tools', label: 'Ferramentas & Cofre' },
 ];
 
 type AchievementFilter = 'all' | 'unlocked' | 'locked';

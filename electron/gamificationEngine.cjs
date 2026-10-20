@@ -299,6 +299,50 @@ class GamificationEngine {
       goalsCompleted = 0;
     }
 
+    // Ferramentas (Anotações, Mapas Mentais e Cofre de Senhas) + Contas
+    let notesCount = 0;
+    let pinnedNotesCount = 0;
+    let mindmapsCount = 0;
+    let maxMindmapNodes = 0;
+    let vaultItemsCount = 0;
+    let accountsCount = 0;
+    try {
+      const nRows = this.db.prepare(`SELECT pinned FROM notes`).all();
+      notesCount = nRows.length;
+      pinnedNotesCount = nRows.filter(n => n.pinned).length;
+    } catch (e) {}
+    try {
+      const mRows = this.db.prepare(`SELECT nodes_json FROM mindmaps`).all();
+      mindmapsCount = mRows.length;
+      for (const m of mRows) {
+        try {
+          const parsed = JSON.parse(m.nodes_json || '[]');
+          if (Array.isArray(parsed) && parsed.length > maxMindmapNodes) {
+            maxMindmapNodes = parsed.length;
+          }
+        } catch {}
+      }
+    } catch (e) {}
+    try {
+      const vRow = this.db.prepare(`SELECT COUNT(*) as c FROM password_vault`).get();
+      vaultItemsCount = vRow ? vRow.c : 0;
+    } catch (e) {}
+    try {
+      const aRow = this.db.prepare(`SELECT COUNT(*) as c FROM accounts WHERE archived = 0`).get();
+      accountsCount = aRow ? aRow.c : 0;
+    } catch (e) {}
+
+    const perfectHabitDaysCount =
+      activeHabitsCount > 0
+        ? (habitCheckinsByDay || []).filter(d => d.c >= activeHabitsCount).length
+        : 0;
+
+    const pillarsActiveCount =
+      (accountsCount > 0 || (totals.total || 0) > 0 ? 1 : 0) +
+      (activeHabitsCount > 0 ? 1 : 0) +
+      (notesCount > 0 || mindmapsCount > 0 ? 1 : 0) +
+      (vaultItemsCount > 0 ? 1 : 0);
+
 
     return {
       today,
@@ -322,6 +366,14 @@ class GamificationEngine {
       habitCheckinsByDay,
       goalsCount,
       goalsCompleted,
+      notesCount,
+      pinnedNotesCount,
+      mindmapsCount,
+      maxMindmapNodes,
+      vaultItemsCount,
+      accountsCount,
+      perfectHabitDaysCount,
+      pillarsActiveCount,
     };
   }
 
@@ -646,6 +698,41 @@ class GamificationEngine {
       { id: 'meta_concluida_1', name: 'Sonho Realizado', description: 'Atinja 100% de uma meta financeira.', rarity: 'raro', icon: 'Trophy', category: 'goals', metric: 'goalsCompleted', target: 1 },
       { id: 'meta_concluida_3', name: 'Conquistador de Sonhos', description: 'Atinja 100% em 3 metas financeiras.', rarity: 'epico', icon: 'Trophy', category: 'goals', metric: 'goalsCompleted', target: 3 },
       { id: 'meta_concluida_5', name: 'Arquiteto do Futuro', description: 'Atinja 100% em 5 metas financeiras.', rarity: 'lendario', icon: 'Crown', category: 'goals', metric: 'goalsCompleted', target: 5 },
+
+      // --- 11. Hábitos Avançados & Dias Perfeitos ---
+      { id: 'habito_diversidade_3', name: 'Tríade Diária', description: 'Tenha 3 ou mais hábitos ativos na sua rotina.', rarity: 'comum', icon: 'Sparkles', category: 'habits', metric: 'activeHabits', target: 3 },
+      { id: 'habito_diversidade_5', name: 'Rotina Completa', description: 'Tenha 5 ou mais hábitos ativos na sua grade diária.', rarity: 'raro', icon: 'Sparkles', category: 'habits', metric: 'activeHabits', target: 5 },
+      { id: 'dia_perfeito_1', name: 'Primeiro Dia Perfeito', description: 'Conclua 100% dos seus hábitos ativos em um mesmo dia.', rarity: 'comum', icon: 'CalendarCheck', category: 'habits', metric: 'perfectHabitDays', target: 1 },
+      { id: 'dia_perfeito_7', name: 'Semana 100% Impecável', description: 'Alcance 7 Dias Perfeitos (100% dos hábitos concluídos).', rarity: 'raro', icon: 'Flame', category: 'habits', metric: 'perfectHabitDays', target: 7 },
+      { id: 'dia_perfeito_15', name: 'Quinzena de Elite', description: 'Alcance 15 Dias Perfeitos cumprindo toda a grade.', rarity: 'epico', icon: 'Trophy', category: 'habits', metric: 'perfectHabitDays', target: 15 },
+      { id: 'dia_perfeito_30', name: 'Mês de Alta Performance', description: 'Alcance 30 Dias Perfeitos cumprindo todos os hábitos.', rarity: 'lendario', icon: 'Crown', category: 'habits', metric: 'perfectHabitDays', target: 30 },
+      { id: 'habito_streak_14', name: 'Duas Semanas de Fogo', description: 'Mantenha 14 dias consecutivos cumprindo hábitos.', rarity: 'raro', icon: 'Flame', category: 'habits', metric: 'habitStreak', target: 14 },
+      { id: 'habito_streak_30', name: 'Trinta Dias de Aço', description: 'Mantenha 30 dias consecutivos cumprindo hábitos.', rarity: 'epico', icon: 'Flame', category: 'habits', metric: 'habitStreak', target: 30 },
+      { id: 'habito_streak_60', name: 'Disciplina Inabalável', description: 'Mantenha 60 dias consecutivos cumprindo hábitos.', rarity: 'lendario', icon: 'Crown', category: 'habits', metric: 'habitStreak', target: 60 },
+
+      // --- 12. Segundo Cérebro: Anotações & Ideias ---
+      { id: 'nota_primeira', name: 'Primeira Ideia no Papel', description: 'Crie sua primeira anotação nas Ferramentas do Pigo.', rarity: 'comum', icon: 'Library', category: 'tools', metric: 'notesCount', target: 1 },
+      { id: 'nota_fixada', name: 'Foco Prioritário', description: 'Fixe uma anotação importante no topo do seu quadro.', rarity: 'comum', icon: 'Sparkles', category: 'tools', metric: 'pinnedNotesCount', target: 1 },
+      { id: 'notas_5', name: 'Bloco de Ideias Ativo', description: 'Mantenha 5 anotações organizadas no Pigo.', rarity: 'comum', icon: 'Library', category: 'tools', metric: 'notesCount', target: 5 },
+      { id: 'notas_15', name: 'Segundo Cérebro', description: 'Construa uma base sólida com 15 anotações salvas.', rarity: 'raro', icon: 'GraduationCap', category: 'tools', metric: 'notesCount', target: 15 },
+      { id: 'notas_30', name: 'Enciclopédia Pessoal', description: 'Alcance 30 anotações salvas no seu Segundo Cérebro.', rarity: 'epico', icon: 'Crown', category: 'tools', metric: 'notesCount', target: 30 },
+
+      // --- 13. Mapas Mentais & Estratégia Visual ---
+      { id: 'mapa_primeiro', name: 'Arquiteto de Ideias', description: 'Crie seu primeiro Mapa Mental interativo.', rarity: 'comum', icon: 'Sparkles', category: 'tools', metric: 'mindmapsCount', target: 1 },
+      { id: 'mapa_ramificado_6', name: 'Pensamento Ramificado', description: 'Construa um Mapa Mental com pelo menos 6 nós conectados.', rarity: 'raro', icon: 'Target', category: 'tools', metric: 'maxMindmapNodes', target: 6 },
+      { id: 'mapa_ramificado_12', name: 'Teia Estratégica', description: 'Construa um Mapa Mental complexo com 12 ou mais nós.', rarity: 'epico', icon: 'Trophy', category: 'tools', metric: 'maxMindmapNodes', target: 12 },
+      { id: 'mapas_3', name: 'Estrategista Visual', description: 'Tenha 3 quadros de Mapas Mentais criados.', rarity: 'raro', icon: 'Library', category: 'tools', metric: 'mindmapsCount', target: 3 },
+      { id: 'mapas_5', name: 'Mente Cartográfica', description: 'Mantenha 5 quadros de Mapas Mentais estruturados.', rarity: 'epico', icon: 'Crown', category: 'tools', metric: 'mindmapsCount', target: 5 },
+
+      // --- 14. Cofre de Senhas & Segurança Digital ---
+      { id: 'cofre_primeira', name: 'Cofre Blindado', description: 'Guarde sua primeira credencial criptografada no Cofre de Senhas.', rarity: 'comum', icon: 'Shield', category: 'tools', metric: 'vaultItemsCount', target: 1 },
+      { id: 'cofre_5', name: 'Chaveiro Seguro', description: 'Proteja 5 senhas no Cofre Criptografado do Pigo.', rarity: 'comum', icon: 'ShieldCheck', category: 'tools', metric: 'vaultItemsCount', target: 5 },
+      { id: 'cofre_15', name: 'Guardião Digital', description: 'Proteja 15 credenciais no Cofre de Senhas.', rarity: 'raro', icon: 'ShieldCheck', category: 'tools', metric: 'vaultItemsCount', target: 15 },
+      { id: 'cofre_30', name: 'Fortaleza Criptografada', description: 'Mantenha 30 senhas protegidas com criptografia AES-256.', rarity: 'epico', icon: 'Castle', category: 'tools', metric: 'vaultItemsCount', target: 30 },
+
+      // --- 15. Domínio Completo da Plataforma ---
+      { id: 'contas_multiplas', name: 'Visão Multi-Bancos', description: 'Cadastre 3 ou mais contas bancárias ou carteiras.', rarity: 'comum', icon: 'PiggyBank', category: 'reserve', metric: 'accountsCount', target: 3 },
+      { id: 'mestre_4_pilares', name: 'Mestre dos 4 Pilares', description: 'Use ativamente Finanças, Hábitos, Notas/Mapas e Cofre de Senhas no Pigo!', rarity: 'lendario', icon: 'Crown', category: 'tools', metric: 'pillarsActiveCount', target: 4 },
     ];
   }
 
@@ -672,6 +759,14 @@ class GamificationEngine {
       habitStreak: facts.habitBestStreak,
       goalsCount: facts.goalsCount,
       goalsCompleted: facts.goalsCompleted,
+      perfectHabitDays: facts.perfectHabitDaysCount || 0,
+      notesCount: facts.notesCount || 0,
+      pinnedNotesCount: facts.pinnedNotesCount || 0,
+      mindmapsCount: facts.mindmapsCount || 0,
+      maxMindmapNodes: facts.maxMindmapNodes || 0,
+      vaultItemsCount: facts.vaultItemsCount || 0,
+      accountsCount: facts.accountsCount || 0,
+      pillarsActiveCount: facts.pillarsActiveCount || 0,
     };
     const seen = new Map(this.db.prepare(`SELECT key, seen_at FROM game_seen WHERE key LIKE 'ach:%'`).all().map(r => [r.key, r.seen_at]));
 

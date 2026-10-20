@@ -157,4 +157,20 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Demo Data
   seedDemoData: () => ipcRenderer.invoke('demo:seed'),
   clearDemoData: () => ipcRenderer.invoke('demo:clear'),
+
+  // Tools Module: Notes, Mindmaps & Password Vault
+  getNotes: () => ipcRenderer.invoke('tools:getNotes'),
+  createNote: (data) => ipcRenderer.invoke('tools:createNote', data),
+  updateNote: (id, data) => ipcRenderer.invoke('tools:updateNote', id, data),
+  deleteNote: (id) => ipcRenderer.invoke('tools:deleteNote', id),
+
+  getMindmaps: () => ipcRenderer.invoke('tools:getMindmaps'),
+  createMindmap: (data) => ipcRenderer.invoke('tools:createMindmap', data),
+  updateMindmap: (id, data) => ipcRenderer.invoke('tools:updateMindmap', id, data),
+  deleteMindmap: (id) => ipcRenderer.invoke('tools:deleteMindmap', id),
+
+  getVaultItems: () => ipcRenderer.invoke('tools:getVaultItems'),
+  createVaultItem: (data) => ipcRenderer.invoke('tools:createVaultItem', data),
+  updateVaultItem: (id, data) => ipcRenderer.invoke('tools:updateVaultItem', id, data),
+  deleteVaultItem: (id) => ipcRenderer.invoke('tools:deleteVaultItem', id),
 });

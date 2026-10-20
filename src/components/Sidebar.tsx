@@ -26,6 +26,10 @@ import {
   Swords,
   History,
   Crown,
+  FolderKanban,
+  StickyNote,
+  Network,
+  KeyRound,
 } from 'lucide-react';
 import { useFinancial, AppView, AppModule } from '../context/FinancialContext';
 import { useHabits } from '../context/HabitsContext';
@@ -88,8 +92,22 @@ const MODULE_META: Record<
     badgePillClass: 'bg-cyan-500/15 text-cyan-300 border-cyan-400/30',
     indicatorBarClass: 'bg-cyan-400 shadow-[0_0_10px_#22d3ee]',
   },
-  journey: {
+  tools: {
     index: 2,
+    badge: 'Ferramentas',
+    subtitle: 'Segundo Cérebro & Cofre',
+    lensGlow: 'rgba(217, 70, 239, 0.5)',
+    lensTint: 'linear-gradient(145deg, rgba(217, 70, 239, 0.42) 0%, rgba(168, 85, 247, 0.18) 55%, rgba(255, 255, 255, 0.15) 100%)',
+    navTint: 'rgba(217, 70, 239, 0.18)',
+    ctaGlow: 'rgba(217, 70, 239, 0.4)',
+    badgeClass: 'bg-fuchsia-500/15 text-fuchsia-300 border-fuchsia-400/30 shadow-[inset_0_1px_0_rgba(255,255,255,0.2)]',
+    activeIconClass: 'text-fuchsia-300 drop-shadow-[0_0_8px_rgba(232,121,249,0.55)]',
+    activeTextClass: 'text-white font-semibold',
+    badgePillClass: 'bg-fuchsia-500/15 text-fuchsia-300 border-fuchsia-400/30',
+    indicatorBarClass: 'bg-fuchsia-400 shadow-[0_0_10px_#e879f9]',
+  },
+  journey: {
+    index: 3,
     badge: 'Jornada',
     subtitle: 'Nível & Troféus',
     lensGlow: 'rgba(245, 158, 11, 0.5)',
@@ -236,11 +254,41 @@ export const Sidebar: React.FC = () => {
     },
   ];
 
+  const toolsSections: NavSection[] = [
+    {
+      title: 'Segundo Cérebro',
+      items: [
+        {
+          id: 'tools_notes',
+          label: 'Anotações & Ideias',
+          icon: StickyNote,
+        },
+        {
+          id: 'tools_mindmap',
+          label: 'Mapas Mentais',
+          icon: Network,
+        },
+      ],
+    },
+    {
+      title: 'Segurança & Acessos',
+      items: [
+        {
+          id: 'tools_vault',
+          label: 'Cofre de Senhas',
+          icon: KeyRound,
+        },
+      ],
+    },
+  ];
+
   const currentSections =
     activeModule === 'habits'
       ? habitsSections
       : activeModule === 'journey'
       ? journeySections
+      : activeModule === 'tools'
+      ? toolsSections
       : financeSections;
 
   const meta = MODULE_META[activeModule];
@@ -248,6 +296,7 @@ export const Sidebar: React.FC = () => {
   const modules: { id: AppModule; label: string; Icon: React.FC<{ className?: string }>; glowColor: string }[] = [
     { id: 'finance', label: 'Finanças', Icon: WalletCards, glowColor: 'text-emerald-300' },
     { id: 'habits', label: 'Hábitos', Icon: CheckSquare, glowColor: 'text-cyan-300' },
+    { id: 'tools', label: 'Ferramentas', Icon: FolderKanban, glowColor: 'text-fuchsia-300' },
     { id: 'journey', label: 'Jornada', Icon: Trophy, glowColor: 'text-amber-300' },
   ];
 
@@ -271,7 +320,7 @@ export const Sidebar: React.FC = () => {
               />
               <span
                 className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full ring-2 ring-slate-950 transition-colors duration-500"
-                style={{ backgroundColor: activeModule === 'habits' ? '#22d3ee' : activeModule === 'journey' ? '#fbbf24' : '#34d399' }}
+                style={{ backgroundColor: activeModule === 'habits' ? '#22d3ee' : activeModule === 'journey' ? '#fbbf24' : activeModule === 'tools' ? '#e879f9' : '#34d399' }}
               />
             </div>
             <div>

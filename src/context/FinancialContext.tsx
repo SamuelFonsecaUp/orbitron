@@ -37,7 +37,12 @@ export type AppView =
   | 'reports'
   | 'settings'
   | 'import'
-  | 'intelligence';
+  | 'intelligence'
+  | 'tools_notes'
+  | 'tools_mindmap'
+  | 'tools_vault';
+
+export type AppModule = 'finance' | 'habits' | 'tools' | 'journey';
 
 interface ToastInfo {
   id: string;
@@ -130,8 +135,10 @@ export const FinancialProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       if (!currentView.startsWith('habits')) setCurrentView('habits');
     } else if (mod === 'journey') {
       if (!currentView.startsWith('journey')) setCurrentView('journey');
+    } else if (mod === 'tools') {
+      if (!currentView.startsWith('tools')) setCurrentView('tools_notes');
     } else {
-      if (currentView.startsWith('habits') || currentView.startsWith('journey')) {
+      if (currentView.startsWith('habits') || currentView.startsWith('journey') || currentView.startsWith('tools')) {
         setCurrentView('dashboard');
       }
     }
@@ -143,6 +150,8 @@ export const FinancialProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       setActiveModuleState('habits');
     } else if (view.startsWith('journey')) {
       setActiveModuleState('journey');
+    } else if (view.startsWith('tools')) {
+      setActiveModuleState('tools');
     } else if (view !== 'settings') {
       setActiveModuleState('finance');
     }
