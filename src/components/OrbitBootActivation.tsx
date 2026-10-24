@@ -12,7 +12,7 @@ const PHASES: { module: AppModule | 'all'; label: string; colorClass: string }[]
   { module: 'habits', label: 'Conectando Hábitos & Consistência...', colorClass: 'text-cyan-400' },
   { module: 'tools', label: 'Acessando Segundo Cérebro & Vault...', colorClass: 'text-purple-400' },
   { module: 'journey', label: 'Iniciando Jornada Cósmica...', colorClass: 'text-amber-400' },
-  { module: 'all', label: 'SISTEMA ORBIT PRONTO • 100% LOCAL-FIRST', colorClass: 'text-white' },
+  { module: 'all', label: 'SISTEMA ORBITRON PRONTO • 100% LOCAL-FIRST', colorClass: 'text-white' },
 ];
 
 export const OrbitBootActivation: React.FC<OrbitBootActivationProps> = ({ onComplete, forceShow = false }) => {
@@ -90,7 +90,7 @@ export const OrbitBootActivation: React.FC<OrbitBootActivationProps> = ({ onComp
         {/* Space Font Brand Title */}
         <div className="space-y-1.5">
           <h1 className="font-orbit text-4xl sm:text-5xl font-black tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-white via-slate-200 to-slate-400 drop-shadow-[0_0_20px_rgba(255,255,255,0.3)]">
-            ORBIT
+            ORBITRON
           </h1>
           <p className="text-[11px] font-bold uppercase tracking-[0.25em] text-slate-400 font-orbit">
             SISTEMA OPERACIONAL PESSOAL

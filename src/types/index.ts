@@ -969,6 +969,7 @@ export interface ElectronAPI {
   vaultDeletePage: (relPath: string) => Promise<{ success: boolean; message?: string }>;
   vaultGetWorkspace: () => Promise<WorkspaceConfig>;
   vaultSaveWorkspace: (cfg: WorkspaceConfig) => Promise<boolean>;
+  vaultExportPDF: (title: string, htmlBody: string) => Promise<{ success: boolean; filePath?: string; canceled?: boolean }>;
 }
 
 export interface CloudSession {

@@ -543,11 +543,74 @@ app.whenReady().then(() => {
   handleIpc('vault:exportVaultZip', async () => {
     const { canceled, filePath } = await dialog.showSaveDialog(mainWindow, {
       title: 'Exportar Vault Completo (.ZIP)',
-      defaultPath: 'PigoVault_Backup_' + new Date().toISOString().slice(0, 10) + '.zip',
+      defaultPath: 'Orbitron_Vault_' + new Date().toISOString().slice(0, 10) + '.zip',
       filters: [{ name: 'Arquivo ZIP', extensions: ['zip'] }],
     });
     if (canceled || !filePath) return { canceled: true };
     return vaultService.exportVaultZip(filePath);
+  });
+
+  handleIpc('vault:exportPDF', async (title, htmlBody) => {
+    const cleanTitle = (title || 'Documento').replace(/[/\\?%*:|"<>]/g, '_');
+    const { canceled, filePath } = await dialog.showSaveDialog(mainWindow, {
+      title: 'Exportar Documento em PDF',
+      defaultPath: cleanTitle + '.pdf',
+      filters: [{ name: 'Documento PDF (*.pdf)', extensions: ['pdf'] }],
+    });
+    if (canceled || !filePath) return { canceled: true, success: false };
+
+    const fullHtml = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>${cleanTitle}</title>
+  <style>
+    @page { margin: 20mm; size: A4 portrait; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      font-size: 11pt; line-height: 1.6; color: #1e293b; background: #ffffff; padding: 0; margin: 0;
+    }
+    h1, h2, h3, h4 { color: #0f172a; font-weight: 700; margin-top: 1.5em; margin-bottom: 0.5em; page-break-after: avoid; }
+    h1 { font-size: 20pt; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px; margin-top: 0; }
+    h2 { font-size: 15pt; border-bottom: 1px solid #f1f5f9; padding-bottom: 4px; }
+    h3 { font-size: 12.5pt; }
+    p { margin: 0.6em 0; }
+    pre { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 12px; font-family: Consolas, monospace; font-size: 9pt; white-space: pre-wrap; word-wrap: break-word; }
+    code { background: #f1f5f9; padding: 2px 5px; border-radius: 4px; font-family: Consolas, monospace; font-size: 9.5pt; color: #0369a1; }
+    blockquote { border-left: 4px solid #0284c7; padding-left: 14px; color: #475569; font-style: italic; margin: 1em 0; }
+    table { width: 100%; border-collapse: collapse; margin: 1.2em 0; }
+    th, td { border: 1px solid #cbd5e1; padding: 8px 12px; text-align: left; }
+    th { background: #f8fafc; font-weight: 600; }
+    ul, ol { margin: 0.6em 0; padding-left: 24px; }
+    li { margin-bottom: 4px; }
+    .task-item { list-style: none; margin-left: -18px; }
+    .footer { margin-top: 40px; padding-top: 10px; border-top: 1px solid #e2e8f0; font-size: 8.5pt; color: #94a3b8; display: flex; justify-content: space-between; }
+  </style>
+</head>
+<body>
+  <h1>${cleanTitle}</h1>
+  ${htmlBody}
+  <div class="footer">
+    <span>Gerado por Orbitron • Sistema Operacional Pessoal</span>
+    <span>${new Date().toLocaleDateString('pt-BR')}</span>
+  </div>
+</body>
+</html>`;
+
+    const printWin = new BrowserWindow({
+      show: false,
+      webPreferences: { nodeIntegration: false, contextIsolation: true },
+    });
+
+    await printWin.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(fullHtml));
+    const pdfData = await printWin.webContents.printToPDF({
+      printBackground: true,
+      margins: { top: 0.6, bottom: 0.6, left: 0.6, right: 0.6 },
+    });
+    printWin.close();
+
+    fs.writeFileSync(filePath, pdfData);
+    return { success: true, filePath };
   });
 
 

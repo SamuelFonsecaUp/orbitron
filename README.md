@@ -1,4 +1,4 @@
-# 🪐 ORBIT
+# 🪐 ORBITRON
 
 <div align="center">
 
@@ -17,15 +17,15 @@
 
 ---
 
-## 🚀 Sobre o Orbit
+## 🚀 Sobre o Orbitron
 
-O **Orbit** é um aplicativo desktop completo de produtividade e gestão pessoal com estética espacial e funcionamento **100% Local-First**. Seus dados nunca são enviados a servidores de terceiros ou nuvens corporativas: tudo reside de forma criptografada e segura no seu próprio computador.
+O **Orbitron** é um aplicativo desktop completo de produtividade e gestão pessoal com estética espacial e funcionamento **100% Local-First**. Seus dados nunca são enviados a servidores de terceiros ou nuvens corporativas: tudo reside de forma criptografada e segura no seu próprio computador.
 
-Ao iniciar o aplicativo, o símbolo do **Orbit** é ativado em uma sequência de inicialização cósmica pelas 4 cores dos 4 pilares do sistema, e adapta sua cor dinamicamente conforme você navega pelos ambientes:
+Ao iniciar o aplicativo, o símbolo do **Orbitron** é ativado em uma sequência de inicialização cósmica pelas 4 cores dos 4 pilares do sistema, e adapta sua cor dinamicamente conforme você navega pelos ambientes:
 
 ---
 
-## 🌌 Os 4 Pilares do Orbit
+## 🌌 Os 4 Pilares do Orbitron
 
 ### 🟢 1. Finanças Estelares (Verde • `#10b981`)
 - **Gestão de Contas e Carteiras**: Corrente, poupança, investimentos e dinheiro.
@@ -117,5 +117,5 @@ O instalador NSIS e a versão portátil serão gerados na pasta `release/`.
 ---
 
 <div align="center">
-  <sub>Orbit • Desenvolvido para máxima privacidade e foco pessoal.</sub>
+  <sub>Orbitron • Desenvolvido para máxima privacidade e foco pessoal.</sub>
 </div>

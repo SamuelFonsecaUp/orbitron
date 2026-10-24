@@ -7,6 +7,7 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   HelpCircle,
+  FileDown,
 } from 'lucide-react';
 import { VaultIconRenderer } from './VaultIconRenderer';
 import { VaultIconPickerModal } from './VaultIconPickerModal';
@@ -20,6 +21,7 @@ interface VaultHeaderProps {
   onToggleSidebar?: () => void;
   onOpenHistory?: () => void;
   onExportPage?: () => void;
+  onExportPDF?: () => void;
   onOpenHelp?: () => void;
   onChangeIcon?: (newIcon: string) => void;
   onRename: (newTitle: string) => void;
@@ -35,6 +37,7 @@ export const VaultHeader: React.FC<VaultHeaderProps> = ({
   onToggleSidebar,
   onOpenHistory,
   onExportPage,
+  onExportPDF,
   onOpenHelp,
   onChangeIcon,
   onRename,
@@ -127,6 +130,18 @@ export const VaultHeader: React.FC<VaultHeaderProps> = ({
                 className="p-1.5 text-slate-400 hover:text-brand-300 hover:bg-slate-800/80 rounded-lg transition-colors"
               >
                 <Download className="w-3.5 h-3.5" />
+              </button>
+            )}
+
+            {onExportPDF && (
+              <button
+                type="button"
+                onClick={onExportPDF}
+                title="Exportar documento como PDF (.pdf)"
+                className="px-2 py-1 text-slate-300 hover:text-cyan-300 hover:bg-slate-800/80 rounded-lg transition-colors flex items-center gap-1 border border-slate-700/60"
+              >
+                <FileDown className="w-3.5 h-3.5 text-cyan-400" />
+                <span className="text-[10px] font-bold">PDF</span>
               </button>
             )}
 

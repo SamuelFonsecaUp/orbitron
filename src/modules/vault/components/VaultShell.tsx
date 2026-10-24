@@ -3,6 +3,7 @@ import { useVaultState } from '../state/useVaultState';
 import { getVaultRepository } from '../repository/ElectronVaultRepository';
 import { VaultSidebar } from './VaultSidebar';
 import { VaultHeader } from './VaultHeader';
+import { markdownToHtml } from '../domain/markdownToHtml';
 import { VaultBlockEditor } from '../editor/VaultBlockEditor';
 import { VaultEmptyState } from './VaultEmptyState';
 import { CommandPaletteModal } from './CommandPaletteModal';
@@ -77,6 +78,18 @@ export const VaultShell: React.FC = () => {
     }
   };
 
+  const handleExportPDF = async () => {
+    if (!activePage) return;
+    try {
+      if (window.electronAPI?.vaultExportPDF) {
+        const html = markdownToHtml(editorContent);
+        await window.electronAPI.vaultExportPDF(editorTitle, html);
+      }
+    } catch (e) {
+      console.error('Erro ao exportar PDF:', e);
+    }
+  };
+
   return (
     <div className="w-full h-full min-h-0 flex flex-1 overflow-hidden bg-[#0a0c10] select-text">
       {/* Sidebar with tree (collapsible for desktop focus) */}
@@ -118,6 +131,7 @@ export const VaultShell: React.FC = () => {
               onOpenHelp={() => setHelpOpen(true)}
               onChangeIcon={changePageIcon}
               onExportPage={handleExportPage}
+              onExportPDF={handleExportPDF}
               onRename={renameCurrentPage}
               onDelete={() => deletePage(activePage.relativePath)}
             />

@@ -322,7 +322,7 @@ export const Sidebar: React.FC = () => {
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="font-orbit text-base font-black text-white tracking-widest leading-none">
-                  ORBIT
+                  ORBITRON
                 </h1>
                 <span
                   className={`text-[9px] uppercase font-bold tracking-widest px-1.5 py-0.5 rounded-md border backdrop-blur-md transition-all duration-500 ${meta.badgeClass}`}

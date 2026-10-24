@@ -203,4 +203,5 @@ contextBridge.exposeInMainWorld('electronAPI', {
   vaultGetVaultRoot: () => ipcRenderer.invoke('vault:getVaultRoot'),
   vaultExportPage: (relPath, defaultName) => ipcRenderer.invoke('vault:exportPage', relPath, defaultName),
   vaultExportVaultZip: () => ipcRenderer.invoke('vault:exportVaultZip'),
+  vaultExportPDF: (title, htmlBody) => ipcRenderer.invoke('vault:exportPDF', title, htmlBody),
 });

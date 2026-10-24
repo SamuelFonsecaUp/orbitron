@@ -1,7 +1,7 @@
 {
-  "name": "orbit",
+  "name": "orbitron",
   "version": "1.2.0",
-  "description": "Orbit - Sistema Operacional Pessoal Espacial 100% Local-First",
+  "description": "Orbitron - Sistema Operacional Pessoal Espacial 100% Local-First",
   "main": "electron/main.cjs",
   "scripts": {
     "dev": "concurrently -k \"vite\" \"wait-on tcp:127.0.0.1:5173 && cross-env NODE_ENV=development electron electron/main.cjs\"",
@@ -13,8 +13,8 @@
     "release": "vite build && electron-builder --win nsis --publish always"
   },
   "build": {
-    "appId": "com.orbit.app",
-    "productName": "Orbit",
+    "appId": "com.orbitron.app",
+    "productName": "Orbitron",
     "npmRebuild": false,
     "directories": {
       "output": "release"
@@ -36,7 +36,7 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "Orbit - Sistema Pessoal"
+      "shortcutName": "Orbitron - Sistema Pessoal"
     },
     "publish": [
       {
@@ -89,5 +89,6 @@
     "vite": "^8.3.0",
     "vitest": "^5.0.0",
     "wait-on": "^9.1.0"
-  }
+  },
+  "productName": "Orbitron"
 }
