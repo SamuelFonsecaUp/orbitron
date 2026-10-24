@@ -41,6 +41,11 @@ export const Toolbar: React.FC<ToolbarProps> = ({ onExportImage }) => {
     setShapeMenuOpen(false);
   };
 
+  const setDragTool = (e: React.DragEvent, payload: object) => {
+    e.dataTransfer.setData('application/orbitron-tool', JSON.stringify(payload));
+    e.dataTransfer.effectAllowed = 'copy';
+  };
+
   const renderShapeIcon = () => {
     switch (toolShape) {
       case 'ellipse': return <Circle className="w-4 h-4" />;
@@ -53,7 +58,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({ onExportImage }) => {
   };
 
   return (
-    <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1.5 p-1.5 rounded-xl canvas-glass-panel">
+    <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1.5 p-1.5 rounded-2xl canvas-glass-panel">
       {/* Select */}
       <button
         onClick={() => handleToolSelect('select')}
@@ -67,29 +72,33 @@ export const Toolbar: React.FC<ToolbarProps> = ({ onExportImage }) => {
       <button
         onClick={() => handleToolSelect('hand')}
         className={`canvas-tool-btn ${activeTool === 'hand' ? 'active' : ''}`}
-        title="Mover tela (Espaço)"
+        title="Mover tela (Espaço ou H)"
       >
         <Hand className="w-4 h-4" />
       </button>
 
       <div className="w-[1px] h-5 bg-white/10 my-auto mx-0.5" />
 
-      {/* Sticky Note */}
+      {/* Sticky Note - Draggable & Clickable */}
       <button
+        draggable
+        onDragStart={(e) => setDragTool(e, { tool: 'sticky' })}
         onClick={() => handleToolSelect('sticky')}
-        className={`canvas-tool-btn ${activeTool === 'sticky' ? 'active' : ''}`}
-        title="Nota Adesiva (Sticky Note)"
+        className={`canvas-tool-btn cursor-grab active:cursor-grabbing ${activeTool === 'sticky' ? 'active' : ''}`}
+        title="Nota Adesiva (Arraste ou clique) [S]"
       >
         <StickyNote className="w-4 h-4" />
       </button>
 
-      {/* Shape dropdown */}
+      {/* Shape dropdown & Draggable */}
       <div className="relative">
         <div className="flex items-center">
           <button
+            draggable
+            onDragStart={(e) => setDragTool(e, { tool: 'shape', shape: toolShape })}
             onClick={() => handleToolSelect('shape')}
-            className={`canvas-tool-btn rounded-r-none ${activeTool === 'shape' ? 'active' : ''}`}
-            title="Forma geométrica"
+            className={`canvas-tool-btn rounded-r-none cursor-grab active:cursor-grabbing ${activeTool === 'shape' ? 'active' : ''}`}
+            title="Forma geométrica (Arraste ou clique)"
           >
             {renderShapeIcon()}
           </button>
@@ -102,28 +111,28 @@ export const Toolbar: React.FC<ToolbarProps> = ({ onExportImage }) => {
         </div>
 
         {shapeMenuOpen && (
-          <div className="absolute top-11 left-0 flex flex-col gap-1 p-1.5 rounded-lg canvas-glass-panel shadow-xl">
+          <div className="absolute top-11 left-0 flex flex-col gap-1 p-1.5 rounded-xl canvas-glass-panel shadow-2xl z-30">
             <button
               onClick={() => handleShapeSelect('rectangle')}
-              className="flex items-center gap-2 px-2.5 py-1.5 rounded text-xs text-slate-300 hover:bg-purple-600/20 hover:text-white"
+              className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs text-slate-300 hover:bg-purple-600/20 hover:text-white"
             >
               <Square className="w-3.5 h-3.5" /> Retângulo
             </button>
             <button
               onClick={() => handleShapeSelect('ellipse')}
-              className="flex items-center gap-2 px-2.5 py-1.5 rounded text-xs text-slate-300 hover:bg-purple-600/20 hover:text-white"
+              className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs text-slate-300 hover:bg-purple-600/20 hover:text-white"
             >
               <Circle className="w-3.5 h-3.5" /> Elipse
             </button>
             <button
               onClick={() => handleShapeSelect('diamond')}
-              className="flex items-center gap-2 px-2.5 py-1.5 rounded text-xs text-slate-300 hover:bg-purple-600/20 hover:text-white"
+              className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs text-slate-300 hover:bg-purple-600/20 hover:text-white"
             >
               <Diamond className="w-3.5 h-3.5" /> Losango
             </button>
             <button
               onClick={() => handleShapeSelect('triangle')}
-              className="flex items-center gap-2 px-2.5 py-1.5 rounded text-xs text-slate-300 hover:bg-purple-600/20 hover:text-white"
+              className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs text-slate-300 hover:bg-purple-600/20 hover:text-white"
             >
               <Triangle className="w-3.5 h-3.5" /> Triângulo
             </button>
@@ -131,11 +140,13 @@ export const Toolbar: React.FC<ToolbarProps> = ({ onExportImage }) => {
         )}
       </div>
 
-      {/* Text */}
+      {/* Text - Draggable & Clickable */}
       <button
+        draggable
+        onDragStart={(e) => setDragTool(e, { tool: 'text' })}
         onClick={() => handleToolSelect('text')}
-        className={`canvas-tool-btn ${activeTool === 'text' ? 'active' : ''}`}
-        title="Texto livre"
+        className={`canvas-tool-btn cursor-grab active:cursor-grabbing ${activeTool === 'text' ? 'active' : ''}`}
+        title="Texto livre (Arraste ou clique) [T]"
       >
         <Type className="w-4 h-4" />
       </button>
@@ -144,7 +155,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({ onExportImage }) => {
       <button
         onClick={() => handleToolSelect('connector')}
         className={`canvas-tool-btn ${activeTool === 'connector' ? 'active' : ''}`}
-        title="Conector / Seta"
+        title="Conector / Seta [C]"
       >
         <ArrowUpRight className="w-4 h-4" />
       </button>
@@ -153,16 +164,18 @@ export const Toolbar: React.FC<ToolbarProps> = ({ onExportImage }) => {
       <button
         onClick={() => handleToolSelect('pen')}
         className={`canvas-tool-btn ${activeTool === 'pen' ? 'active' : ''}`}
-        title="Desenho livre (Caneta)"
+        title="Desenho livre (Caneta) [P]"
       >
         <PenTool className="w-4 h-4" />
       </button>
 
-      {/* Frame / Group */}
+      {/* Frame / Group - Draggable & Clickable */}
       <button
+        draggable
+        onDragStart={(e) => setDragTool(e, { tool: 'frame' })}
         onClick={() => handleToolSelect('frame')}
-        className={`canvas-tool-btn ${activeTool === 'frame' ? 'active' : ''}`}
-        title="Quadro / Grupo (Frame)"
+        className={`canvas-tool-btn cursor-grab active:cursor-grabbing ${activeTool === 'frame' ? 'active' : ''}`}
+        title="Quadro / Grupo (Arraste ou clique)"
       >
         <LayoutGrid className="w-4 h-4" />
       </button>
@@ -196,7 +209,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({ onExportImage }) => {
           <button
             onClick={onExportImage}
             className="canvas-tool-btn"
-            title="Exportar imagem do quadro (PNG/SVG)"
+            title="Exportar imagem do quadro (PNG)"
           >
             <Download className="w-4 h-4" />
           </button>

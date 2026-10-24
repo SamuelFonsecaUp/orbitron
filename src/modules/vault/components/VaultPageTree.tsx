@@ -65,7 +65,8 @@ export const VaultPageTree: React.FC<VaultPageTreeProps> = ({
                 draggable
                 onDragStart={(e) => {
                   e.dataTransfer.setData('text/plain', item.relativePath);
-                  e.dataTransfer.effectAllowed = 'move';
+                  e.dataTransfer.setData('application/orbitron-note', JSON.stringify({ relativePath: item.relativePath, title: item.name }));
+              e.dataTransfer.effectAllowed = 'copyMove';
                 }}
                 onDragOver={(e) => {
                   e.preventDefault();
@@ -178,7 +179,8 @@ export const VaultPageTree: React.FC<VaultPageTreeProps> = ({
             draggable
             onDragStart={(e) => {
               e.dataTransfer.setData('text/plain', item.relativePath);
-              e.dataTransfer.effectAllowed = 'move';
+              e.dataTransfer.setData('application/orbitron-note', JSON.stringify({ relativePath: item.relativePath, title: item.name }));
+              e.dataTransfer.effectAllowed = 'copyMove';
             }}
             onClick={() => onSelectPage(item.relativePath)}
             style={{ paddingLeft: `${Math.max(10, depth * 16 + 10)}px` }}
