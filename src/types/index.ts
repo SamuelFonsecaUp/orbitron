@@ -1,3 +1,4 @@
+import type { VaultTreeItem, CreatePageOptions, RenamePageResult, WorkspaceConfig } from './vault';
 export type AccountType = 'checking' | 'savings' | 'cash' | 'wallet' | 'investment' | 'other';
 export type TransactionType = 'income' | 'expense' | 'transfer' | 'card_payment';
 export type TransactionStatus = 'pending' | 'completed' | 'cancelled' | 'paid';
@@ -329,53 +330,112 @@ export interface Settings {
   reserveCategoryIds?: string[] | null;
   reserveInitialAmount?: number;
   reserveAutoDetect?: boolean;
-  roomLayouts?: RoomLayouts | null;
+  roomLayouts?: unknown;
   avatarLook?: Record<string, string> | null;
 }
 
-// --- Assets do jogo enviados pelo usuário ---
-export interface GameAssetManifestEntry {
-  name?: string;
-  w?: number;
-  d?: number;
-  walkable?: boolean;
-  offsetX?: number;
-  offsetY?: number;
+
+// --- Módulo de Rastreamento de Hábitos (Loop/Atomic Habits) ---
+export type HabitCategory = 'saude' | 'mente' | 'produtividade' | 'financas' | 'rotina' | 'relacionamentos' | 'geral';
+export type HabitPeriod = 'morning' | 'afternoon' | 'evening' | 'anytime';
+export type HabitType = 'boolean' | 'measurable';
+export type HabitFrequencyType = 'daily' | 'days_of_week' | 'times_per_week';
+
+export interface HabitHistoryDay {
+  date: string;
+  completed: boolean;
+  value: number | null;
 }
 
-export interface GameAssets {
-  folder: string;
-  manifest: { mobis?: Record<string, GameAssetManifestEntry>; pigo?: { offsetX?: number; offsetY?: number } };
-  mobis: Record<string, string>;
-  floors: Record<string, string>;
-  walls: Record<string, string>;
-  pigo: string | null;
+export interface Habit {
+  id: string;
+  name: string;
+  description?: string | null;
+  category: HabitCategory;
+  color: string;
+  icon: string;
+  type: HabitType;
+  target_value: number;
+  target_unit?: string | null;
+  frequency_type: HabitFrequencyType;
+  frequency_days: number[];
+  frequency_times: number;
+  period_of_day: HabitPeriod;
+  archived: boolean;
+  position: number;
+  created_at: string;
+  updated_at: string;
+  completedToday?: boolean;
+  todayValue?: number | null;
+  currentStreak: number;
+  longestStreak: number;
+  strength: number; // 0-100%
+  recentHistory?: HabitHistoryDay[];
 }
 
-// --- Quartos isométricos ---
-export interface PlacedMobi {
-  uid: string;
-  mobiId: string;
-  gx: number;
-  gy: number;
-  rot: 0 | 1;
-  state?: number;
+export interface HabitLogEntry {
+  completed: boolean;
+  value?: number | null;
+  notes?: string | null;
 }
 
-export interface RoomLayout {
-  model?: string; // planta do quarto (ver ROOM_MODELS)
-  wallpaper: string;
-  floor: string;
-  items: PlacedMobi[];
-  width?: number;
-  depth?: number;
-  wallHeight?: 'baixa' | 'normal' | 'alta';
-  // Cores livres (quando wallpaper/floor = 'custom')
-  customWall?: [string, string];
-  customFloor?: [string, string];
+export interface HabitsOverview {
+  total: number;
+  completedToday: number;
+  percentToday: number;
+  bestStreak: number;
+  bestHabitName: string | null;
+  averageStrength: number;
 }
 
-export type RoomLayouts = Partial<Record<'finance' | 'life', RoomLayout>>;
+export interface HabitDayOfWeekStat {
+  dayIndex: number;
+  dayName: string;
+  shortName: string;
+  completed: number;
+  total: number;
+  rate: number;
+}
+
+export interface HabitPeriodStat {
+  period: 'morning' | 'afternoon' | 'evening' | 'anytime';
+  label: string;
+  count: number;
+  rate: number;
+}
+
+export interface HabitSynergyItem {
+  anchorHabitName: string;
+  boostedHabitName: string;
+  probability: number;
+  liftPercent: number;
+}
+
+export interface HabitInsightItem {
+  id: string;
+  type: 'risk' | 'pattern' | 'synergy' | 'achievement' | 'recommendation';
+  severity: 'warning' | 'info' | 'success' | 'tip';
+  title: string;
+  description: string;
+  actionableTip: string;
+  habitId?: string;
+  badge: string;
+}
+
+export interface HabitsIntelligenceOverview {
+  consistencyScore: number;
+  momentum: 'accelerating' | 'stable' | 'declining';
+  rate7Days: number;
+  rate30Days: number;
+  totalCheckInsMonth: number;
+  monthlyGrowthPercent: number;
+  bestDay: { name: string; rate: number } | null;
+  weakestDay: { name: string; rate: number } | null;
+  daysOfWeek: HabitDayOfWeekStat[];
+  periods: HabitPeriodStat[];
+  synergies: HabitSynergyItem[];
+  insights: HabitInsightItem[];
+}
 
 export interface DashboardData {
   totalBalance: number;
@@ -757,6 +817,17 @@ export interface ElectronAPI {
     amount: number;
   }) => Promise<{ success: boolean; transactionId: string }>;
 
+  
+  // Hábitos
+  getHabits: (includeArchived?: boolean) => Promise<Habit[]>;
+  createHabit: (data: any) => Promise<Habit>;
+  updateHabit: (id: string, data: any) => Promise<Habit>;
+  deleteHabit: (id: string) => Promise<boolean>;
+  toggleHabitDay: (habitId: string, date: string, value?: number | null, notes?: string | null) => Promise<{ completed: boolean; value: number | null }>;
+  getHabitHeatmap: (habitId: string, year?: number) => Promise<Record<string, HabitLogEntry>>;
+  getHabitsOverview: () => Promise<HabitsOverview>;
+  getHabitsIntelligence: () => Promise<HabitsIntelligenceOverview>;
+
   getTransactions: (filters?: Record<string, any>) => Promise<Transaction[]>;
   createTransaction: (data: any) => Promise<any>;
   updateTransaction: (id: string, data: any) => Promise<Transaction>;
@@ -866,6 +937,39 @@ export interface ElectronAPI {
 
   seedDemoData: () => Promise<boolean>;
   clearDemoData: () => Promise<boolean>;
+
+  // Tools Module
+  getNotes: () => Promise<any[]>;
+  createNote: (data: any) => Promise<any>;
+  updateNote: (id: string, data: any) => Promise<any>;
+  deleteNote: (id: string) => Promise<boolean>;
+
+  getMindmaps: () => Promise<any[]>;
+  createMindmap: (data: any) => Promise<any>;
+  updateMindmap: (id: string, data: any) => Promise<any>;
+  deleteMindmap: (id: string) => Promise<boolean>;
+
+  getVaultItems: () => Promise<any[]>;
+  createVaultItem: (data: any) => Promise<any>;
+  updateVaultItem: (id: string, data: any) => Promise<any>;
+  deleteVaultItem: (id: string) => Promise<boolean>;
+
+  // Local-first Markdown Vault
+  vaultInit: (customPath?: string) => Promise<{ vaultPath: string }>;
+  vaultGetEnvironments: () => Promise<any[]>;
+  vaultCreateEnvironment: (name: string, icon?: string) => Promise<any>;
+  vaultCreateFolder: (opts: any) => Promise<{ relativePath: string }>;
+  vaultDeleteFolder: (relPath: string) => Promise<{ success: boolean }>;
+  vaultSetFolderIcon: (folderRelPath: string, icon: string) => Promise<boolean>;
+  vaultGetTree: (envName?: string) => Promise<VaultTreeItem[]>;
+  vaultReadPage: (relPath: string) => Promise<{ path: string; relativePath: string; content: string; createdAt: number; updatedAt: number }>;
+  vaultWritePage: (relPath: string, content: string) => Promise<{ relativePath: string; updatedAt: number }>;
+  vaultCreatePage: (opts: CreatePageOptions) => Promise<{ relativePath: string; title: string }>;
+  vaultRenamePage: (oldPath: string, newTitle: string) => Promise<RenamePageResult>;
+  vaultDeletePage: (relPath: string) => Promise<{ success: boolean; message?: string }>;
+  vaultGetWorkspace: () => Promise<WorkspaceConfig>;
+  vaultSaveWorkspace: (cfg: WorkspaceConfig) => Promise<boolean>;
+  vaultExportPDF: (title: string, htmlBody: string) => Promise<{ success: boolean; filePath?: string; canceled?: boolean }>;
 }
 
 export interface CloudSession {
@@ -891,6 +995,7 @@ export interface GameAchievement {
   rarity: GameRarity;
   icon: string;
   metric: string;
+  category?: string;
   target: number;
   current: number;
   progress: number;
@@ -922,7 +1027,7 @@ export interface GameEvent {
   id: string;
   date: string;
   xp: number;
-  kind: 'import' | 'categorize' | 'month' | 'reserve' | 'budget' | 'invoice' | 'mission' | 'achievement';
+  kind: 'import' | 'categorize' | 'month' | 'reserve' | 'budget' | 'invoice' | 'mission' | 'achievement' | 'habit';
   title: string;
 }
 

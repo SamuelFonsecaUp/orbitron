@@ -1,9 +1,10 @@
-const { app, BrowserWindow, ipcMain, dialog, shell, safeStorage } = require('electron');
+const { app, BrowserWindow, Menu, ipcMain, dialog, shell, safeStorage } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { initDatabase, closeDatabase } = require('./database.cjs');
 const { getFinancialService } = require('./services.cjs');
 const { setTokenCipher } = require('./cloudAuth.cjs');
+const { getVaultService } = require('./vaultService.cjs');
 
 const BACKUP_CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000;
 const UPDATE_CHECK_INTERVAL_MS = 4 * 60 * 60 * 1000;
@@ -52,7 +53,9 @@ function createWindow() {
     height: 820,
     minWidth: 1060,
     minHeight: 680,
-    backgroundColor: '#090d16',
+    frame: false,
+    autoHideMenuBar: true,
+    backgroundColor: '#0c0c0e',
     title: 'Pigo - Finanças Pessoais',
     icon: fs.existsSync(iconPath) ? iconPath : undefined,
     webPreferences: {
@@ -64,23 +67,36 @@ function createWindow() {
     show: false, // Wait until ready-to-show to avoid white flicker
   });
 
+  Menu.setApplicationMenu(null);
+  mainWindow.setMenuBarVisibility(false);
+
   mainWindow.once('ready-to-show', () => {
     mainWindow.show();
   });
 
-  // Check if running in dev or production
-  const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged;
-  const devUrl = 'http://localhost:5173';
+  // Fallback para garantir visibilidade da janela caso ready-to-show atrase
+  setTimeout(() => {
+    if (mainWindow && !mainWindow.isDestroyed() && !mainWindow.isVisible()) {
+      mainWindow.show();
+    }
+  }, 2500);
 
-  if (isDev && process.env.VITE_DEV_SERVER_URL) {
-    mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL);
-  } else if (isDev) {
-    mainWindow.loadURL(devUrl).catch(() => {
-      // Fallback to built files if dev server not active
-      mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
+  // Check if running in dev or production
+  const isDev = process.env.NODE_ENV === 'development';
+  const devUrl = process.env.VITE_DEV_SERVER_URL || 'http://127.0.0.1:5173';
+  const distHtml = path.join(__dirname, '../dist/index.html');
+
+  if (isDev) {
+    mainWindow.loadURL(devUrl);
+    mainWindow.webContents.once('did-fail-load', () => {
+      if (fs.existsSync(distHtml)) {
+        mainWindow.loadFile(distHtml);
+      }
     });
+  } else if (fs.existsSync(distHtml)) {
+    mainWindow.loadFile(distHtml);
   } else {
-    mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
+    mainWindow.loadURL(devUrl);
   }
 }
 
@@ -405,26 +421,32 @@ app.whenReady().then(() => {
     return service.cloudFullPull();
   });
 
-  // Backup & Restore Dialogs
+  // Backup & Restore Dialogs (Orbit 100% Local-First)
   handleIpc('backup:export', async () => {
     const today = new Date().toISOString().slice(0, 10);
     const { canceled, filePath } = await dialog.showSaveDialog(mainWindow, {
-      title: 'Exportar Backup Completo - Meu Financeiro',
-      defaultPath: `meu_financeiro_backup_${today}.json`,
-      filters: [{ name: 'Arquivo de Backup JSON (*.json)', extensions: ['json'] }],
+      title: 'Exportar Backup Final - Orbit (100% Local-First)',
+      defaultPath: `orbit_backup_${today}.orbit`,
+      filters: [
+        { name: 'Arquivo Orbit (*.orbit, *.json)', extensions: ['orbit', 'json'] },
+        { name: 'Todos os Arquivos (*.*)', extensions: ['*'] },
+      ],
     });
 
     if (canceled || !filePath) return { success: false, canceled: true };
 
-    const backupJson = service.exportBackup();
+    const backupJson = service.exportOrbitBackup();
     fs.writeFileSync(filePath, backupJson, 'utf8');
     return { success: true, filePath };
   });
 
   handleIpc('backup:restore', async () => {
     const { canceled, filePaths } = await dialog.showOpenDialog(mainWindow, {
-      title: 'Restaurar Backup - Meu Financeiro',
-      filters: [{ name: 'Arquivo de Backup JSON (*.json)', extensions: ['json'] }],
+      title: 'Restaurar Backup Final - Orbit (100% Local-First)',
+      filters: [
+        { name: 'Arquivo Orbit (*.orbit, *.json)', extensions: ['orbit', 'json'] },
+        { name: 'Todos os Arquivos (*.*)', extensions: ['*'] },
+      ],
       properties: ['openFile'],
     });
 
@@ -432,7 +454,7 @@ app.whenReady().then(() => {
 
     const content = fs.readFileSync(filePaths[0], 'utf8');
     await service.createLocalBackup('pre-restore');
-    service.restoreBackup(content);
+    service.restoreOrbitBackup(content);
     return { success: true };
   });
 
@@ -454,6 +476,143 @@ app.whenReady().then(() => {
   // Demo Data
   handleIpc('demo:seed', () => service.seedDemoData());
   handleIpc('demo:clear', () => service.clearDemoData());
+
+  // Habits Module
+  handleIpc('habits:get', (includeArchived) => service.getHabits(includeArchived));
+  handleIpc('habits:create', (data) => service.createHabit(data));
+  handleIpc('habits:update', (id, data) => service.updateHabit(id, data));
+  handleIpc('habits:delete', (id) => service.deleteHabit(id));
+  handleIpc('habits:toggleDay', (habitId, date, value, notes) => service.toggleHabitDay(habitId, date, value, notes));
+  handleIpc('habits:getHeatmap', (habitId, year) => service.getHabitHeatmap(habitId, year));
+  handleIpc('habits:getOverview', () => service.getHabitsOverview());
+  handleIpc('habits:getIntelligence', () => service.getHabitsIntelligence());
+
+  // Tools Module: Notes, Mindmaps & Password Vault
+  handleIpc('tools:getNotes', () => service.getNotes());
+  handleIpc('tools:createNote', (data) => service.createNote(data));
+  handleIpc('tools:updateNote', (id, data) => service.updateNote(id, data));
+  handleIpc('tools:deleteNote', (id) => service.deleteNote(id));
+
+  handleIpc('tools:getMindmaps', () => service.getMindmaps());
+  handleIpc('tools:createMindmap', (data) => service.createMindmap(data));
+  handleIpc('tools:updateMindmap', (id, data) => service.updateMindmap(id, data));
+  handleIpc('tools:deleteMindmap', (id) => service.deleteMindmap(id));
+
+  handleIpc('tools:getVaultItems', () => service.getVaultItems());
+  handleIpc('tools:createVaultItem', (data) => service.createVaultItem(data));
+  handleIpc('tools:updateVaultItem', (id, data) => service.updateVaultItem(id, data));
+  handleIpc('tools:deleteVaultItem', (id) => service.deleteVaultItem(id));
+
+  // Local-first Markdown Vault
+  const vaultService = getVaultService();
+  vaultService.init();
+  handleIpc('vault:init', (customPath) => vaultService.init(customPath));
+  handleIpc('vault:getEnvironments', () => vaultService.getEnvironments());
+  handleIpc('vault:createEnvironment', (name, icon) => vaultService.createEnvironment(name, icon));
+  handleIpc('vault:createFolder', (opts) => vaultService.createFolder(opts));
+  handleIpc('vault:deleteFolder', (relPath) => vaultService.deleteFolder(relPath));
+  handleIpc('vault:setFolderIcon', (relPath, icon) => vaultService.setFolderIcon(relPath, icon));
+  handleIpc('vault:getTree', (envName) => vaultService.getTree(envName));
+  handleIpc('vault:readPage', (relPath) => vaultService.readPage(relPath));
+  handleIpc('vault:writePage', (relPath, content) => vaultService.writePage(relPath, content));
+  handleIpc('vault:createPage', (opts) => vaultService.createPage(opts));
+  handleIpc('vault:renamePage', (oldPath, newTitle) => vaultService.renamePage(oldPath, newTitle));
+  handleIpc('vault:deletePage', (relPath) => vaultService.deletePage(relPath));
+  handleIpc('vault:getWorkspace', () => vaultService.getWorkspace());
+  handleIpc('vault:saveWorkspace', (cfg) => vaultService.saveWorkspace(cfg));
+  handleIpc('vault:search', (query, limit) => vaultService.searchFts(query, limit));
+  handleIpc('vault:getBacklinks', (relPath, title) => vaultService.getBacklinks(relPath, title));
+  handleIpc('vault:rebuildIndex', () => vaultService.rebuildIndex());
+  handleIpc('vault:listTrash', () => vaultService.listTrash());
+  handleIpc('vault:restorePage', (trashFileName) => vaultService.restorePage(trashFileName));
+  handleIpc('vault:emptyTrash', () => vaultService.emptyTrash());
+  handleIpc('vault:listHistory', (relPath) => vaultService.listHistory(relPath));
+  handleIpc('vault:readHistoryContent', (relPath, timestamp) => vaultService.readHistoryContent(relPath, timestamp));
+  handleIpc('vault:restoreHistory', (relPath, timestamp) => vaultService.restoreHistory(relPath, timestamp));
+  handleIpc('vault:moveItem', (srcRel, targetFolder) => vaultService.moveItem(srcRel, targetFolder));
+  handleIpc('vault:getVaultRoot', () => vaultService.getVaultRoot());
+  handleIpc('vault:exportPage', async (relPath, defaultName) => {
+    const { canceled, filePath } = await dialog.showSaveDialog(mainWindow, {
+      title: 'Exportar Nota Markdown',
+      defaultPath: (defaultName || 'Nota') + '.md',
+      filters: [{ name: 'Markdown', extensions: ['md'] }],
+    });
+    if (canceled || !filePath) return { canceled: true };
+    return vaultService.exportPage(relPath, filePath);
+  });
+  handleIpc('vault:exportVaultZip', async () => {
+    const { canceled, filePath } = await dialog.showSaveDialog(mainWindow, {
+      title: 'Exportar Vault Completo (.ZIP)',
+      defaultPath: 'Orbitron_Vault_' + new Date().toISOString().slice(0, 10) + '.zip',
+      filters: [{ name: 'Arquivo ZIP', extensions: ['zip'] }],
+    });
+    if (canceled || !filePath) return { canceled: true };
+    return vaultService.exportVaultZip(filePath);
+  });
+
+  handleIpc('vault:exportPDF', async (title, htmlBody) => {
+    const cleanTitle = (title || 'Documento').replace(/[/\\?%*:|"<>]/g, '_');
+    const { canceled, filePath } = await dialog.showSaveDialog(mainWindow, {
+      title: 'Exportar Documento em PDF',
+      defaultPath: cleanTitle + '.pdf',
+      filters: [{ name: 'Documento PDF (*.pdf)', extensions: ['pdf'] }],
+    });
+    if (canceled || !filePath) return { canceled: true, success: false };
+
+    const fullHtml = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>${cleanTitle}</title>
+  <style>
+    @page { margin: 20mm; size: A4 portrait; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      font-size: 11pt; line-height: 1.6; color: #1e293b; background: #ffffff; padding: 0; margin: 0;
+    }
+    h1, h2, h3, h4 { color: #0f172a; font-weight: 700; margin-top: 1.5em; margin-bottom: 0.5em; page-break-after: avoid; }
+    h1 { font-size: 20pt; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px; margin-top: 0; }
+    h2 { font-size: 15pt; border-bottom: 1px solid #f1f5f9; padding-bottom: 4px; }
+    h3 { font-size: 12.5pt; }
+    p { margin: 0.6em 0; }
+    pre { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 12px; font-family: Consolas, monospace; font-size: 9pt; white-space: pre-wrap; word-wrap: break-word; }
+    code { background: #f1f5f9; padding: 2px 5px; border-radius: 4px; font-family: Consolas, monospace; font-size: 9.5pt; color: #0369a1; }
+    blockquote { border-left: 4px solid #0284c7; padding-left: 14px; color: #475569; font-style: italic; margin: 1em 0; }
+    table { width: 100%; border-collapse: collapse; margin: 1.2em 0; }
+    th, td { border: 1px solid #cbd5e1; padding: 8px 12px; text-align: left; }
+    th { background: #f8fafc; font-weight: 600; }
+    ul, ol { margin: 0.6em 0; padding-left: 24px; }
+    li { margin-bottom: 4px; }
+    .task-item { list-style: none; margin-left: -18px; }
+    .footer { margin-top: 40px; padding-top: 10px; border-top: 1px solid #e2e8f0; font-size: 8.5pt; color: #94a3b8; display: flex; justify-content: space-between; }
+  </style>
+</head>
+<body>
+  <h1>${cleanTitle}</h1>
+  ${htmlBody}
+  <div class="footer">
+    <span>Gerado por Orbitron • Sistema Operacional Pessoal</span>
+    <span>${new Date().toLocaleDateString('pt-BR')}</span>
+  </div>
+</body>
+</html>`;
+
+    const printWin = new BrowserWindow({
+      show: false,
+      webPreferences: { nodeIntegration: false, contextIsolation: true },
+    });
+
+    await printWin.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(fullHtml));
+    const pdfData = await printWin.webContents.printToPDF({
+      printBackground: true,
+      margins: { top: 0.6, bottom: 0.6, left: 0.6, right: 0.6 },
+    });
+    printWin.close();
+
+    fs.writeFileSync(filePath, pdfData);
+    return { success: true, filePath };
+  });
+
 
   createWindow();
   setupAutoUpdater();

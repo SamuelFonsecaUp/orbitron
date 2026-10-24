@@ -209,7 +209,7 @@ describe('Financial Rules and Core Logic', () => {
     const backupJson = service.exportBackup();
     expect(typeof backupJson).toBe('string');
     const parsed = JSON.parse(backupJson);
-    expect(parsed.appName).toBe('Meu Financeiro');
+    expect(parsed.appName).toBe('Orbit');
     expect(parsed.tables.accounts.length).toBeGreaterThan(0);
 
     // Now clear data and restore

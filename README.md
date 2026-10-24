@@ -1,270 +1,121 @@
+# 🪐 ORBITRON
+
 <div align="center">
-  <img src="public/assets/pigo-full.png" alt="Pigo - Finanças Pessoais" width="340" />
 
-  <p><strong>Gestão financeira inteligente, segura e com funcionamento Local-First.</strong></p>
-  <p>Controle absoluto das suas contas, faturas de cartão, investimentos e projeção futura, 100% no seu controle.</p>
+  ### **O Sistema Operacional Pessoal Espacial 100% Local-First**
+  
+  *Finanças Estelares • Hábitos Atômicos • Segundo Cérebro • Jornada Cósmica*
 
-  <p>
-    <a href="#-principais-funcionalidades">Funcionalidades</a> •
-    <a href="#-sincronização-local-first--nuvem-supabase">Sincronização na Nuvem</a> •
-    <a href="#-motor-de-inteligência-financeira">Inteligência Local</a> •
-    <a href="#-compartilhar-e-instalar-em-outro-pc">Instalação em Outro PC</a> •
-    <a href="#-desenvolvimento">Desenvolvimento</a>
-  </p>
+  [![Plataforma Windows](https://img.shields.io/badge/Plataforma-Windows%2010%2B-blue.svg?style=flat-square&logo=windows)](https://github.com/SamuelFonsecaUp/financiais)
+  [![Arquitetura 100% Local-First](https://img.shields.io/badge/Arquitetura-100%25%20Local--First-emerald.svg?style=flat-square&logo=sqlite)](https://github.com/SamuelFonsecaUp/financiais)
+  [![Fonte Espacial Orbitron](https://img.shields.io/badge/Design-Estética%20Espacial%20Orbitron-cyan.svg?style=flat-square)](https://github.com/SamuelFonsecaUp/financiais)
+  [![Electron 44.3](https://img.shields.io/badge/Electron-44.3-47848F.svg?style=flat-square&logo=electron)](https://github.com/SamuelFonsecaUp/financiais)
+  [![React 19.3](https://img.shields.io/badge/React-19.3-61DAFB.svg?style=flat-square&logo=react)](https://github.com/SamuelFonsecaUp/financiais)
+  [![SQLite WAL](https://img.shields.io/badge/Banco%20Local-SQLite%20(WAL)-003B57.svg?style=flat-square&logo=sqlite)](https://github.com/SamuelFonsecaUp/financiais)
 
-  <p>
-    <img src="https://img.shields.io/badge/Plataforma-Windows%2010%2B-blue.svg?style=flat-square&logo=windows" alt="Windows" />
-    <img src="https://img.shields.io/badge/Arquitetura-Local--First%20%2B%20Cloud-success.svg?style=flat-square&logo=sqlite" alt="Local First" />
-    <img src="https://img.shields.io/badge/Tema-Claro%20%26%20Escuro-amber.svg?style=flat-square" alt="Dark and Light Mode" />
-    <img src="https://img.shields.io/badge/Electron-44.3-47848F.svg?style=flat-square&logo=electron" alt="Electron" />
-    <img src="https://img.shields.io/badge/React-19.3-61DAFB.svg?style=flat-square&logo=react" alt="React" />
-    <img src="https://img.shields.io/badge/TypeScript-7.0-3178C6.svg?style=flat-square&logo=typescript" alt="TypeScript" />
-    <img src="https://img.shields.io/badge/Banco%20de%20Dados-SQLite%20(WAL)-003B57.svg?style=flat-square&logo=sqlite" alt="SQLite" />
-    <img src="https://img.shields.io/badge/Nuvem-Supabase%20Sync-3ECF8E.svg?style=flat-square&logo=supabase" alt="Supabase" />
-  </p>
 </div>
 
 ---
 
-## 💡 Sobre o Pigo
+## 🚀 Sobre o Orbitron
 
-O **Pigo** é uma solução desktop moderna de **gestão financeira pessoal** criada com os mais altos padrões de usabilidade, velocidade e privacidade.
+O **Orbitron** é um aplicativo desktop completo de produtividade e gestão pessoal com estética espacial e funcionamento **100% Local-First**. Seus dados nunca são enviados a servidores de terceiros ou nuvens corporativas: tudo reside de forma criptografada e segura no seu próprio computador.
 
-Diferente de sistemas web comuns que travam sem internet ou vendem seus dados, o Pigo adota o padrão **Local-First**:
-1. **Velocidade Instantânea**: Todas as operações (cadastros, conciliações, relatórios e buscas) rodam localmente com banco de dados de alto desempenho **SQLite (WAL)**. O app abre em milissegundos e funciona perfeitamente sem internet.
-2. **Sincronização em Nuvem (Supabase)**: Quando você se conecta, as informações sincronizam em segundo plano com seu banco na nuvem. Você pode usar o app em múltiplos computadores mantendo tudo idêntico e sincronizado.
-3. **Inteligência 100% Local**: Análise preditiva, detecção de gastos duplicados, sugestão de categorias e score de saúde financeira são processados na sua máquina, garantindo sua privacidade.
+Ao iniciar o aplicativo, o símbolo do **Orbitron** é ativado em uma sequência de inicialização cósmica pelas 4 cores dos 4 pilares do sistema, e adapta sua cor dinamicamente conforme você navega pelos ambientes:
 
 ---
 
-## 🌟 Principais Funcionalidades
+## 🌌 Os 4 Pilares do Orbitron
 
-### 🌓 Modo Claro & Modo Escuro (Light & Dark)
-- Alternância instantânea com um clique no cabeçalho (ícone de Sol / Lua).
-- Paleta **Dark Glassmorphic** sob medida para redução da fadiga visual e visual moderno.
-- Paleta **Light Clean** com contrastes nítidos e superfícies claras para ambientes bem iluminados.
+### 🟢 1. Finanças Estelares (Verde • `#10b981`)
+- **Gestão de Contas e Carteiras**: Corrente, poupança, investimentos e dinheiro.
+- **Cartões de Crédito & Faturas**: Fechamento, vencimento, limite e compras parceladas projetadas no futuro.
+- **Leitor Universal OFX & CSV**: Conciliação automática de extratos bancários brasileiros com regras inteligentes aprendidas localmente.
+- **Reserva de Emergência & Metas**: Cálculo dinâmico da cobertura em meses de custo de vida e cofrinhos virtuais.
+- **Inteligência Financeira 100% Offline**: Previsão de fluxo de caixa, detecção de gastos duplicados e categorização automática.
 
-### 🔁 Recorrências Aprendidas dos Extratos
-- **Sem cadastro manual**: o foco é importar OFX/CSV. O Pigo analisa o histórico e identifica sozinho despesas e receitas que se repetem (Netflix, condomínio, aluguel, salário...).
-- **Mais extratos, mais precisão**: os padrões aprendidos alimentam a previsão de saldo e o score de custos fixos automaticamente.
+### 🔵 2. Hábitos & Consistência (Azul • `#06b6d4`)
+- **Check-in Diário com Registro Retroativo**: Navegue por Hoje, Ontem, Anteontem ou selecione qualquer data anterior no calendário para registrar hábitos esquecidos.
+- **Mapas de Calor Anuais (365 Dias)**: Heatmap interativo estilo GitHub/Loop Habits onde cada quadradinho pode ser clicado para alternar status em tempo real.
+- **Motor de Inteligência de Hábitos Local**:
+  - *Score de Consistência (0 a 100%)* com detecção de momento (Aceleração, Estabilidade ou Queda).
+  - *Alerta de Quebra de Sequência (Streak Drop-off)* com regra dos 2 minutos.
+  - *Padrão Semanal*: Identifica seus dias de pico de foco e dias mais vulneráveis.
+  - *Efeito Dominó (Habit Stacking)*: Análise de probabilidade condicional entre hábitos sinérgicos.
 
-### 🛟 Reserva Financeira no Fechamento do Mês
-- Escolha as contas (poupança, CDB, caixinha) e/ou as categorias em que você lança aportes (ex.: "Investimentos") e informe o saldo que já existia fora do app.
-- Meta dinâmica em meses de custo de vida (3, 6, 9 ou 12), calculada pela média real dos seus gastos — sem contar os próprios aportes.
-- Mostra aporte do mês, média recente, cobertura em meses, previsão para completar e sugere quanto do superávit separar.
-- Fechamento navegável mês a mês, com comparação de cada categoria contra a sua média dos 3 meses anteriores.
+### 🟣 3. Segundo Cérebro & Vault (Roxo • `#a855f7`)
+- **Editor de Blocos com Comando `/` (Slash Commands)**: Menu flutuante completo com auto-scroll no teclado (setas para cima e para baixo), cabeçalhos, listas de tarefas, blocos de código e alertas visuais.
+- **Vault Local-First em Markdown**: Suas anotações são arquivos `.md` reais salvos na pasta local do seu computador, compatíveis com qualquer outro editor.
+- **Organização em Ambientes e Pastas**: Crie ambientes de trabalho (Pessoal, Trabalho, Estudos, Finanças) com pastas aninhadas e personalização de ícones.
+- **Mapas Mentais Interativos**: Visualização em nós e fluxos de pensamento.
+- **Cofre de Senhas Criptografado**: Armazenamento seguro de credenciais com criptografia local.
 
-### 🛋️ Quarto (estilo quarto isométrico com avatar)
-- **Avatar** em pixel art no estilo dos quartos isométricos: anda pelo quarto, **senta** (duplo clique em cadeiras/sofás) e fala em balões com as missões da semana. O **Pigo** vira o pet que passeia por ali.
-- **Provador**: pele, cabelos, roupas, cores e acessórios — peças especiais liberadas por **conquistas** e **níveis** (ex.: Colete do Tesoureiro, Coroa do Tesouro).
-- **12 plantas de quarto** (quadrado, L, T, U, palco, mezanino com escada, arena…) com **desníveis**, porta e janelas; plantas maiores liberam com o **nível**.
-- **Mobis** posicionados livremente (girar, mover, guardar), luminária e lareira que **acendem**, paredes e pisos do catálogo ou com cores livres.
-- **Pacote oficial de assets** em `src/game/pack/` (PNGs + `pack.json` com o que libera cada item) e **modo criador** para testar PNGs na hora — veja [docs/ASSETS.md](docs/ASSETS.md).
-- Alta resolução (tiles de 64×32), tela cheia e sincronização do quarto e do visual entre computadores. Arte original — nenhum asset de terceiros.
-
-### 🏰 Reino do Pigo (pixel art)
-Suas finanças viram uma vila em pixel art que reage aos dados reais:
-- **Casas** = contas (moedas no telhado pelo saldo; telhado escuro se negativo) • **Castelo e tesouro** = saldo total
-- **Muralhas** = reserva (cada camada é um mês de custo de vida coberto)
-- **Dragão** = faturas de cartão em aberto (vida = dívida; cresce e cospe fogo com uso alto do limite; correntes = parcelamentos)
-- **Armazém** = lançamentos sem categoria (caixas espalhadas) • **Goblins** = assinaturas detectadas • **Obras** = metas
-- **Caravana** = extrato importado na semana • **Clima** = saúde financeira e último mês fechado (festival quando no azul)
-- Clique em qualquer elemento para ver a analogia, os números reais e ir direto para a tela correspondente.
-
-### 🏆 Jornada (Gamificação)
-- **XP e níveis** com títulos (Porquinho Curioso → Lenda do Pigo), calculados a partir dos seus dados: extratos importados, lançamentos categorizados, meses no azul, aportes na reserva, orçamentos cumpridos e faturas em dia.
-- **Retroativo e igual em todos os PCs**: o XP é derivado dos dados que já sincronizam, então seu histórico pontua desde o primeiro extrato.
-- **3 missões semanais** geradas pela inteligência local a partir dos seus padrões (ex.: "Gaste até R$ 380 com Custos com a Casa").
-- **23 conquistas** com raridade (comum, rara, épica, lendária), sequências de semanas importando e de meses no azul, e comemoração ao subir de nível.
-
-### 🏦 Gestão de Contas Bancárias e Carteiras
-- Controle completo de contas correntes, poupança, carteiras digitais, investimentos e dinheiro vivo.
-- Transferências financeiras entre contas com atualização simultânea e validação de saldo.
-- Extrato individual e unificado com filtros por período e categoria.
-
-### 💳 Cartões de Crédito & Faturas
-- Múltiplos cartões com limite total, limite utilizado e limite disponível em tempo real.
-- Suporte a **Dia de Fechamento** e **Dia de Vencimento**.
-- Compras parceladas (2x até 72x) com distribuição e projeção mês a mês nas faturas futuras.
-- Pagamento de fatura integrado que baixa o valor diretamente da conta bancária de sua escolha.
-
-### 🧠 Conciliação Bancária & Importador OFX / CSV
-- Leitor universal de arquivos **OFX / QFX** e planilhas **CSV** de bancos brasileiros (Nubank, Inter, Itaú, Bradesco, Santander, Caixa, Banco do Brasil, C6, etc.).
-- **Detecção Inteligente de Duplicatas** via identificador bancário `FITID` e comparação de data/valor.
-- **Agrupamento Automático**: Reúne múltiplos lançamentos do mesmo estabelecimento para conferência rápida.
-- **Regras de Categorização com Aprendizado**: Ao categorizar um estabelecimento uma vez, as próximas importações aplicam a regra automaticamente.
-- **Cofre de Extratos**: Cópia original de todos os arquivos importados é preservada com segurança na pasta do aplicativo.
-
-### 🎯 Metas Financeiras (Cofrinhos Virtuais)
-- Defina objetivos com prazo e valor pretendido (Reserva de Emergência, Viagem, Troca de Carro, etc.).
-- Aportes rápidos com débito opcional da conta bancária.
-- Barra de progresso visual de percentual atingido e dias restantes.
-
-### 📊 Orçamentos por Categoria (Teto de Gastos)
-- Estipule metas mensais de despesa por categoria (Alimentação, Transporte, Lazer, etc.).
-- Alertas visuais e notificações antes de ultrapassar o limite estabelecido.
-
-### 📅 Calendário Financeiro & Projeção Diária
-- Visão mensal em formato de calendário com todos os vencimentos, recebimentos e faturas.
-- Visualização clara dos dias com maior concentração de contas a pagar.
-
-### 📈 Relatórios & Gráficos Interativos
-- Gráficos interativos em pizza e barras (Recharts) por categoria, evolução mensal e fluxo de caixa.
-- Exportação de dados para planilhas **CSV / Excel**.
-- Sistema de **Backup e Restauração em JSON** para portabilidade total.
+### 🟡 4. Jornada Cósmica & Gamificação (Amarelo • `#f59e0b`)
+- **Cenário do Sistema Solar em Tempo Real**: Fundo espacial animado com o Sol em chamas estelares e planetas (de Mercúrio a Netuno com anéis de Saturno) em translação orbital suave.
+- **Evolução por Níveis & XP**: Ganhe pontos de experiência completando check-ins, importando extratos e cumprindo metas financeiras.
+- **Missões Semanais & Conquistas**: Desafios gerados pela inteligência local com troféus de raridade (Comum, Rara, Épica e Lendária).
 
 ---
 
-## 🧠 Motor de Inteligência Financeira
+## 📦 Arquivo Final Orbit (`.orbit`) • 100% Local-First
 
-O Pigo possui um motor de inteligência financeira integrado que opera **100% offline**:
-
-1. **Score de Saúde Financeira (0 a 100)**: Analisa taxa de poupança, comprometimento de renda fixa, uso do limite de crédito e consistência de gastos.
-2. **Previsão de Saldo (Cashflow Forecast)**: Projeta seu saldo para os próximos 30, 60 e 90 dias com base nas receitas e despesas recorrentes aprendidas dos extratos importados.
-3. **Detecção de Anomalias**: Alerta sobre despesas com valor muito acima da média habitual em cada categoria.
-4. **Insights Contextuais**: Recomendações personalizadas sobre onde economizar e quando antecipar pagamentos.
-
----
-
-## ☁️ Sincronização Local-First + Nuvem (Supabase)
-
-O Pigo combina o melhor dos dois mundos: **independência local** e **sincronização na nuvem**.
-
-```
-  [ Computador A ]                        [ Computador B ]
-  SQLite Local (WAL)                     SQLite Local (WAL)
-          │                                      ▲
-          ▼                                      │
-     (Push Sync)                            (Pull Sync)
-          └───────────► [ Supabase Cloud ] ──────┘
-                        PostgreSQL + Auth
-```
-
-### Como Funciona:
-- Ao abrir o app pela primeira vez, o assistente de inicialização pergunta:
-  - **"Já tenho uma conta na Nuvem"**: Você informa seu e-mail e senha do Supabase e o Pigo restaura automaticamente todas as suas contas, faturas, transações, categorias e regras na nova máquina.
-  - **"Começar do Zero"**: Inicia uma base limpa para você configurar como desejar.
-- **Trabalho sem conexão**: Se a internet cair, você continua usando normalmente. Quando a conexão voltar, o motor sincroniza as alterações pendentes.
-- **Sincronização automática**: ao abrir, a cada 3 minutos, ao voltar o foco para a janela e ao fechar o app. Criações, edições e exclusões são rastreadas por triggers no SQLite.
-- **Sessão renovada sozinha**: o token do Supabase é renovado automaticamente; se a sessão expirar de vez, o selo da nuvem mostra **"Entrar novamente"** e nada do que você fez offline é perdido.
-- **Ressincronizar Tudo**: botão na janela da nuvem que confere todos os registros com o Supabase (útil ao configurar uma máquina nova).
-- **Configurações e extratos originais também sincronizam** (nome, tema, configuração da reserva e os arquivos OFX/CSV no Supabase Storage).
-- **Tokens protegidos**: o login fica cifrado com a proteção do Windows (DPAPI) e nunca é exposto à interface.
-
-### Configuração única no Supabase
-Rode uma vez o arquivo [`supabase/migrations/20261005_sync_melhorias.sql`](supabase/migrations/20261005_sync_melhorias.sql) no **SQL Editor** do painel do Supabase. Ele cria:
-- trigger que grava o **horário do servidor** em toda alteração (imune a relógios diferentes entre PCs);
-- tabela `user_settings` para sincronizar as configurações;
-- bucket privado `statements` para os arquivos originais dos extratos.
-
-Sem ele o app continua funcionando; a janela da nuvem avisa o que está desativado.
-
-### Projeto pausado (plano gratuito)
-O Supabase pausa projetos gratuitos após 7 dias sem uso. O workflow [`supabase-keepalive.yml`](.github/workflows/supabase-keepalive.yml) faz uma consulta leve a cada 3 dias para evitar isso, e o app mostra uma mensagem clara caso o projeto esteja pausado.
+O Orbit foi desenhado com o princípio da **Soberania Absoluta dos Dados**:
+- Não há dependência de logins remotos ou servidores em nuvem.
+- Em **Configurações ➔ Dados & Arquivo Final Orbit**, com apenas 1 clique você gera um arquivo universal:
+  ```
+  orbit_backup_YYYY-MM-DD.orbit
+  ```
+- **O que esse arquivo contém?**
+  - Todas as contas, faturas, lançamentos, regras e orçamentos financeiros.
+  - Todo o histórico de hábitos, sequências, métricas e check-ins passados.
+  - Todas as anotações do Segundo Cérebro, pastas, páginas em Markdown e mapas mentais.
+  - Todo o progresso da Jornada Cósmica (XP, nível atual, conquistas e missões).
+- **Como migrar de máquina?**
+  1. Instale o Orbit no novo computador.
+  2. Clique em **Restaurar Arquivo Orbit** e selecione seu arquivo `.orbit`.
+  3. Todo o seu universo pessoal reaparece perfeitamente configurado em milissegundos!
 
 ---
 
-## 💾 Backups e Atualizações
-- **Backup diário automático** do banco local (mantém os últimos 7) + cópia de segurança antes de qualquer restauração ou ressincronização. Opcionalmente copia para uma pasta extra (OneDrive, pendrive). Restauração com 1 clique em *Configurações*.
-- **Atualização automática**: a versão instalada pelo *Pigo Setup* baixa novas versões do GitHub Releases e avisa para reiniciar. Para publicar uma versão nova: aumente `version` no `package.json` e rode `npm run release` com a variável `GH_TOKEN` definida.
-- **Proteção de Integridade**: A sincronização gerencia chaves estrangeiras (`PRAGMA foreign_keys`) de forma segura, garantindo que nenhum dado seja corrompido durante restaurações em massa.
+## 🛠️ Instalação e Desenvolvimento
 
----
+### Pré-requisitos
+- [Node.js](https://nodejs.org/) versão 18+ ou superior.
+- Git instalado.
 
-## 📦 Compartilhar e Instalar em Outro PC
-
-Para instalar o Pigo no computador de outra pessoa ou em uma nova máquina sua:
-
-### 1. Arquivo que você deve enviar
-Envie o instalador gerado:
-```
-release/Meu Financeiro Setup 1.0.0.exe
-```
-*(Ou o executável descompactado em `release/win-unpacked/`)*
-
-### 2. Passo a Passo no Novo Computador
-1. Execute o instalador `Meu Financeiro Setup 1.0.0.exe`.
-2. Na tela de boas-vindas do **Pigo**, escolha:
-   - **"Já tenho uma conta na Nuvem"**
-3. Digite o **E-mail** e a **Senha** cadastrados na sua conta.
-4. Clique em **"Entrar e Sincronizar Tudo"**.
-5. O Pigo puxará instantaneamente todas as contas bancárias, cartões, extratos e transações existentes na nuvem.
-6. A partir desse momento, ambos os computadores sincronizarão automaticamente em tempo real!
-
----
-
-## 🛠️ Arquitetura do Código
-
-```text
-Pigo (Financeiro)
-├── electron/
-│   ├── main.cjs                # Ciclo de vida do Electron e handlers de IPC
-│   ├── preload.cjs             # ContextBridge com isolamento seguro
-│   ├── database.cjs            # SQLite com WAL, schema, índices e migrações
-│   ├── services.cjs            # Lógica central de negócio e conciliação bancária
-│   ├── syncEngine.cjs          # Motor de sincronização Local-First com Supabase
-│   ├── intelligenceEngine.cjs  # Motor de inteligência, previsões e anomalias
-│   ├── ofxParser.cjs           # Parser de extratos bancários OFX/QFX
-│   └── crypto.cjs              # Criptografia SHA-256 com Salt para PIN
-├── src/
-│   ├── assets/                 # Logomarcas do Pigo (ícone e versão completa)
-│   ├── components/             # Dropdowns CustomSelect, Modais, Sidebar, Navbar
-│   ├── context/                # FinancialContext com gerenciamento reativo e tema
-│   ├── types/                  # Tipagem estrita em TypeScript
-│   ├── utils/                  # Formatadores BRL, datas e cálculos
-│   └── views/                  # Telas do app (Dashboard, Lançamentos, Inteligência, etc.)
-└── release/                    # Instaladores compilados para Windows
-```
-
----
-
-## 🚀 Desenvolvimento
-
-### Requisitos:
-- **Node.js**: Versão 18 ou superior.
-- **NPM**: Versão 9 ou superior.
-- **Sistema Operacional**: Windows 10 ou 11 (64-bit).
-
-### Comandos:
-
-#### 1. Instalar dependências:
+### Clonar e Rodar Localmente
 ```bash
+# 1. Clone o repositório
+git clone https://github.com/SamuelFonsecaUp/financiais.git
+cd financiais
+
+# 2. Instale as dependências
 npm install
-```
 
-#### 2. Executar em modo de desenvolvimento (com Hot Reload):
-```bash
+# 3. Inicie o ambiente de desenvolvimento (Electron + Vite HMR)
 npm run dev
 ```
 
-#### 3. Executar os testes automatizados (Vitest):
+### Rodar os Testes Automatizados
 ```bash
 npm test
 ```
 
-#### 4. Gerar build de produção do frontend:
-```bash
-npm run build
-```
-
-#### 5. Empacotar o instalador executável para Windows:
+### Gerar o Executável para Windows (.exe)
 ```bash
 npm run dist
 ```
-O instalador final estará localizado na pasta:
-`release/Meu Financeiro Setup 1.0.0.exe`
+O instalador NSIS e a versão portátil serão gerados na pasta `release/`.
 
 ---
 
-## 🔒 Segurança e Privacidade
-
-- **Criptografia Local de PIN**: O PIN de acesso nunca é gravado em texto puro. Ele utiliza algoritmo **SHA-256** com *salt* criptográfico individual.
-- **Sem Rastreamento**: O Pigo não contém anúncios, telemetria invasiva ou bibliotecas de terceiros para monitoramento de comportamento.
-- **Controle dos Seus Dados**: Todos os seus dados financeiros pertencem exclusivamente a você.
+## 🛡️ Privacidade e Segurança
+- **Zero Telemetria**: O Orbit não rastreia suas ações nem envia logs para a internet.
+- **Criptografia Local**: Proteção opcional por PIN com hash PBKDF2 e salt criptográfico.
+- **Modo Privacidade Instantâneo**: Oculte valores financeiros na tela com 1 clique (ícone de olho).
 
 ---
 
 <div align="center">
-  <p><strong>Pigo — Finanças Pessoais</strong></p>
-  <p>Feito para quem valoriza privacidade, elegância e autonomia financeira.</p>
+  <sub>Orbitron • Desenvolvido para máxima privacidade e foco pessoal.</sub>
 </div>
