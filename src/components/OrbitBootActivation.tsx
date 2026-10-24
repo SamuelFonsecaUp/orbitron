@@ -7,12 +7,42 @@ interface OrbitBootActivationProps {
   forceShow?: boolean;
 }
 
-const PHASES: { module: AppModule | 'all'; label: string; colorClass: string }[] = [
-  { module: 'finance', label: 'Carregando Módulo Financeiro...', colorClass: 'text-emerald-400' },
-  { module: 'habits', label: 'Conectando Hábitos & Consistência...', colorClass: 'text-cyan-400' },
-  { module: 'tools', label: 'Acessando Segundo Cérebro & Vault...', colorClass: 'text-purple-400' },
-  { module: 'journey', label: 'Iniciando Jornada Cósmica...', colorClass: 'text-amber-400' },
-  { module: 'all', label: 'SISTEMA ORBITRON PRONTO • 100% LOCAL-FIRST', colorClass: 'text-white' },
+const PHASES: { module: AppModule | 'all'; title: string; label: string; colorClass: string; glow: string }[] = [
+  {
+    module: 'finance',
+    title: 'FINANÇAS ESTELARES',
+    label: 'Carregando contas, orçamentos e fluxo de caixa...',
+    colorClass: 'text-emerald-400',
+    glow: 'rgba(16, 185, 129, 0.25)',
+  },
+  {
+    module: 'habits',
+    title: 'HÁBITOS & CONSISTÊNCIA',
+    label: 'Calculando sequências diárias e inteligência...',
+    colorClass: 'text-cyan-400',
+    glow: 'rgba(6, 182, 212, 0.25)',
+  },
+  {
+    module: 'tools',
+    title: 'SEGUNDO CÉREBRO & VAULT',
+    label: 'Acessando notas, markdown e mapa mental local...',
+    colorClass: 'text-purple-400',
+    glow: 'rgba(168, 85, 247, 0.25)',
+  },
+  {
+    module: 'journey',
+    title: 'JORNADA CÓSMICA',
+    label: 'Sincronizando sistema solar e evolução...',
+    colorClass: 'text-amber-400',
+    glow: 'rgba(245, 158, 11, 0.25)',
+  },
+  {
+    module: 'all',
+    title: 'ORBITRON PRONTO',
+    label: 'Todos os 4 pilares carregados • 100% Local-First',
+    colorClass: 'text-white',
+    glow: 'rgba(255, 255, 255, 0.25)',
+  },
 ];
 
 export const OrbitBootActivation: React.FC<OrbitBootActivationProps> = ({ onComplete, forceShow = false }) => {
@@ -28,25 +58,22 @@ export const OrbitBootActivation: React.FC<OrbitBootActivationProps> = ({ onComp
 
     sessionStorage.setItem('orbit_boot_seen', 'true');
 
-    // Cycle through the 4 modules and then convergence
-    const intervals = [350, 350, 350, 350, 600];
-    let step = 0;
+    // Slower, graceful tempo: 1200ms per phase so the emergence completes and breathes
+    const timeouts: NodeJS.Timeout[] = [
+      setTimeout(() => setPhaseIndex(1), 1200), // 1.2s -> Habits (Cyan)
+      setTimeout(() => setPhaseIndex(2), 2400), // 2.4s -> Tools (Purple)
+      setTimeout(() => setPhaseIndex(3), 3600), // 3.6s -> Journey (Amber)
+      setTimeout(() => setPhaseIndex(4), 4800), // 4.8s -> Convergence (All 4)
+      setTimeout(() => setFadingOut(true), 5600), // 5.6s -> Smooth Fade Out
+      setTimeout(() => {
+        setVisible(false);
+        onComplete?.();
+      }, 6200), // 6.2s -> App Opens!
+    ];
 
-    const timer = setInterval(() => {
-      step++;
-      if (step < PHASES.length) {
-        setPhaseIndex(step);
-      } else {
-        clearInterval(timer);
-        setFadingOut(true);
-        setTimeout(() => {
-          setVisible(false);
-          onComplete?.();
-        }, 500);
-      }
-    }, intervals[step] || 400);
-
-    return () => clearInterval(timer);
+    return () => {
+      timeouts.forEach(clearTimeout);
+    };
   }, [visible, onComplete]);
 
   if (!visible) return null;
@@ -64,15 +91,18 @@ export const OrbitBootActivation: React.FC<OrbitBootActivationProps> = ({ onComp
   return (
     <div
       onClick={handleSkip}
-      className={`fixed inset-0 z-50 flex flex-col items-center justify-center bg-[#07090e] cursor-pointer transition-opacity duration-500 select-none ${
+      className={`fixed inset-0 z-50 flex flex-col items-center justify-center bg-[#07090e] cursor-pointer transition-opacity duration-600 ease-out select-none ${
         fadingOut ? 'opacity-0 pointer-events-none' : 'opacity-100'
       }`}
     >
-      {/* Background Deep Space Starfield & Celestial Nebula */}
+      {/* Background Deep Space Starfield & Ambient Nebula */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-gradient-to-tr from-cyan-600/15 via-purple-600/15 to-amber-500/15 rounded-full blur-3xl opacity-60 animate-pulse" />
-        
-        {/* Decorative Space Dust Particles */}
+        <div
+          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[650px] h-[650px] rounded-full blur-3xl transition-all duration-1000 opacity-60"
+          style={{ backgroundColor: currentPhase.glow }}
+        />
+
+        {/* Space Dust Stars */}
         <div className="absolute top-1/4 left-1/4 w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping opacity-60" />
         <div className="absolute top-1/3 right-1/4 w-1 h-1 rounded-full bg-cyan-400 opacity-80" />
         <div className="absolute bottom-1/3 left-1/3 w-1.5 h-1.5 rounded-full bg-purple-400 opacity-70" />
@@ -81,36 +111,42 @@ export const OrbitBootActivation: React.FC<OrbitBootActivationProps> = ({ onComp
 
       {/* Main Activation Card */}
       <div className="relative z-10 flex flex-col items-center text-center px-6 max-w-md space-y-6">
-        {/* Animated Símbolo Orbit */}
+        {/* Animated Símbolo Orbit (Emergence per color) */}
         <div className="relative flex items-center justify-center p-4">
-          <div className="absolute inset-0 rounded-full bg-cyan-500/10 blur-xl animate-ping opacity-25" />
+          <div
+            className="absolute inset-0 rounded-full blur-2xl transition-all duration-700 opacity-30"
+            style={{ backgroundColor: currentPhase.glow }}
+          />
           <OrbitLogo module={currentPhase.module} size={110} animated withGlow />
         </div>
 
-        {/* Space Font Brand Title */}
+        {/* Brand Title in Space Font */}
         <div className="space-y-1.5">
           <h1 className="font-orbit text-4xl sm:text-5xl font-black tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-white via-slate-200 to-slate-400 drop-shadow-[0_0_20px_rgba(255,255,255,0.3)]">
             ORBITRON
           </h1>
-          <p className="text-[11px] font-bold uppercase tracking-[0.25em] text-slate-400 font-orbit">
-            SISTEMA OPERACIONAL PESSOAL
+          <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-slate-400 font-orbit">
+            {currentPhase.title}
           </p>
         </div>
 
-        {/* 4 Spectrum Indicators (Verde, Azul, Roxo, Amarelo) */}
+        {/* 4 Spectrum Cumulative Indicators (Verde -> Azul -> Roxo -> Amarelo) */}
         <div className="flex items-center gap-2 pt-2">
           {[
-            { mod: 'finance', color: 'bg-emerald-400 shadow-emerald-500/50' },
-            { mod: 'habits', color: 'bg-cyan-400 shadow-cyan-500/50' },
-            { mod: 'tools', color: 'bg-purple-400 shadow-purple-500/50' },
-            { mod: 'journey', color: 'bg-amber-400 shadow-amber-500/50' },
-          ].map((item, idx) => {
-            const isActive = currentPhase.module === 'all' || currentPhase.module === item.mod;
+            { idx: 0, mod: 'finance', color: 'bg-emerald-400 shadow-emerald-500/50' },
+            { idx: 1, mod: 'habits', color: 'bg-cyan-400 shadow-cyan-500/50' },
+            { idx: 2, mod: 'tools', color: 'bg-purple-400 shadow-purple-500/50' },
+            { idx: 3, mod: 'journey', color: 'bg-amber-400 shadow-amber-500/50' },
+          ].map((item) => {
+            const isCompletedOrActive = phaseIndex >= item.idx || currentPhase.module === 'all';
+            const isCurrent = phaseIndex === item.idx;
             return (
               <div
                 key={item.mod}
-                className={`h-1.5 rounded-full transition-all duration-300 ${
-                  isActive ? `w-8 ${item.color} shadow-[0_0_10px]` : 'w-2 bg-slate-800'
+                className={`h-1.5 rounded-full transition-all duration-500 ${
+                  isCompletedOrActive
+                    ? `${isCurrent ? 'w-10' : 'w-7'} ${item.color} shadow-[0_0_12px]`
+                    : 'w-2 bg-slate-800'
                 }`}
               />
             );
@@ -118,13 +154,13 @@ export const OrbitBootActivation: React.FC<OrbitBootActivationProps> = ({ onComp
         </div>
 
         {/* Dynamic Status Text */}
-        <p className={`text-xs font-semibold tracking-wide transition-all duration-300 ${currentPhase.colorClass}`}>
+        <p className={`text-xs font-semibold tracking-wide transition-all duration-500 ${currentPhase.colorClass}`}>
           {currentPhase.label}
         </p>
 
         {/* Skip Hint */}
-        <span className="text-[10px] text-slate-500 hover:text-slate-400 transition pt-4">
-          Clique em qualquer lugar para entrar
+        <span className="text-[10px] text-slate-500 hover:text-slate-300 transition pt-3">
+          Clique em qualquer lugar para pular
         </span>
       </div>
     </div>
