@@ -293,14 +293,16 @@ class VaultService {
             icon: folderIcons[itemRelPath] || 'Folder',
             children: scanDir(itemFullPath, itemRelPath),
           });
-        } else if (item.isFile() && item.name.endsWith('.md')) {
+        } else if (item.isFile() && (item.name.endsWith('.md') || item.name.endsWith('.canvas'))) {
+          const isCanvas = item.name.endsWith('.canvas');
           const stats = fs.statSync(itemFullPath);
           result.push({
             id: itemRelPath,
-            name: item.name.replace(/\.md$/, ''),
+            name: item.name.replace(/\.(md|canvas)$/, ''),
             relativePath: itemRelPath,
             isDirectory: false,
-            icon: this.extractIconFast(itemFullPath),
+            isCanvas,
+            icon: isCanvas ? 'LayoutGrid' : this.extractIconFast(itemFullPath),
             updatedAt: stats.mtimeMs,
           });
         }
@@ -401,19 +403,20 @@ class VaultService {
     const cleanTitle = newTitle.trim();
     if (!cleanTitle) throw new Error('O título não pode ser vazio.');
 
+    const isCanvas = oldRelativePath.endsWith('.canvas');
     const safeFilename = cleanTitle.replace(/[\\/:*?"<>|]/g, '-');
     const parentDir = path.dirname(oldFullPath);
-    const newFileName = `${safeFilename}.md`;
+    const newFileName = isCanvas ? `${safeFilename}.canvas` : `${safeFilename}.md`;
     const newFullPath = path.join(parentDir, newFileName);
 
-    let content = fs.readFileSync(oldFullPath, 'utf8');
-
-    if (content.startsWith('---')) {
-      content = content.replace(/^title:.*$/m, `title: ${cleanTitle}`);
+    if (!isCanvas) {
+      let content = fs.readFileSync(oldFullPath, 'utf8');
+      if (content.startsWith('---')) {
+        content = content.replace(/^title:.*$/m, `title: ${cleanTitle}`);
+      }
+      content = content.replace(/^#\s+.*$/m, `# ${cleanTitle}`);
+      this.writeAtomic(oldFullPath, content);
     }
-    content = content.replace(/^#\s+.*$/m, `# ${cleanTitle}`);
-
-    this.writeAtomic(oldFullPath, content);
 
     let finalRelativePath = oldRelativePath;
     if (oldFullPath !== newFullPath) {
@@ -730,10 +733,19 @@ class VaultService {
         const fullPath = path.join(dir, entry.name);
         if (entry.isDirectory()) {
           walk(fullPath);
-        } else if (entry.isFile() && entry.name.endsWith('.md')) {
-          const relPath = path.relative(root, fullPath).replace(/\\/g, '/');
-          const content = fs.readFileSync(fullPath, 'utf8');
-          pages.push({ relPath, content });
+        } else if (entry.isFile()) {
+          const isDoc = entry.name.endsWith('.md') || entry.name.endsWith('.canvas');
+          const isAttachment = fullPath.includes(path.sep + 'anexos' + path.sep) || fullPath.includes('/anexos/');
+          if (isDoc || isAttachment) {
+            const relPath = path.relative(root, fullPath).replace(/\\/g, '/');
+            if (isDoc || entry.name.endsWith('.svg') || entry.name.endsWith('.txt')) {
+              const content = fs.readFileSync(fullPath, 'utf8');
+              pages.push({ relPath, content, encoding: 'utf8' });
+            } else {
+              const b64 = fs.readFileSync(fullPath).toString('base64');
+              pages.push({ relPath, content: b64, encoding: 'base64' });
+            }
+          }
         }
       }
     };
@@ -749,7 +761,8 @@ class VaultService {
     for (const p of vaultData.pages) {
       if (!p.relPath || typeof p.content !== 'string') continue;
       const fullPath = path.join(root, p.relPath);
-      this.writeAtomic(fullPath, p.content);
+      const data = p.encoding === 'base64' ? Buffer.from(p.content, 'base64') : p.content;
+      this.writeAtomic(fullPath, data);
     }
     if (vaultData.workspace) {
       this.saveWorkspace(vaultData.workspace);

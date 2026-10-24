@@ -12,6 +12,7 @@ import { VaultHistoryModal } from './VaultHistoryModal';
 import { VaultSettingsModal } from './VaultSettingsModal';
 import { VaultHelpModal } from './VaultHelpModal';
 import { VaultBacklinksPanel } from './VaultBacklinksPanel';
+import { CanvasPage } from '../../canvas/CanvasPage';
 
 export const VaultShell: React.FC = () => {
   const {
@@ -29,6 +30,7 @@ export const VaultShell: React.FC = () => {
     createFolder,
     deleteFolder,
     createPage,
+    createCanvas,
     renameCurrentPage,
     deletePage,
     changePageIcon,
@@ -103,6 +105,7 @@ export const VaultShell: React.FC = () => {
           activeRelativePath={activePage?.relativePath}
           onSelectPage={openPage}
           onCreatePage={(parent) => createPage(parent || activeEnvironment, 'Nova Nota')}
+          onCreateCanvas={(parent) => createCanvas(parent || activeEnvironment, 'Novo Quadro')}
           onCreateFolder={createFolder}
           onDeleteFolder={deleteFolder}
           onDeletePage={deletePage}
@@ -135,17 +138,23 @@ export const VaultShell: React.FC = () => {
               onRename={renameCurrentPage}
               onDelete={() => deletePage(activePage.relativePath)}
             />
-            <div className="flex-1 min-h-0 flex flex-col overflow-y-auto custom-scrollbar">
-              <VaultBlockEditor
-                content={editorContent}
-                onChange={handleContentChange}
-              />
-              <VaultBacklinksPanel
-                relativePath={activePage.relativePath}
-                title={editorTitle}
-                onOpenPage={openPage}
-              />
-            </div>
+            {activePage.relativePath.endsWith('.canvas') ? (
+              <div className="flex-1 min-h-0 relative">
+                <CanvasPage filePath={activePage.relativePath} />
+              </div>
+            ) : (
+              <div className="flex-1 min-h-0 flex flex-col overflow-y-auto custom-scrollbar">
+                <VaultBlockEditor
+                  content={editorContent}
+                  onChange={handleContentChange}
+                />
+                <VaultBacklinksPanel
+                  relativePath={activePage.relativePath}
+                  title={editorTitle}
+                  onOpenPage={openPage}
+                />
+              </div>
+            )}
           </>
         ) : (
           <VaultEmptyState onCreatePage={() => createPage(activeEnvironment, 'Nova Nota')} />

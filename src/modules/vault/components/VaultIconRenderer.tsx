@@ -29,6 +29,7 @@ import {
   PenTool,
   Coffee,
   Smile,
+  LayoutGrid,
   LucideIcon,
 } from 'lucide-react';
 
@@ -62,6 +63,7 @@ export const ICON_MAP: Record<string, LucideIcon> = {
   PenTool,
   Coffee,
   Smile,
+  LayoutGrid,
 };
 
 // Legacy emoji to Lucide fallback map

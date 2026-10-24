@@ -970,6 +970,7 @@ export interface ElectronAPI {
   vaultGetWorkspace: () => Promise<WorkspaceConfig>;
   vaultSaveWorkspace: (cfg: WorkspaceConfig) => Promise<boolean>;
   vaultExportPDF: (title: string, htmlBody: string) => Promise<{ success: boolean; filePath?: string; canceled?: boolean }>;
+  canvas: OrbitronCanvasApi;
 }
 
 export interface CloudSession {
@@ -1107,9 +1108,28 @@ export interface SyncResult {
   timestamp?: string;
 }
 
+export interface CanvasFileMeta {
+  name: string;
+  relativePath: string;
+  fullPath: string;
+  updatedAt: number;
+  size: number;
+}
+
+export interface OrbitronCanvasApi {
+  list(dir?: string): Promise<CanvasFileMeta[]>;
+  read(path: string): Promise<{ doc: any; hash: string }>;
+  write(path: string, doc: any): Promise<{ hash: string; written?: boolean }>;
+  rename(from: string, to: string): Promise<void>;
+  trash(path: string): Promise<void>;
+  exportImage(path: string, format: 'png' | 'svg', dataUrl: string): Promise<{ success: boolean; filePath?: string; canceled?: boolean }>;
+  watch(onChange: (path: string) => void): () => void;
+}
+
 declare global {
   interface Window {
     electronAPI: ElectronAPI;
+    orbitronCanvasApi?: OrbitronCanvasApi;
   }
 }
 

@@ -204,4 +204,33 @@ contextBridge.exposeInMainWorld('electronAPI', {
   vaultExportPage: (relPath, defaultName) => ipcRenderer.invoke('vault:exportPage', relPath, defaultName),
   vaultExportVaultZip: () => ipcRenderer.invoke('vault:exportVaultZip'),
   vaultExportPDF: (title, htmlBody) => ipcRenderer.invoke('vault:exportPDF', title, htmlBody),
+
+  // Canvas Module API (Infinite Whiteboard in Vault)
+  canvas: {
+    list: (dir) => ipcRenderer.invoke('canvas:list', dir),
+    read: (path) => ipcRenderer.invoke('canvas:read', path),
+    write: (path, doc) => ipcRenderer.invoke('canvas:write', path, doc),
+    rename: (from, to) => ipcRenderer.invoke('canvas:rename', from, to),
+    trash: (path) => ipcRenderer.invoke('canvas:trash', path),
+    exportImage: (path, format, dataUrl) => ipcRenderer.invoke('canvas:exportImage', path, format, dataUrl),
+    watch: (onChange) => {
+      const listener = (event, p) => onChange(p);
+      ipcRenderer.on('canvas:changed', listener);
+      return () => ipcRenderer.removeListener('canvas:changed', listener);
+    },
+  },
+});
+
+contextBridge.exposeInMainWorld('orbitronCanvasApi', {
+  list: (dir) => ipcRenderer.invoke('canvas:list', dir),
+  read: (path) => ipcRenderer.invoke('canvas:read', path),
+  write: (path, doc) => ipcRenderer.invoke('canvas:write', path, doc),
+  rename: (from, to) => ipcRenderer.invoke('canvas:rename', from, to),
+  trash: (path) => ipcRenderer.invoke('canvas:trash', path),
+  exportImage: (path, format, dataUrl) => ipcRenderer.invoke('canvas:exportImage', path, format, dataUrl),
+  watch: (onChange) => {
+    const listener = (event, p) => onChange(p);
+    ipcRenderer.on('canvas:changed', listener);
+    return () => ipcRenderer.removeListener('canvas:changed', listener);
+  },
 });

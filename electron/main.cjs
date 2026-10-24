@@ -613,6 +613,18 @@ app.whenReady().then(() => {
     return { success: true, filePath };
   });
 
+  // Canvas Module (Infinite Whiteboard in Vault)
+  const { getCanvasService } = require('./canvasService.cjs');
+  const { exportCanvasImage } = require('./canvasExport.cjs');
+  const canvasService = getCanvasService();
+
+  handleIpc('canvas:list', (dir) => canvasService.list(dir));
+  handleIpc('canvas:read', (p) => canvasService.read(p));
+  handleIpc('canvas:write', (p, doc) => canvasService.write(p, doc));
+  handleIpc('canvas:rename', (from, to) => canvasService.rename(from, to));
+  handleIpc('canvas:trash', (p) => canvasService.trash(p));
+  handleIpc('canvas:exportImage', (p, format, dataUrl) => exportCanvasImage(p, format, dataUrl, mainWindow));
+
 
   createWindow();
   setupAutoUpdater();

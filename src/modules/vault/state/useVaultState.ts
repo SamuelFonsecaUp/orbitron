@@ -6,7 +6,6 @@ import { useVaultSave } from './useVaultSave';
 
 export function useVaultState() {
   const repo = useRef(getVaultRepository()).current;
-
   const [environments, setEnvironments] = useState<VaultEnvironment[]>([]);
   const [activeEnvironment, setActiveEnvironment] = useState<string>('Pessoal');
   const [tree, setTree] = useState<VaultTreeItem[]>([]);
@@ -40,24 +39,20 @@ export function useVaultState() {
     try {
       setIsLoading(true);
       const file = await repo.readPage(relativePath);
-      const { frontmatter, body } = parseFrontmatter(file.content);
-      const title = extractPageTitle(body, frontmatter.title, relativePath);
-      const icon = frontmatter.icon || 'FileText';
+      const isCanvas = relativePath.endsWith('.canvas');
+      const parsed = isCanvas ? { frontmatter: {}, body: '' } : parseFrontmatter(file.content);
+      const title = isCanvas
+        ? relativePath.split('/').pop()?.replace('.canvas', '') || 'Quadro'
+        : extractPageTitle(parsed.body, parsed.frontmatter.title, relativePath);
+      const icon = isCanvas ? 'LayoutGrid' : (parsed.frontmatter.icon || 'FileText');
       const hash = computeContentHash(file.content);
 
       setActivePage({
-        path: file.path,
-        relativePath: file.relativePath,
-        title,
-        icon,
-        body,
-        rawContent: file.content,
-        frontmatter,
-        hash,
-        createdAt: file.createdAt,
-        updatedAt: file.updatedAt,
+        path: file.path, relativePath: file.relativePath, title, icon, body: parsed.body,
+        rawContent: file.content, frontmatter: parsed.frontmatter, hash,
+        createdAt: file.createdAt, updatedAt: file.updatedAt,
       });
-      setEditorContent(body);
+      setEditorContent(parsed.body);
       setEditorTitle(title);
       setEditorIcon(icon);
       setSaveStatus('saved');
@@ -84,14 +79,9 @@ export function useVaultState() {
       repo.saveWorkspace(next).catch(() => {});
       return next;
     });
-
-    const firstPage = items.find((i) => !i.isDirectory);
-    if (firstPage) {
-      await openPage(firstPage.relativePath);
-    } else {
-      setActivePage(null);
-      setEditorContent('');
-    }
+    const first = items.find((i) => !i.isDirectory);
+    if (first) await openPage(first.relativePath);
+    else { setActivePage(null); setEditorContent(''); }
   }, [flushSave, refreshTree, openPage, repo]);
 
   const createEnvironment = useCallback(async (name: string) => {
@@ -100,9 +90,7 @@ export function useVaultState() {
       const envs = await repo.getEnvironments();
       setEnvironments(envs);
       await selectEnvironment(created.name);
-    } catch (e) {
-      console.error(e);
-    }
+    } catch (e) { console.error(e); }
   }, [repo, selectEnvironment]);
 
   const createFolder = useCallback(async (parentDir?: string, folderName = 'Nova Pasta') => {
@@ -115,11 +103,25 @@ export function useVaultState() {
     await refreshTree();
   }, [repo, refreshTree]);
 
-  const createPage = useCallback(async (parentDir?: string, initialTitle = 'Sem título') => {
+  const createPage = useCallback(async (parentDir?: string, initialTitle = 'Nova Nota') => {
     await flushSave();
     const res = await repo.createPage({ parentRelativeDir: parentDir ?? activeEnvRef.current, title: initialTitle });
     await refreshTree();
     await openPage(res.relativePath);
+  }, [flushSave, refreshTree, openPage, repo]);
+
+  const createCanvas = useCallback(async (parentDir?: string, initialTitle = 'Novo Quadro') => {
+    await flushSave();
+    const env = parentDir ?? activeEnvRef.current;
+    const filename = `${initialTitle.trim() || 'Novo Quadro'}.canvas`;
+    const relativePath = env ? `${env}/${filename}` : filename;
+    try {
+      const api = (window as any).electronAPI?.canvas || (window as any).orbitronCanvasApi;
+      if (api?.write) await api.write(relativePath, { nodes: [], edges: [] });
+      else await repo.writePage(relativePath, JSON.stringify({ nodes: [], edges: [] }));
+      await refreshTree();
+      await openPage(relativePath);
+    } catch (e) { console.error(e); }
   }, [flushSave, refreshTree, openPage, repo]);
 
   const renameCurrentPage = useCallback(async (newTitle: string) => {
@@ -133,10 +135,7 @@ export function useVaultState() {
   }, [activePage, flushSave, refreshTree, repo]);
 
   const deletePage = useCallback(async (relativePath: string) => {
-    if (activePage?.relativePath === relativePath) {
-      setActivePage(null);
-      setEditorContent('');
-    }
+    if (activePage?.relativePath === relativePath) { setActivePage(null); setEditorContent(''); }
     await repo.deletePage(relativePath);
     const newTree = await refreshTree();
     if (newTree.length > 0 && !activePage) {
@@ -159,29 +158,27 @@ export function useVaultState() {
     setEditorIcon(newIcon);
     if (activePage) {
       activePage.icon = newIcon;
-      activePage.frontmatter.icon = newIcon;
       setTree((prev) => updateTreeIcon(prev, activePage.relativePath, newIcon));
+      scheduleSave();
     }
-    scheduleSave();
   }, [activePage, scheduleSave]);
 
-  const changeFolderIcon = useCallback(async (folderRelPath: string, newIcon: string) => {
-    setTree((prev) => updateTreeIcon(prev, folderRelPath, newIcon));
-    await repo.setFolderIcon(folderRelPath, newIcon);
+  const changeFolderIcon = useCallback(async (folderRelativePath: string, newIcon: string) => {
+    await repo.setFolderIcon(folderRelativePath, newIcon);
+    setTree((prev) => updateTreeIcon(prev, folderRelativePath, newIcon));
   }, [repo]);
 
-  const moveItem = useCallback(async (srcRel: string, targetFolderRel: string) => {
+  const moveItem = useCallback(async (sourceRelPath: string, targetDirRelPath: string) => {
     try {
-      await flushSave();
-      const res = await repo.moveItem(srcRel, targetFolderRel);
+      await repo.moveItem(sourceRelPath, targetDirRelPath);
       await refreshTree();
-      if (activePage?.relativePath === srcRel) {
-        await openPage(res.newRelativePath);
+      if (activePage?.relativePath === sourceRelPath) {
+        const fileName = sourceRelPath.split('/').pop()!;
+        const newRelPath = targetDirRelPath ? `${targetDirRelPath}/${fileName}` : fileName;
+        await openPage(newRelPath);
       }
-    } catch (e) {
-      console.error(e);
-    }
-  }, [activePage, flushSave, refreshTree, openPage, repo]);
+    } catch (e) { console.error(e); }
+  }, [activePage, refreshTree, openPage, repo]);
 
   useEffect(() => {
     let mounted = true;
@@ -192,11 +189,9 @@ export function useVaultState() {
         if (!mounted) return;
         setWorkspace(ws);
         setEnvironments(envs);
-
         const initialEnv = ws.activeEnvironment || (envs[0] ? envs[0].name : 'Pessoal');
         setActiveEnvironment(initialEnv);
         activeEnvRef.current = initialEnv;
-
         const items = await refreshTree(initialEnv);
         if (ws.lastOpenedPath) openPage(ws.lastOpenedPath);
         else if (items.length > 0) {
@@ -208,37 +203,14 @@ export function useVaultState() {
       }
     }
     boot();
-    return () => {
-      mounted = false;
-      flushSave();
-    };
+    return () => { mounted = false; flushSave(); };
   }, [repo, refreshTree, openPage, flushSave]);
 
   return {
-    environments,
-    activeEnvironment,
-    tree,
-    activePage,
-    editorContent,
-    editorTitle,
-    editorIcon,
-    workspace,
-    isLoading,
-    saveStatus,
-    openPage,
-    selectEnvironment,
-    createEnvironment,
-    createFolder,
-    deleteFolder,
-    createPage,
-    renameCurrentPage,
-    deletePage,
-    changePageIcon,
-    changeFolderIcon,
-    moveItem,
-    handleContentChange,
-    handleTitleChange,
-    flushSave,
-    refreshTree,
+    environments, activeEnvironment, tree, activePage, editorContent, editorTitle, editorIcon,
+    workspace, isLoading, saveStatus, openPage, selectEnvironment, createEnvironment,
+    createFolder, deleteFolder, createPage, createCanvas, renameCurrentPage, deletePage,
+    changePageIcon, changeFolderIcon, moveItem, handleContentChange, handleTitleChange,
+    flushSave, refreshTree,
   };
 }

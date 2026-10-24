@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Search, FolderPlus, Trash2, Settings, HelpCircle } from 'lucide-react';
+import { Plus, Search, FolderPlus, Trash2, Settings, HelpCircle, LayoutGrid } from 'lucide-react';
 import { VaultPageTree } from './VaultPageTree';
 import { VaultEnvironmentPicker } from './VaultEnvironmentPicker';
 import { VaultTreeItem, VaultEnvironment } from '../../../types/vault';
@@ -13,6 +13,7 @@ interface VaultSidebarProps {
   activeRelativePath?: string;
   onSelectPage: (relativePath: string) => void;
   onCreatePage: (parentDir?: string) => void;
+  onCreateCanvas?: (parentDir?: string) => void;
   onCreateFolder: (parentDir?: string, folderName?: string) => void;
   onDeleteFolder?: (folderRelativePath: string) => void;
   onDeletePage: (relativePath: string) => void;
@@ -34,6 +35,7 @@ export const VaultSidebar: React.FC<VaultSidebarProps> = ({
   activeRelativePath,
   onSelectPage,
   onCreatePage,
+  onCreateCanvas,
   onCreateFolder,
   onDeleteFolder,
   onDeletePage,
@@ -75,25 +77,36 @@ export const VaultSidebar: React.FC<VaultSidebarProps> = ({
         />
       </div>
 
-      {/* Action Buttons: + Nota & + Pasta */}
+      {/* Action Buttons: + Nota, + Pasta & + Quadro */}
       <div className="px-3 pt-3 pb-2 flex items-center gap-2">
         <button
           onClick={() => onCreatePage(activeEnvironment)}
-          className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-xs font-semibold text-white bg-brand-600 hover:bg-brand-500 rounded-xl shadow-sm transition-all active:scale-95"
+          className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-semibold text-white bg-brand-600 hover:bg-brand-500 rounded-xl shadow-sm transition-all active:scale-95"
           title="Nova página neste ambiente"
         >
           <Plus className="w-4 h-4" />
-          <span>Nova Nota</span>
+          <span>Nota</span>
         </button>
 
         <button
           onClick={() => setIsFolderInputOpen((prev) => !prev)}
-          className="flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium text-slate-300 bg-slate-800/80 hover:bg-slate-700/80 hover:text-white border border-slate-700/60 rounded-xl transition-all"
+          className="flex items-center justify-center gap-1 px-2.5 py-2 text-xs font-medium text-slate-300 bg-slate-800/80 hover:bg-slate-700/80 hover:text-white border border-slate-700/60 rounded-xl transition-all"
           title="Nova pasta na raiz do ambiente"
         >
           <FolderPlus className="w-4 h-4 text-amber-400/90" />
           <span>Pasta</span>
         </button>
+
+        {onCreateCanvas && (
+          <button
+            onClick={() => onCreateCanvas(activeEnvironment)}
+            className="flex items-center justify-center gap-1 px-2.5 py-2 text-xs font-medium text-purple-300 bg-purple-950/40 hover:bg-purple-900/50 hover:text-white border border-purple-500/30 rounded-xl transition-all"
+            title="Novo Quadro Branco Infinito (.canvas)"
+          >
+            <LayoutGrid className="w-4 h-4 text-purple-400" />
+            <span>Quadro</span>
+          </button>
+        )}
       </div>
 
       {/* Inline folder creation form */}
