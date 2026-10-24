@@ -19,8 +19,6 @@ import {
 } from '../types';
 import { isPrivacyModeEnabled, setPrivacyModeFlag } from '../utils/formatters';
 
-// Intervalo da sincronização automática em segundo plano
-const AUTO_SYNC_INTERVAL_MS = 3 * 60 * 1000;
 
 export type AppView =
   | 'dashboard'
@@ -438,8 +436,6 @@ export const FinancialProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         }
         await refreshAll();
         await refreshCloudSession();
-        // Background sync on startup: pulls what other computers changed
-        triggerSync({ silent: true });
       } catch (e: any) {
         console.error('Init error:', e);
       } finally {
@@ -453,19 +449,7 @@ export const FinancialProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     refreshAllRef.current = refreshAll;
   }, [refreshAll]);
 
-  // Keep computers in sync: periodic cycle, on window focus and when the network returns
-  useEffect(() => {
-    if (!cloudSession?.userId) return;
-    const runSilent = () => { triggerSync({ silent: true }); };
-    const interval = setInterval(runSilent, AUTO_SYNC_INTERVAL_MS);
-    window.addEventListener('focus', runSilent);
-    window.addEventListener('online', runSilent);
-    return () => {
-      clearInterval(interval);
-      window.removeEventListener('focus', runSilent);
-      window.removeEventListener('online', runSilent);
-    };
-  }, [cloudSession?.userId, triggerSync]);
+
 
   // Global Keyboard Shortcuts (Desktop Productivity)
   useEffect(() => {

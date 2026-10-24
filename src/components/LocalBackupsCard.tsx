@@ -84,7 +84,7 @@ export const LocalBackupsCard: React.FC = () => {
             Backups Automáticos Locais
           </h2>
           <p className="text-xs text-slate-400 mt-1 max-w-2xl">
-            Todo dia o Pigo guarda uma cópia completa do banco neste computador (mantém os últimos 7) e cria uma cópia extra antes de qualquer restauração ou ressincronização.
+            Todo dia o Orbitron cria uma cópia completa do banco neste computador (mantém os últimos 7) e cria uma cópia extra antes de qualquer restauração ou ressincronização.
           </p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
@@ -150,7 +150,7 @@ export const LocalBackupsCard: React.FC = () => {
       <ConfirmDialog
         isOpen={Boolean(restoreTarget)}
         title="Restaurar backup local?"
-        message={`Os dados atuais serão substituídos pela cópia de ${restoreTarget ? new Date(restoreTarget.createdAt).toLocaleString('pt-BR') : ''}. Antes disso o Pigo guarda um backup do estado atual, e o app será reiniciado. Se você usa a nuvem, alterações mais recentes feitas em outro computador voltarão na próxima sincronização.`}
+        message={`Os dados atuais serão substituídos pela cópia de ${restoreTarget ? new Date(restoreTarget.createdAt).toLocaleString('pt-BR') : ''}. Antes disso o Orbitron cria um backup do estado atual, e o app será reiniciado. `}
         confirmLabel="Restaurar e reiniciar"
         onConfirm={handleRestore}
         onClose={() => setRestoreTarget(null)}

@@ -82,8 +82,8 @@ const SLIDES: TourSlide[] = [
       },
       {
         icon: CheckCircle2,
-        title: '100% Local-First + Nuvem Opcional',
-        desc: 'Seus dados ficam salvos no seu computador com velocidade instantânea e sincronização segura.',
+        title: '100% Local-First & Soberano',
+        desc: 'Seus dados pertencem a você: salvos localmente com backup universal (.orbit) e zero rastreamento.',
       },
     ],
     actionLabel: 'Explorar Finanças',

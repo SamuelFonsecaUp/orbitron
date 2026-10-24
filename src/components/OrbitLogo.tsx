@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { AppModule } from '../context/FinancialContext';
 
 export interface OrbitLogoProps {
@@ -13,22 +13,22 @@ const MODULE_COLORS: Record<AppModule, { primary: string; secondary: string; glo
   finance: {
     primary: '#10b981', // Verde Esmeralda
     secondary: '#34d399',
-    glow: 'rgba(16, 185, 129, 0.45)',
+    glow: 'rgba(16, 185, 129, 0.55)',
   },
   habits: {
     primary: '#06b6d4', // Azul Ciano Cósmico
     secondary: '#38bdf8',
-    glow: 'rgba(6, 182, 212, 0.45)',
+    glow: 'rgba(6, 182, 212, 0.55)',
   },
   tools: {
     primary: '#a855f7', // Roxo Estelar
     secondary: '#c084fc',
-    glow: 'rgba(168, 85, 247, 0.45)',
+    glow: 'rgba(168, 85, 247, 0.55)',
   },
   journey: {
     primary: '#f59e0b', // Amarelo Solar
     secondary: '#fbbf24',
-    glow: 'rgba(245, 158, 11, 0.45)',
+    glow: 'rgba(245, 158, 11, 0.55)',
   },
 };
 
@@ -46,7 +46,19 @@ export const OrbitLogo: React.FC<OrbitLogoProps> = ({
   const secondary = colors ? colors.secondary : '#38bdf8';
   const glow = colors ? colors.glow : 'rgba(6, 182, 212, 0.5)';
 
-  const filterId = `orbitron-glow-${module}`;
+  const [isSwitching, setIsSwitching] = useState(false);
+  const prevModuleRef = useRef(module);
+
+  // Trigger orbital transition whenever ambient module changes
+  useEffect(() => {
+    if (prevModuleRef.current !== module) {
+      prevModuleRef.current = module;
+      setIsSwitching(true);
+      const timer = setTimeout(() => setIsSwitching(false), 700);
+      return () => clearTimeout(timer);
+    }
+  }, [module]);
+
   const gradAId = `orbitron-grad-a-${module}`;
   const gradBId = `orbitron-grad-b-${module}`;
   const coreGradId = `orbitron-grad-core-${module}`;
@@ -60,18 +72,14 @@ export const OrbitLogo: React.FC<OrbitLogoProps> = ({
       xmlns="http://www.w3.org/2000/svg"
       role="img"
       aria-label="Orbitron Logo"
-      className={`transition-all duration-500 shrink-0 select-none ${className}`}
+      className={`transition-all duration-500 shrink-0 select-none ${
+        isSwitching ? 'scale-110 drop-shadow-[0_0_18px_currentColor]' : ''
+      } ${className}`}
       style={{
-        filter: withGlow ? `drop-shadow(0 0 10px ${glow})` : undefined,
+        filter: withGlow ? `drop-shadow(0 0 ${isSwitching ? '16px' : '9px'} ${glow})` : undefined,
       }}
     >
       <defs>
-        {/* Glow Filter */}
-        <filter id={filterId} x="-20%" y="-20%" width="140%" height="140%">
-          <feGaussianBlur stdDeviation="6" result="blur" />
-          <feComposite in="SourceGraphic" in2="blur" operator="over" />
-        </filter>
-
         {/* Dynamic Gradients */}
         <linearGradient id={gradAId} x1="0%" y1="0%" x2="100%" y2="100%">
           <stop offset="0%" stopColor={isMulti ? '#10b981' : secondary} />
@@ -84,8 +92,8 @@ export const OrbitLogo: React.FC<OrbitLogoProps> = ({
         </linearGradient>
 
         <radialGradient id={coreGradId} cx="50%" cy="50%" r="50%">
-          <stop offset="0%" stopColor={isMulti ? '#ffffff' : '#ffffff'} stopOpacity="0.9" />
-          <stop offset="60%" stopColor={isMulti ? '#06b6d4' : secondary} />
+          <stop offset="0%" stopColor="#ffffff" stopOpacity="0.95" />
+          <stop offset="55%" stopColor={isMulti ? '#06b6d4' : secondary} />
           <stop offset="100%" stopColor={isMulti ? '#a855f7' : primary} />
         </radialGradient>
       </defs>
@@ -106,6 +114,47 @@ export const OrbitLogo: React.FC<OrbitLogoProps> = ({
             animation: core-enter 760ms cubic-bezier(.16,1,.3,1) 200ms both;
           }
         ` : ''}
+        ${isSwitching ? `
+          .orbitron-orbit-a {
+            animation: orbit-switch-a 650ms cubic-bezier(.16,1,.3,1) both !important;
+          }
+          .orbitron-orbit-b {
+            animation: orbit-switch-b 650ms cubic-bezier(.16,1,.3,1) both !important;
+          }
+          .orbitron-core {
+            animation: core-pulse 650ms cubic-bezier(.16,1,.3,1) both !important;
+          }
+        ` : ''}
+        @keyframes orbit-enter-a {
+          0% { transform: rotate(-135deg) scale(0.5); opacity: 0; }
+          60% { transform: rotate(15deg) scale(1.05); opacity: 0.9; }
+          100% { transform: rotate(0deg) scale(1); opacity: 1; }
+        }
+        @keyframes orbit-enter-b {
+          0% { transform: rotate(135deg) scale(0.5); opacity: 0; }
+          60% { transform: rotate(-15deg) scale(1.05); opacity: 0.9; }
+          100% { transform: rotate(0deg) scale(1); opacity: 1; }
+        }
+        @keyframes core-enter {
+          0% { transform: scale(0.2); opacity: 0; }
+          65% { transform: scale(1.18); opacity: 1; }
+          100% { transform: scale(1); opacity: 1; }
+        }
+        @keyframes orbit-switch-a {
+          0% { transform: rotate(0deg) scale(0.95); opacity: 0.85; }
+          50% { transform: rotate(180deg) scale(1.08); opacity: 1; }
+          100% { transform: rotate(360deg) scale(1); opacity: 0.85; }
+        }
+        @keyframes orbit-switch-b {
+          0% { transform: rotate(0deg) scale(0.95); opacity: 0.85; }
+          50% { transform: rotate(-180deg) scale(1.08); opacity: 1; }
+          100% { transform: rotate(-360deg) scale(1); opacity: 0.85; }
+        }
+        @keyframes core-pulse {
+          0% { transform: scale(0.92); opacity: 0.9; }
+          50% { transform: scale(1.15); opacity: 1; }
+          100% { transform: scale(1); opacity: 0.9; }
+        }
       `}</style>
 
       {/* Orbit Arc A: Upper/Right Arc with Satellite Node */}

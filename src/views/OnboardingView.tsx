@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {
   WalletCards,
   Cloud,
+  Upload,
   Sparkles,
   ArrowRight,
   ArrowLeft,
@@ -723,14 +724,23 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({ onComplete }) =>
           {mode === 'wizard' && wizardStep === 1 && (
             <button
               type="button"
-              onClick={() => {
-                setMode('cloud');
-                setErrorMsg('');
+              onClick={async () => {
+                try {
+                  const res = await window.electronAPI.restoreBackupDialog();
+                  if (res && res.success) {
+                    showToast('Backup restaurado com sucesso! Sistema pronto.', 'success');
+                    await refreshAll();
+                    localStorage.setItem(MANDATORY_ONBOARDING_KEY, '1');
+                    onFinish();
+                  }
+                } catch (e: any) {
+                  setErrorMsg(e.message || 'Erro ao restaurar backup.');
+                }
               }}
               className="px-3 py-1.5 rounded-xl bg-slate-950/80 hover:bg-slate-800 border border-slate-800 text-[11px] font-bold text-cyan-300 flex items-center gap-1.5 shrink-0 transition"
             >
-              <Cloud className="w-3.5 h-3.5" />
-              <span>Restaurar da Nuvem</span>
+              <Upload className="w-3.5 h-3.5" />
+              <span>Restaurar Backup (.orbit)</span>
             </button>
           )}
         </div>

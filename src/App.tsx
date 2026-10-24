@@ -7,7 +7,6 @@ import { PinLockModal } from './components/PinLockModal';
 import { NotificationDrawer } from './components/NotificationDrawer';
 import { TransactionModal } from './views/TransactionModal';
 import { ImportBankModal } from './views/ImportBankModal';
-import { CloudAuthModal } from './views/CloudAuthModal';
 import { UpdateBanner } from './components/AppUpdate';
 import { PlatformTourModal, hasSeenPlatformTour } from './components/PlatformTourModal';
 
@@ -40,8 +39,6 @@ export const App: React.FC = () => {
     isLoading,
     importModalOpen,
     setImportModalOpen,
-    cloudAuthModalOpen,
-    setCloudAuthModalOpen,
   } = useFinancial();
 
   const [tourOpen, setTourOpen] = useState(false);
@@ -129,13 +126,6 @@ export const App: React.FC = () => {
         isOpen={importModalOpen}
         onClose={() => setImportModalOpen(false)}
       />
-
-      {/* Cloud Supabase Sync & Auth Modal */}
-      <CloudAuthModal
-        isOpen={cloudAuthModalOpen}
-        onClose={() => setCloudAuthModalOpen(false)}
-      />
-
       {/* Left Sidebar */}
       <Sidebar />
 

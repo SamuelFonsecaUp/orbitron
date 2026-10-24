@@ -17,7 +17,6 @@ import {
 } from 'lucide-react';
 import { useFinancial, AppModule } from '../context/FinancialContext';
 import { useHabits } from '../context/HabitsContext';
-import { SyncStatusBadge } from './SyncStatusBadge';
 import { XpPill } from './GameWidgets';
 
 const MODULE_BADGE: Record<AppModule, { label: string; className: string }> = {
@@ -155,8 +154,6 @@ export const Navbar: React.FC = () => {
         )}
 
         <XpPill />
-
-        <SyncStatusBadge />
 
         {/* Privacy Mode (Olho Mágico) Toggle */}
         <button
