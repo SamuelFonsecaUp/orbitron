@@ -54,7 +54,7 @@ export const OrbitLogo: React.FC<OrbitLogoProps> = ({
     if (prevModuleRef.current !== module) {
       prevModuleRef.current = module;
       setIsSwitching(true);
-      const timer = setTimeout(() => setIsSwitching(false), 700);
+      const timer = setTimeout(() => setIsSwitching(false), 1350);
       return () => clearTimeout(timer);
     }
   }, [module]);
@@ -73,7 +73,7 @@ export const OrbitLogo: React.FC<OrbitLogoProps> = ({
       role="img"
       aria-label="Orbitron Logo"
       className={`transition-all duration-500 shrink-0 select-none ${
-        isSwitching ? 'scale-110 drop-shadow-[0_0_18px_currentColor]' : ''
+        isSwitching ? 'drop-shadow-[0_0_12px_currentColor]' : ''
       } ${className}`}
       style={{
         filter: withGlow ? `drop-shadow(0 0 ${isSwitching ? '16px' : '9px'} ${glow})` : undefined,
@@ -116,44 +116,39 @@ export const OrbitLogo: React.FC<OrbitLogoProps> = ({
         ` : ''}
         ${isSwitching ? `
           .orbitron-orbit-a {
-            animation: orbit-switch-a 650ms cubic-bezier(.16,1,.3,1) both !important;
+            animation: orbit-switch-a 1300ms cubic-bezier(.2,.8,.2,1) both !important;
           }
           .orbitron-orbit-b {
-            animation: orbit-switch-b 650ms cubic-bezier(.16,1,.3,1) both !important;
+            animation: orbit-switch-b 1300ms cubic-bezier(.2,.8,.2,1) both !important;
           }
           .orbitron-core {
-            animation: core-pulse 650ms cubic-bezier(.16,1,.3,1) both !important;
+            animation: core-pulse 1300ms cubic-bezier(.2,.8,.2,1) both !important;
           }
         ` : ''}
         @keyframes orbit-enter-a {
-          0% { transform: rotate(-135deg) scale(0.5); opacity: 0; }
-          60% { transform: rotate(15deg) scale(1.05); opacity: 0.9; }
-          100% { transform: rotate(0deg) scale(1); opacity: 1; }
+          0% { transform: rotate(-90deg); opacity: 0; }
+          100% { transform: rotate(0deg); opacity: 1; }
         }
         @keyframes orbit-enter-b {
-          0% { transform: rotate(135deg) scale(0.5); opacity: 0; }
-          60% { transform: rotate(-15deg) scale(1.05); opacity: 0.9; }
-          100% { transform: rotate(0deg) scale(1); opacity: 1; }
+          0% { transform: rotate(90deg); opacity: 0; }
+          100% { transform: rotate(0deg); opacity: 1; }
         }
         @keyframes core-enter {
-          0% { transform: scale(0.2); opacity: 0; }
-          65% { transform: scale(1.18); opacity: 1; }
-          100% { transform: scale(1); opacity: 1; }
+          0% { opacity: 0; }
+          100% { opacity: 1; }
         }
         @keyframes orbit-switch-a {
-          0% { transform: rotate(0deg) scale(0.95); opacity: 0.85; }
-          50% { transform: rotate(180deg) scale(1.08); opacity: 1; }
-          100% { transform: rotate(360deg) scale(1); opacity: 0.85; }
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
         }
         @keyframes orbit-switch-b {
-          0% { transform: rotate(0deg) scale(0.95); opacity: 0.85; }
-          50% { transform: rotate(-180deg) scale(1.08); opacity: 1; }
-          100% { transform: rotate(-360deg) scale(1); opacity: 0.85; }
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(-360deg); }
         }
         @keyframes core-pulse {
-          0% { transform: scale(0.92); opacity: 0.9; }
-          50% { transform: scale(1.15); opacity: 1; }
-          100% { transform: scale(1); opacity: 0.9; }
+          0% { opacity: 0.85; }
+          50% { opacity: 1; }
+          100% { opacity: 0.95; }
         }
       `}</style>
 

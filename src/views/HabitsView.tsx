@@ -401,11 +401,12 @@ export const HabitsView: React.FC = () => {
 
           {groupedByPeriod.map(({ period, meta, items }) => {
             const isSelectedToday = selectedDate === todayStr;
-            const doneInPeriod = items.filter((i) =>
-              isSelectedToday
-                ? i.completedToday
-                : Boolean(i.recentHistory?.find((h) => h.date === selectedDate)?.completed)
-            ).length;
+            const doneInPeriod = items.filter((i) => {
+              const hItem = i.recentHistory?.find((h) => h.date === selectedDate);
+              return hItem !== undefined
+                ? Boolean(hItem.completed)
+                : (isSelectedToday ? Boolean(i.completedToday) : false);
+            }).length;
             return (
               <div key={period} className="space-y-3">
                 <div className="flex items-center justify-between px-1">
@@ -428,9 +429,10 @@ export const HabitsView: React.FC = () => {
                     const habitColor = habit.color || '#38bdf8';
                     const catInfo = CATEGORY_NAMES[habit.category] || CATEGORY_NAMES.geral;
                     const isSelectedToday = selectedDate === todayStr;
-                    const done = isSelectedToday
-                      ? habit.completedToday
-                      : Boolean(habit.recentHistory?.find((h) => h.date === selectedDate)?.completed);
+                    const historyItem = habit.recentHistory?.find((h) => h.date === selectedDate);
+                    const done = historyItem !== undefined
+                      ? Boolean(historyItem.completed)
+                      : (isSelectedToday ? Boolean(habit.completedToday) : false);
 
                     return (
                       <div

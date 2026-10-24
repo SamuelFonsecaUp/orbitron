@@ -1,10 +1,10 @@
 import React from 'react';
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, RotateCcw } from 'lucide-react';
-import { useHabits } from '../context/HabitsContext';
+import { useHabits, getLocalTodayDate } from '../context/HabitsContext';
 
 export const HabitsDateNavigator: React.FC = () => {
   const { selectedDate, setSelectedDate } = useHabits();
-  const todayStr = new Date().toISOString().slice(0, 10);
+  const todayStr = getLocalTodayDate();
 
   const getShiftedDate = (baseStr: string, offsetDays: number): string => {
     const [y, m, d] = baseStr.split('-').map(Number);
