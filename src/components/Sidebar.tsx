@@ -28,12 +28,13 @@ import {
   Crown,
   FolderKanban,
   StickyNote,
+  BrainCircuit,
   Network,
   KeyRound,
 } from 'lucide-react';
 import { useFinancial, AppView, AppModule } from '../context/FinancialContext';
 import { useHabits } from '../context/HabitsContext';
-import pigoIcon from '../assets/pigo-icon.png';
+import { OrbitLogo } from './OrbitLogo';
 
 interface NavItem {
   id: AppView;
@@ -209,6 +210,11 @@ export const Sidebar: React.FC = () => {
           badge: overview?.bestStreak ? `${overview.bestStreak}d 🔥` : undefined,
         },
         {
+          id: 'habits_intelligence',
+          label: 'Insights IA & Análise',
+          icon: BrainCircuit,
+        },
+        {
           id: 'habits_manage',
           label: 'Meus Hábitos',
           icon: SlidersHorizontal,
@@ -312,21 +318,11 @@ export const Sidebar: React.FC = () => {
         {/* Brand Header */}
         <div className="p-4 border-b border-white/[0.06] flex items-center justify-between app-drag">
           <div className="flex items-center gap-3">
-            <div className="relative">
-              <img
-                src={pigoIcon}
-                alt="Pigo Logo"
-                className="w-9 h-9 rounded-xl shadow-lg object-contain shrink-0 ring-1 ring-white/20"
-              />
-              <span
-                className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full ring-2 ring-slate-950 transition-colors duration-500"
-                style={{ backgroundColor: activeModule === 'habits' ? '#22d3ee' : activeModule === 'journey' ? '#fbbf24' : activeModule === 'tools' ? '#e879f9' : '#34d399' }}
-              />
-            </div>
+            <OrbitLogo module={activeModule} size={36} animated withGlow />
             <div>
-              <div className="flex items-center gap-1.5">
-                <h1 className="text-base font-black text-white tracking-tight leading-none">
-                  PIGO
+              <div className="flex items-center gap-2">
+                <h1 className="font-orbit text-base font-black text-white tracking-widest leading-none">
+                  ORBIT
                 </h1>
                 <span
                   className={`text-[9px] uppercase font-bold tracking-widest px-1.5 py-0.5 rounded-md border backdrop-blur-md transition-all duration-500 ${meta.badgeClass}`}

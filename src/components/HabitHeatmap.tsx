@@ -9,9 +9,10 @@ interface HabitHeatmapProps {
 }
 
 export const HabitHeatmap: React.FC<HabitHeatmapProps> = ({ habit, year = new Date().getFullYear() }) => {
-  const { getHeatmap } = useHabits();
+  const { getHeatmap, toggleDay } = useHabits();
   const [logs, setLogs] = useState<Record<string, HabitLogEntry>>({});
   const [loading, setLoading] = useState(true);
+  const todayStr = useMemo(() => new Date().toISOString().slice(0, 10), []);
 
   useEffect(() => {
     let alive = true;
@@ -178,11 +179,36 @@ export const HabitHeatmap: React.FC<HabitHeatmapProps> = ({ habit, year = new Da
                       return <div key={dIdx} className="w-[10px] h-[10px] rounded-[2px] opacity-0" />;
                     }
 
+                    const isFuture = day.dateStr > todayStr;
                     return (
-                      <div
+                      <button
+                        type="button"
                         key={dIdx}
-                        title={day.dateStr ? `${day.dateStr}: ${day.completed ? 'Concluído' : 'Não realizado'}` : undefined}
-                        className="w-[10px] h-[10px] rounded-[2px] transition-colors"
+                        disabled={isFuture}
+                        onClick={async () => {
+                          if (!day.dateStr || isFuture) return;
+                          await toggleDay(habit.id, day.dateStr);
+                          setLogs((prev) => ({
+                            ...prev,
+                            [day.dateStr]: {
+                              completed: !prev[day.dateStr]?.completed,
+                            },
+                          }));
+                        }}
+                        title={
+                          day.dateStr
+                            ? `${day.dateStr}: ${
+                                day.completed
+                                  ? 'Concluído (clique para alternar)'
+                                  : isFuture
+                                  ? 'Data futura'
+                                  : 'Não realizado (clique para registrar)'
+                              }`
+                            : undefined
+                        }
+                        className={`w-[10px] h-[10px] rounded-[2px] transition-transform ${
+                          isFuture ? 'opacity-30 cursor-not-allowed' : 'hover:scale-125 cursor-pointer'
+                        }`}
                         style={{
                           backgroundColor: day.completed ? habitColor : 'rgba(30, 41, 59, 0.45)',
                           boxShadow: day.completed ? `0 0 6px ${habitColor}40` : undefined,

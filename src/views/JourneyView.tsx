@@ -18,6 +18,7 @@ import { useFinancial } from '../context/FinancialContext';
 import { AchievementIcon, RARITY_STYLE } from '../components/GameWidgets';
 import { formatDate } from '../utils/formatters';
 import { GameAchievement, GameEvent, GameMission } from '../types';
+import { SolarSystemBackground } from '../components/SolarSystemBackground';
 
 const KIND_LABEL: Record<GameEvent['kind'], string> = {
   import: 'Extratos',
@@ -145,8 +146,11 @@ export const JourneyView: React.FC = () => {
   );
 
   return (
-    <div className="h-full overflow-y-auto px-6 py-6">
-      <div className="max-w-6xl mx-auto space-y-6">
+    <div className="h-full overflow-y-auto px-6 py-6 relative">
+      {/* Cosmic Solar System Background */}
+      <SolarSystemBackground />
+
+      <div className="max-w-6xl mx-auto space-y-6 relative z-10">
         {/* Level Hero Card */}
         <div className="p-6 rounded-3xl bg-gradient-to-br from-amber-500/15 via-slate-900/90 to-slate-950 border border-amber-500/25 relative overflow-hidden shadow-xl">
           <div className="flex flex-col md:flex-row md:items-center gap-6">

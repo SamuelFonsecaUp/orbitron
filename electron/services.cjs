@@ -9,6 +9,7 @@ const { CloudSyncEngine } = require('./syncEngine.cjs');
 const { GamificationEngine } = require('./gamificationEngine.cjs');
 const { HabitsEngine } = require('./habitsEngine.cjs');
 const { ToolsEngine } = require('./toolsEngine.cjs');
+const { getVaultService } = require('./vaultService.cjs');
 
 // Helper to format ISO date to YYYY-MM
 function getMonthKey(dateStr) {
@@ -2940,132 +2941,148 @@ class FinancialService {
     };
   }
 
-  // --- BACKUP & RESTORE ---
-  exportBackup() {
-    const settings = this.db.prepare(`SELECT * FROM settings WHERE id = 'app_config'`).get();
-    const accounts = this.db.prepare(`SELECT * FROM accounts`).all();
-    const categories = this.db.prepare(`SELECT * FROM categories`).all();
-    const creditCards = this.db.prepare(`SELECT * FROM credit_cards`).all();
-    const transactions = this.db.prepare(`SELECT * FROM transactions`).all();
-    const goals = this.db.prepare(`SELECT * FROM goals`).all();
+  // --- ORBIT UNIFIED 100% LOCAL-FIRST BACKUP & RESTORE ---
+  exportOrbitBackup() {
+    const getAll = (table) => {
+      try {
+        return this.db.prepare(`SELECT * FROM ${table}`).all();
+      } catch (e) {
+        return [];
+      }
+    };
+
+    let vaultData = null;
+    try {
+      vaultData = getVaultService().exportAllPages();
+    } catch (e) {
+      console.warn('[OrbitBackup] Erro ao exportar páginas do vault:', e);
+    }
 
     const backupData = {
-      version: '1.0',
-      appName: 'Meu Financeiro',
+      orbitFormat: true,
+      version: '1.2.0',
+      appName: 'Orbit',
       exportedAt: new Date().toISOString(),
       tables: {
-        settings: settings ? [settings] : [],
-        accounts,
-        categories,
-        creditCards,
-        transactions,
-        goals,
+        settings: getAll('settings'),
+        accounts: getAll('accounts'),
+        categories: getAll('categories'),
+        creditCards: getAll('credit_cards'),
+        transactions: getAll('transactions'),
+        recurringRules: getAll('recurring_rules'),
+        categoryBudgets: getAll('category_budgets'),
+        goals: getAll('goals'),
+        importRules: getAll('import_rules'),
+        habits: getAll('habits'),
+        habitLogs: getAll('habit_logs'),
+        notes: getAll('notes'),
+        mindmaps: getAll('mindmaps'),
+        passwordVault: getAll('password_vault'),
+        gameWeeklyMissions: getAll('game_weekly_missions'),
+        gameSeen: getAll('game_seen'),
       },
+      vault: vaultData,
     };
 
     return JSON.stringify(backupData, null, 2);
   }
 
-  restoreBackup(jsonString) {
+  restoreOrbitBackup(jsonString) {
     let data;
     try {
       data = typeof jsonString === 'string' ? JSON.parse(jsonString) : jsonString;
     } catch (e) {
-      throw new Error('Arquivo de backup corrompido ou formato JSON inválido.');
+      throw new Error('Arquivo de backup Orbit corrompido ou formato JSON inválido.');
     }
 
     if (!data.tables) {
-      throw new Error('Formato de backup inválido: tabela de dados não encontrada.');
+      throw new Error('Formato de backup inválido: tabela de dados do Orbit não encontrada.');
     }
 
-    const { tables } = data;
+    const { tables, vault } = data;
+
     const runRestore = this.db.transaction(() => {
-      // Clear current data
-      this.db.prepare(`DELETE FROM transactions`).run();
-      this.db.prepare(`DELETE FROM recurring_rules`).run();
-      this.db.prepare(`DELETE FROM goals`).run();
-      this.db.prepare(`DELETE FROM credit_cards`).run();
-      this.db.prepare(`DELETE FROM accounts`).run();
-      this.db.prepare(`DELETE FROM categories`).run();
+      const clearTable = (t) => {
+        try { this.db.prepare(`DELETE FROM ${t}`).run(); } catch (e) {}
+      };
 
-      // Restore categories
-      if (tables.categories && tables.categories.length > 0) {
-        const stmt = this.db.prepare(`
-          INSERT INTO categories (id, name, type, color, icon, active, is_system, created_at)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        `);
-        for (const c of tables.categories) {
-          stmt.run(c.id, c.name, c.type, c.color, c.icon, c.active, c.is_system, c.created_at);
+      const tableOrder = [
+        'transactions', 'recurring_rules', 'goals', 'category_budgets',
+        'credit_cards', 'accounts', 'categories', 'import_rules',
+        'habit_logs', 'habits', 'notes', 'mindmaps', 'password_vault',
+        'game_weekly_missions', 'game_seen'
+      ];
+      for (const t of tableOrder) clearTable(t);
+
+      const restoreRows = (tableName, rows) => {
+        if (!Array.isArray(rows) || rows.length === 0) return;
+        const first = rows[0];
+        const cols = Object.keys(first);
+        const placeholders = cols.map(() => '?').join(', ');
+        const sql = `INSERT OR REPLACE INTO ${tableName} (${cols.join(', ')}) VALUES (${placeholders})`;
+        const stmt = this.db.prepare(sql);
+        for (const row of rows) {
+          const vals = cols.map((c) => row[c] ?? null);
+          stmt.run(...vals);
         }
-      }
+      };
 
-      // Restore accounts
-      if (tables.accounts && tables.accounts.length > 0) {
-        const stmt = this.db.prepare(`
-          INSERT INTO accounts (id, name, type, initial_balance, color, icon, active, is_demo, created_at, updated_at)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `);
-        for (const a of tables.accounts) {
-          stmt.run(a.id, a.name, a.type, a.initial_balance, a.color, a.icon, a.active, a.is_demo || 0, a.created_at, a.updated_at);
+      const tableMap = {
+        settings: 'settings',
+        categories: 'categories',
+        accounts: 'accounts',
+        creditCards: 'credit_cards',
+        credit_cards: 'credit_cards',
+        transactions: 'transactions',
+        recurringRules: 'recurring_rules',
+        recurring_rules: 'recurring_rules',
+        categoryBudgets: 'category_budgets',
+        category_budgets: 'category_budgets',
+        goals: 'goals',
+        importRules: 'import_rules',
+        import_rules: 'import_rules',
+        habits: 'habits',
+        habitLogs: 'habit_logs',
+        habit_logs: 'habit_logs',
+        notes: 'notes',
+        mindmaps: 'mindmaps',
+        passwordVault: 'password_vault',
+        password_vault: 'password_vault',
+        gameWeeklyMissions: 'game_weekly_missions',
+        game_weekly_missions: 'game_weekly_missions',
+        gameSeen: 'game_seen',
+        game_seen: 'game_seen',
+      };
+
+      for (const [k, rows] of Object.entries(tables)) {
+        const dbTable = tableMap[k] || k;
+        try {
+          restoreRows(dbTable, rows);
+        } catch (err) {
+          console.warn(`[OrbitRestore] Erro ao restaurar tabela ${dbTable}:`, err);
         }
-      }
-
-      // Restore credit cards
-      if (tables.creditCards && tables.creditCards.length > 0) {
-        const stmt = this.db.prepare(`
-          INSERT INTO credit_cards (id, name, credit_limit, closing_day, due_day, color, active, is_demo, created_at, updated_at)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `);
-        for (const cc of tables.creditCards) {
-          stmt.run(cc.id, cc.name, cc.credit_limit, cc.closing_day, cc.due_day, cc.color, cc.active, cc.is_demo || 0, cc.created_at, cc.updated_at);
-        }
-      }
-
-      // Restore transactions
-      if (tables.transactions && tables.transactions.length > 0) {
-        const stmt = this.db.prepare(`
-          INSERT INTO transactions (
-            id, account_id, destination_account_id, category_id, credit_card_id,
-            type, description, amount, transaction_date, invoice_month,
-            status, notes, recurring_id, installment_id, installment_number, total_installments,
-            is_demo, created_at, updated_at
-          )
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `);
-        for (const t of tables.transactions) {
-          stmt.run(
-            t.id, t.account_id, t.destination_account_id, t.category_id, t.credit_card_id,
-            t.type, t.description, t.amount, t.transaction_date, t.invoice_month,
-            t.status, t.notes, t.recurring_id, t.installment_id, t.installment_number, t.total_installments,
-            t.is_demo || 0, t.created_at, t.updated_at
-          );
-        }
-      }
-
-      // Restore goals
-      if (tables.goals && tables.goals.length > 0) {
-        const stmt = this.db.prepare(`
-          INSERT INTO goals (id, name, target_amount, current_amount, target_date, color, icon, notes, is_demo, created_at, updated_at)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `);
-        for (const g of tables.goals) {
-          stmt.run(g.id, g.name, g.target_amount, g.current_amount, g.target_date, g.color, g.icon, g.notes, g.is_demo || 0, g.created_at, g.updated_at);
-        }
-      }
-
-      // Restore settings (optional)
-      if (tables.settings && tables.settings.length > 0) {
-        const s = tables.settings[0];
-        this.db.prepare(`
-          UPDATE settings
-          SET user_name = ?, currency = ?, theme = ?, onboarding_completed = 1, updated_at = ?
-          WHERE id = 'app_config'
-        `).run(s.user_name || 'Usuário', s.currency || 'BRL', s.theme || 'dark', new Date().toISOString());
       }
     });
 
     runRestore();
-    return true;
+
+    if (vault) {
+      try {
+        getVaultService().importAllPages(vault);
+      } catch (err) {
+        console.warn('[OrbitRestore] Erro ao restaurar páginas do vault:', err);
+      }
+    }
+
+    return { success: true };
+  }
+
+  exportBackup() {
+    return this.exportOrbitBackup();
+  }
+
+  restoreBackup(jsonString) {
+    return this.restoreOrbitBackup(jsonString);
   }
 
   // --- CSV EXPORT ---
@@ -3497,6 +3514,10 @@ class FinancialService {
 
   getHabitsOverview() {
     return this.habits.getHabitsOverview();
+  }
+
+  getHabitsIntelligence() {
+    return this.habits.getIntelligence();
   }
 
   // Tools Module (Notes, Mindmaps, Password Vault)

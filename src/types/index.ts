@@ -1,3 +1,4 @@
+import type { VaultTreeItem, CreatePageOptions, RenamePageResult, WorkspaceConfig } from './vault';
 export type AccountType = 'checking' | 'savings' | 'cash' | 'wallet' | 'investment' | 'other';
 export type TransactionType = 'income' | 'expense' | 'transfer' | 'card_payment';
 export type TransactionStatus = 'pending' | 'completed' | 'cancelled' | 'paid';
@@ -385,6 +386,55 @@ export interface HabitsOverview {
   bestStreak: number;
   bestHabitName: string | null;
   averageStrength: number;
+}
+
+export interface HabitDayOfWeekStat {
+  dayIndex: number;
+  dayName: string;
+  shortName: string;
+  completed: number;
+  total: number;
+  rate: number;
+}
+
+export interface HabitPeriodStat {
+  period: 'morning' | 'afternoon' | 'evening' | 'anytime';
+  label: string;
+  count: number;
+  rate: number;
+}
+
+export interface HabitSynergyItem {
+  anchorHabitName: string;
+  boostedHabitName: string;
+  probability: number;
+  liftPercent: number;
+}
+
+export interface HabitInsightItem {
+  id: string;
+  type: 'risk' | 'pattern' | 'synergy' | 'achievement' | 'recommendation';
+  severity: 'warning' | 'info' | 'success' | 'tip';
+  title: string;
+  description: string;
+  actionableTip: string;
+  habitId?: string;
+  badge: string;
+}
+
+export interface HabitsIntelligenceOverview {
+  consistencyScore: number;
+  momentum: 'accelerating' | 'stable' | 'declining';
+  rate7Days: number;
+  rate30Days: number;
+  totalCheckInsMonth: number;
+  monthlyGrowthPercent: number;
+  bestDay: { name: string; rate: number } | null;
+  weakestDay: { name: string; rate: number } | null;
+  daysOfWeek: HabitDayOfWeekStat[];
+  periods: HabitPeriodStat[];
+  synergies: HabitSynergyItem[];
+  insights: HabitInsightItem[];
 }
 
 export interface DashboardData {
@@ -776,6 +826,7 @@ export interface ElectronAPI {
   toggleHabitDay: (habitId: string, date: string, value?: number | null, notes?: string | null) => Promise<{ completed: boolean; value: number | null }>;
   getHabitHeatmap: (habitId: string, year?: number) => Promise<Record<string, HabitLogEntry>>;
   getHabitsOverview: () => Promise<HabitsOverview>;
+  getHabitsIntelligence: () => Promise<HabitsIntelligenceOverview>;
 
   getTransactions: (filters?: Record<string, any>) => Promise<Transaction[]>;
   createTransaction: (data: any) => Promise<any>;
@@ -902,6 +953,22 @@ export interface ElectronAPI {
   createVaultItem: (data: any) => Promise<any>;
   updateVaultItem: (id: string, data: any) => Promise<any>;
   deleteVaultItem: (id: string) => Promise<boolean>;
+
+  // Local-first Markdown Vault
+  vaultInit: (customPath?: string) => Promise<{ vaultPath: string }>;
+  vaultGetEnvironments: () => Promise<any[]>;
+  vaultCreateEnvironment: (name: string, icon?: string) => Promise<any>;
+  vaultCreateFolder: (opts: any) => Promise<{ relativePath: string }>;
+  vaultDeleteFolder: (relPath: string) => Promise<{ success: boolean }>;
+  vaultSetFolderIcon: (folderRelPath: string, icon: string) => Promise<boolean>;
+  vaultGetTree: (envName?: string) => Promise<VaultTreeItem[]>;
+  vaultReadPage: (relPath: string) => Promise<{ path: string; relativePath: string; content: string; createdAt: number; updatedAt: number }>;
+  vaultWritePage: (relPath: string, content: string) => Promise<{ relativePath: string; updatedAt: number }>;
+  vaultCreatePage: (opts: CreatePageOptions) => Promise<{ relativePath: string; title: string }>;
+  vaultRenamePage: (oldPath: string, newTitle: string) => Promise<RenamePageResult>;
+  vaultDeletePage: (relPath: string) => Promise<{ success: boolean; message?: string }>;
+  vaultGetWorkspace: () => Promise<WorkspaceConfig>;
+  vaultSaveWorkspace: (cfg: WorkspaceConfig) => Promise<boolean>;
 }
 
 export interface CloudSession {

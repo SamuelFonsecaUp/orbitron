@@ -487,38 +487,38 @@ export const SettingsView: React.FC = () => {
       <div className="p-6 rounded-2xl bg-slate-900/60 border border-slate-800/80 space-y-4">
         <div>
           <h2 className="text-base font-semibold text-white flex items-center gap-2">
-            <Database className="w-5 h-5 text-sky-400" />
-            Dados & Backup
+            <Database className="w-5 h-5 text-cyan-400" />
+            Dados & Arquivo Final Orbit (100% Local-First)
           </h2>
           <p className="text-xs text-slate-400 mt-1">
-            Seus dados são 100% locais. Exporte cópias de segurança completas ou restaure seus lançamentos a qualquer momento.
+            Seus dados são 100% locais e nunca saem desta máquina. Exporte um arquivo final (.orbit) unificando Finanças, Hábitos, Segundo Cérebro (Vault) e Jornada para subir em qualquer outro computador.
           </p>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
           <button
             onClick={handleExportBackup}
-            className="p-4 rounded-xl bg-slate-950/60 border border-slate-800 hover:border-slate-700 text-left transition-colors group"
+            className="p-4 rounded-xl bg-slate-950/60 border border-slate-800 hover:border-cyan-500/50 text-left transition-colors group"
           >
-            <div className="w-8 h-8 rounded-lg bg-sky-500/10 text-sky-400 flex items-center justify-center mb-3 group-hover:scale-105 transition-transform">
+            <div className="w-8 h-8 rounded-lg bg-cyan-500/10 text-cyan-400 flex items-center justify-center mb-3 group-hover:scale-105 transition-transform">
               <Download className="w-4 h-4" />
             </div>
-            <div className="text-xs font-bold text-white">Exportar Backup</div>
+            <div className="text-xs font-bold text-white">Exportar Arquivo Orbit (.orbit)</div>
             <p className="text-[11px] text-slate-500 mt-0.5">
-              Gera arquivo JSON completo com todas as contas, lançamentos e metas.
+              Empacota Finanças, Hábitos, Segundo Cérebro (Vault) e Jornada num arquivo único.
             </p>
           </button>
 
           <button
             onClick={handleRestoreBackup}
-            className="p-4 rounded-xl bg-slate-950/60 border border-slate-800 hover:border-slate-700 text-left transition-colors group"
+            className="p-4 rounded-xl bg-slate-950/60 border border-slate-800 hover:border-amber-500/50 text-left transition-colors group"
           >
             <div className="w-8 h-8 rounded-lg bg-amber-500/10 text-amber-400 flex items-center justify-center mb-3 group-hover:scale-105 transition-transform">
               <Upload className="w-4 h-4" />
             </div>
-            <div className="text-xs font-bold text-white">Restaurar Backup</div>
+            <div className="text-xs font-bold text-white">Restaurar Arquivo Orbit</div>
             <p className="text-[11px] text-slate-500 mt-0.5">
-              Restaura seus dados a partir de um arquivo de backup salvo anteriormente.
+              Sobe seu arquivo final (.orbit ou .json) e restaura tudo de forma 100% local.
             </p>
           </button>
 

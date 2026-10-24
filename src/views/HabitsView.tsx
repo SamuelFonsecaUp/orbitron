@@ -3,6 +3,8 @@ import { useHabits } from '../context/HabitsContext';
 import { useFinancial } from '../context/FinancialContext';
 import { HabitHeatmap } from '../components/HabitHeatmap';
 import { HabitModal } from '../components/HabitModal';
+import { HabitsDateNavigator } from '../components/HabitsDateNavigator';
+import { HabitsIntelligencePanel } from '../components/HabitsIntelligencePanel';
 import { Habit, HabitPeriod, HabitCategory } from '../types';
 import {
   Flame,
@@ -18,6 +20,7 @@ import {
   ListTodo,
   SlidersHorizontal,
   CheckCircle2,
+  BrainCircuit,
 } from 'lucide-react';
 
 const PERIOD_LABELS: Record<HabitPeriod, { label: string; icon: string; desc: string }> = {
@@ -152,6 +155,8 @@ export const HabitsView: React.FC = () => {
     loading,
     selectedPeriod,
     setSelectedPeriod,
+    selectedDate,
+    setSelectedDate,
     toggleDay,
     deleteHabit,
     installTemplateHabits,
@@ -309,8 +314,9 @@ export const HabitsView: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-white/[0.06]">
         <div className="liquid-glass-well flex items-center gap-1 p-1.5 rounded-2xl">
           {([
-            ['habits', 'Hoje (Check-in)', ListTodo],
+            ['habits', 'Check-in Diário', ListTodo],
             ['habits_week', 'Grade 7 Dias', Calendar],
+            ['habits_intelligence', 'Insights & IA', BrainCircuit],
             ['habits_analytics', 'Mapas de Calor', Grid],
             ['habits_manage', 'Meus Hábitos', SlidersHorizontal],
           ] as const).map(([viewId, label, Icon]) => {
@@ -333,7 +339,7 @@ export const HabitsView: React.FC = () => {
           })}
         </div>
 
-        {currentView !== 'habits_manage' && (
+        {currentView !== 'habits_manage' && currentView !== 'habits_intelligence' && (
           <div className="flex items-center gap-1 text-xs flex-wrap">
             <span className="text-slate-500 text-[11px] font-medium mr-1 flex items-center gap-1">
               <Filter className="w-3 h-3" /> Período:
@@ -388,11 +394,18 @@ export const HabitsView: React.FC = () => {
         </div>
       ) : currentView === 'habits' ? (
         /* =========================================================
-           SUB-PÁGINA 1: HOJE (FOCO DIÁRIO POR PERÍODO)
+           SUB-PÁGINA 1: CHECK-IN DIÁRIO & RETROATIVO POR PERÍODO
            ========================================================= */
         <div className="space-y-6">
+          <HabitsDateNavigator />
+
           {groupedByPeriod.map(({ period, meta, items }) => {
-            const doneInPeriod = items.filter((i) => i.completedToday).length;
+            const isSelectedToday = selectedDate === todayStr;
+            const doneInPeriod = items.filter((i) =>
+              isSelectedToday
+                ? i.completedToday
+                : Boolean(i.recentHistory?.find((h) => h.date === selectedDate)?.completed)
+            ).length;
             return (
               <div key={period} className="space-y-3">
                 <div className="flex items-center justify-between px-1">
@@ -414,12 +427,15 @@ export const HabitsView: React.FC = () => {
                   {items.map((habit) => {
                     const habitColor = habit.color || '#38bdf8';
                     const catInfo = CATEGORY_NAMES[habit.category] || CATEGORY_NAMES.geral;
-                    const done = habit.completedToday;
+                    const isSelectedToday = selectedDate === todayStr;
+                    const done = isSelectedToday
+                      ? habit.completedToday
+                      : Boolean(habit.recentHistory?.find((h) => h.date === selectedDate)?.completed);
 
                     return (
                       <div
                         key={habit.id}
-                        onClick={() => toggleDay(habit.id, todayStr)}
+                        onClick={() => toggleDay(habit.id, selectedDate)}
                         className={`p-4 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-4 group select-none ${
                           done
                             ? 'bg-slate-900/90 border-slate-700/80 shadow-md'
@@ -434,7 +450,7 @@ export const HabitsView: React.FC = () => {
                             type="button"
                             onClick={(e) => {
                               e.stopPropagation();
-                              toggleDay(habit.id, todayStr);
+                              toggleDay(habit.id, selectedDate);
                             }}
                             className={`w-11 h-11 rounded-2xl flex items-center justify-center transition-all shrink-0 ${
                               done
@@ -634,6 +650,11 @@ export const HabitsView: React.FC = () => {
             ))}
           </div>
         </div>
+      ) : currentView === 'habits_intelligence' ? (
+        /* =========================================================
+           SUB-PÁGINA: INSIGHTS IA & ANÁLISE DE CONSISTÊNCIA
+           ========================================================= */
+        <HabitsIntelligencePanel />
       ) : (
         /* =========================================================
            SUB-PÁGINA 4: MEUS HÁBITOS (CATÁLOGO & GESTÃO)

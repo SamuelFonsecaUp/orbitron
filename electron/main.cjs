@@ -4,6 +4,7 @@ const fs = require('fs');
 const { initDatabase, closeDatabase } = require('./database.cjs');
 const { getFinancialService } = require('./services.cjs');
 const { setTokenCipher } = require('./cloudAuth.cjs');
+const { getVaultService } = require('./vaultService.cjs');
 
 const BACKUP_CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000;
 const UPDATE_CHECK_INTERVAL_MS = 4 * 60 * 60 * 1000;
@@ -73,19 +74,29 @@ function createWindow() {
     mainWindow.show();
   });
 
-  // Check if running in dev or production
-  const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged;
-  const devUrl = 'http://localhost:5173';
+  // Fallback para garantir visibilidade da janela caso ready-to-show atrase
+  setTimeout(() => {
+    if (mainWindow && !mainWindow.isDestroyed() && !mainWindow.isVisible()) {
+      mainWindow.show();
+    }
+  }, 2500);
 
-  if (isDev && process.env.VITE_DEV_SERVER_URL) {
-    mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL);
-  } else if (isDev) {
-    mainWindow.loadURL(devUrl).catch(() => {
-      // Fallback to built files if dev server not active
-      mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
+  // Check if running in dev or production
+  const isDev = process.env.NODE_ENV === 'development';
+  const devUrl = process.env.VITE_DEV_SERVER_URL || 'http://127.0.0.1:5173';
+  const distHtml = path.join(__dirname, '../dist/index.html');
+
+  if (isDev) {
+    mainWindow.loadURL(devUrl);
+    mainWindow.webContents.once('did-fail-load', () => {
+      if (fs.existsSync(distHtml)) {
+        mainWindow.loadFile(distHtml);
+      }
     });
+  } else if (fs.existsSync(distHtml)) {
+    mainWindow.loadFile(distHtml);
   } else {
-    mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
+    mainWindow.loadURL(devUrl);
   }
 }
 
@@ -410,26 +421,32 @@ app.whenReady().then(() => {
     return service.cloudFullPull();
   });
 
-  // Backup & Restore Dialogs
+  // Backup & Restore Dialogs (Orbit 100% Local-First)
   handleIpc('backup:export', async () => {
     const today = new Date().toISOString().slice(0, 10);
     const { canceled, filePath } = await dialog.showSaveDialog(mainWindow, {
-      title: 'Exportar Backup Completo - Meu Financeiro',
-      defaultPath: `meu_financeiro_backup_${today}.json`,
-      filters: [{ name: 'Arquivo de Backup JSON (*.json)', extensions: ['json'] }],
+      title: 'Exportar Backup Final - Orbit (100% Local-First)',
+      defaultPath: `orbit_backup_${today}.orbit`,
+      filters: [
+        { name: 'Arquivo Orbit (*.orbit, *.json)', extensions: ['orbit', 'json'] },
+        { name: 'Todos os Arquivos (*.*)', extensions: ['*'] },
+      ],
     });
 
     if (canceled || !filePath) return { success: false, canceled: true };
 
-    const backupJson = service.exportBackup();
+    const backupJson = service.exportOrbitBackup();
     fs.writeFileSync(filePath, backupJson, 'utf8');
     return { success: true, filePath };
   });
 
   handleIpc('backup:restore', async () => {
     const { canceled, filePaths } = await dialog.showOpenDialog(mainWindow, {
-      title: 'Restaurar Backup - Meu Financeiro',
-      filters: [{ name: 'Arquivo de Backup JSON (*.json)', extensions: ['json'] }],
+      title: 'Restaurar Backup Final - Orbit (100% Local-First)',
+      filters: [
+        { name: 'Arquivo Orbit (*.orbit, *.json)', extensions: ['orbit', 'json'] },
+        { name: 'Todos os Arquivos (*.*)', extensions: ['*'] },
+      ],
       properties: ['openFile'],
     });
 
@@ -437,7 +454,7 @@ app.whenReady().then(() => {
 
     const content = fs.readFileSync(filePaths[0], 'utf8');
     await service.createLocalBackup('pre-restore');
-    service.restoreBackup(content);
+    service.restoreOrbitBackup(content);
     return { success: true };
   });
 
@@ -468,6 +485,7 @@ app.whenReady().then(() => {
   handleIpc('habits:toggleDay', (habitId, date, value, notes) => service.toggleHabitDay(habitId, date, value, notes));
   handleIpc('habits:getHeatmap', (habitId, year) => service.getHabitHeatmap(habitId, year));
   handleIpc('habits:getOverview', () => service.getHabitsOverview());
+  handleIpc('habits:getIntelligence', () => service.getHabitsIntelligence());
 
   // Tools Module: Notes, Mindmaps & Password Vault
   handleIpc('tools:getNotes', () => service.getNotes());
@@ -484,6 +502,53 @@ app.whenReady().then(() => {
   handleIpc('tools:createVaultItem', (data) => service.createVaultItem(data));
   handleIpc('tools:updateVaultItem', (id, data) => service.updateVaultItem(id, data));
   handleIpc('tools:deleteVaultItem', (id) => service.deleteVaultItem(id));
+
+  // Local-first Markdown Vault
+  const vaultService = getVaultService();
+  vaultService.init();
+  handleIpc('vault:init', (customPath) => vaultService.init(customPath));
+  handleIpc('vault:getEnvironments', () => vaultService.getEnvironments());
+  handleIpc('vault:createEnvironment', (name, icon) => vaultService.createEnvironment(name, icon));
+  handleIpc('vault:createFolder', (opts) => vaultService.createFolder(opts));
+  handleIpc('vault:deleteFolder', (relPath) => vaultService.deleteFolder(relPath));
+  handleIpc('vault:setFolderIcon', (relPath, icon) => vaultService.setFolderIcon(relPath, icon));
+  handleIpc('vault:getTree', (envName) => vaultService.getTree(envName));
+  handleIpc('vault:readPage', (relPath) => vaultService.readPage(relPath));
+  handleIpc('vault:writePage', (relPath, content) => vaultService.writePage(relPath, content));
+  handleIpc('vault:createPage', (opts) => vaultService.createPage(opts));
+  handleIpc('vault:renamePage', (oldPath, newTitle) => vaultService.renamePage(oldPath, newTitle));
+  handleIpc('vault:deletePage', (relPath) => vaultService.deletePage(relPath));
+  handleIpc('vault:getWorkspace', () => vaultService.getWorkspace());
+  handleIpc('vault:saveWorkspace', (cfg) => vaultService.saveWorkspace(cfg));
+  handleIpc('vault:search', (query, limit) => vaultService.searchFts(query, limit));
+  handleIpc('vault:getBacklinks', (relPath, title) => vaultService.getBacklinks(relPath, title));
+  handleIpc('vault:rebuildIndex', () => vaultService.rebuildIndex());
+  handleIpc('vault:listTrash', () => vaultService.listTrash());
+  handleIpc('vault:restorePage', (trashFileName) => vaultService.restorePage(trashFileName));
+  handleIpc('vault:emptyTrash', () => vaultService.emptyTrash());
+  handleIpc('vault:listHistory', (relPath) => vaultService.listHistory(relPath));
+  handleIpc('vault:readHistoryContent', (relPath, timestamp) => vaultService.readHistoryContent(relPath, timestamp));
+  handleIpc('vault:restoreHistory', (relPath, timestamp) => vaultService.restoreHistory(relPath, timestamp));
+  handleIpc('vault:moveItem', (srcRel, targetFolder) => vaultService.moveItem(srcRel, targetFolder));
+  handleIpc('vault:getVaultRoot', () => vaultService.getVaultRoot());
+  handleIpc('vault:exportPage', async (relPath, defaultName) => {
+    const { canceled, filePath } = await dialog.showSaveDialog(mainWindow, {
+      title: 'Exportar Nota Markdown',
+      defaultPath: (defaultName || 'Nota') + '.md',
+      filters: [{ name: 'Markdown', extensions: ['md'] }],
+    });
+    if (canceled || !filePath) return { canceled: true };
+    return vaultService.exportPage(relPath, filePath);
+  });
+  handleIpc('vault:exportVaultZip', async () => {
+    const { canceled, filePath } = await dialog.showSaveDialog(mainWindow, {
+      title: 'Exportar Vault Completo (.ZIP)',
+      defaultPath: 'PigoVault_Backup_' + new Date().toISOString().slice(0, 10) + '.zip',
+      filters: [{ name: 'Arquivo ZIP', extensions: ['zip'] }],
+    });
+    if (canceled || !filePath) return { canceled: true };
+    return vaultService.exportVaultZip(filePath);
+  });
 
 
   createWindow();

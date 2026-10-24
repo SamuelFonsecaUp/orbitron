@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
-import { Habit, HabitLogEntry, HabitPeriod, HabitsOverview } from '../types';
+import { Habit, HabitLogEntry, HabitPeriod, HabitsOverview, HabitsIntelligenceOverview } from '../types';
 import { useFinancial } from './FinancialContext';
 
 interface HabitsContextType {
@@ -10,7 +10,10 @@ interface HabitsContextType {
   setActiveTab: (tab: 'today' | 'heatmaps' | 'categories') => void;
   selectedPeriod: HabitPeriod | 'all';
   setSelectedPeriod: (period: HabitPeriod | 'all') => void;
+  selectedDate: string;
+  setSelectedDate: (date: string) => void;
   loadHabits: () => Promise<void>;
+  getIntelligence: () => Promise<HabitsIntelligenceOverview>;
   createHabit: (data: any) => Promise<Habit>;
   installTemplateHabits: (templates: Partial<Habit>[], packName?: string) => Promise<number>;
   updateHabit: (id: string, data: any) => Promise<Habit>;
@@ -33,6 +36,7 @@ export const HabitsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'today' | 'heatmaps' | 'categories'>('today');
   const [selectedPeriod, setSelectedPeriod] = useState<HabitPeriod | 'all'>('all');
+  const [selectedDate, setSelectedDate] = useState<string>(() => new Date().toISOString().slice(0, 10));
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingHabit, setEditingHabit] = useState<Habit | null>(null);
 
@@ -51,6 +55,13 @@ export const HabitsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     } finally {
       setLoading(false);
     }
+  }, []);
+
+  const getIntelligence = useCallback(async () => {
+    if (window.electronAPI?.getHabitsIntelligence) {
+      return await window.electronAPI.getHabitsIntelligence();
+    }
+    return null as any;
   }, []);
 
   useEffect(() => {
@@ -169,7 +180,7 @@ export const HabitsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           if (isToday && loadedOverview && loadedOverview.total > 0 && loadedOverview.completedToday === loadedOverview.total) {
             showToast('🔥 Dia Perfeito! 100% dos hábitos concluídos (+30 XP na Jornada!)', 'success');
           } else {
-            showToast('Hábito concluído! +5 XP na sua Jornada ⚡', 'success');
+            showToast(isToday ? 'Hábito concluído! +5 XP na sua Jornada ⚡' : `Hábito de ${date} registrado com sucesso!`, 'success');
           }
         }
       }
@@ -211,7 +222,10 @@ export const HabitsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         setActiveTab,
         selectedPeriod,
         setSelectedPeriod,
+        selectedDate,
+        setSelectedDate,
         loadHabits,
+        getIntelligence,
         createHabit,
         installTemplateHabits,
         updateHabit,

@@ -22,19 +22,19 @@ import { XpPill } from './GameWidgets';
 
 const MODULE_BADGE: Record<AppModule, { label: string; className: string }> = {
   finance: {
-    label: 'Pigo Finanças',
-    className: 'bg-brand-500/12 text-brand-400 border-brand-500/25',
+    label: 'Orbit Finanças',
+    className: 'bg-emerald-500/12 text-emerald-400 border-emerald-500/25',
   },
   habits: {
-    label: 'Pigo Hábitos',
+    label: 'Orbit Hábitos',
     className: 'bg-cyan-500/12 text-cyan-300 border-cyan-500/25',
   },
   tools: {
-    label: 'Pigo Ferramentas',
-    className: 'bg-fuchsia-500/12 text-fuchsia-300 border-fuchsia-500/25',
+    label: 'Orbit Ferramentas',
+    className: 'bg-purple-500/12 text-purple-300 border-purple-500/25',
   },
   journey: {
-    label: 'Pigo Jornada',
+    label: 'Orbit Jornada',
     className: 'bg-amber-500/12 text-amber-300 border-amber-500/25',
   },
 };
@@ -98,6 +98,7 @@ export const Navbar: React.FC = () => {
     habits: 'Hoje • Check-in Diário',
     habits_week: 'Grade Semanal (7 Dias)',
     habits_analytics: 'Consistência & Mapas de Calor',
+    habits_intelligence: 'Inteligência & Insights de Hábitos',
     habits_manage: 'Meus Hábitos • Catálogo',
     journey: 'Visão Geral & Nível',
     journey_missions: 'Missões da Semana',
@@ -122,7 +123,7 @@ export const Navbar: React.FC = () => {
         </span>
         <ChevronRight className="w-3.5 h-3.5 text-slate-600" />
         <h2 className="text-xs font-bold tracking-wide text-slate-200">
-          {viewTitles[currentView] || 'Pigo'}
+          {viewTitles[currentView] || 'Orbit'}
         </h2>
       </div>
 

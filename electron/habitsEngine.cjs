@@ -1,4 +1,5 @@
 const crypto = require('crypto');
+const { HabitsIntelligenceEngine } = require('./habitsIntelligenceEngine.cjs');
 const uuidv4 = () => crypto.randomUUID();
 
 /**
@@ -122,7 +123,7 @@ class HabitsEngine {
     const habits = this.db.prepare(query).all();
     if (!habits.length) return [];
 
-    const recentDates = this.getDateRange(14); // Últimas 2 semanas para a grade rápida
+    const recentDates = this.getDateRange(60); // Últimos 60 dias para histórico recente e retroativo
     const startDate = recentDates[0];
 
     // Busca todos os logs relevantes
@@ -393,6 +394,12 @@ class HabitsEngine {
       bestHabitName: bestStreakHabit?.name || null,
       averageStrength,
     };
+  }
+
+  // Análise local inteligente de consistência, padrões e sinergias
+  getIntelligence() {
+    const intelligenceEngine = new HabitsIntelligenceEngine(this.db);
+    return intelligenceEngine.getIntelligence();
   }
 }
 

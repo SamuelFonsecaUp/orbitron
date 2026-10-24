@@ -29,6 +29,7 @@ import { HabitsView } from './views/HabitsView';
 import { ToolsView } from './views/ToolsView';
 import { GameCelebration } from './components/GameWidgets';
 import { IntelligenceView } from './views/IntelligenceView';
+import { OrbitBootActivation } from './components/OrbitBootActivation';
 
 export const App: React.FC = () => {
   const {
@@ -102,6 +103,9 @@ export const App: React.FC = () => {
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-[#0c0c0e] text-slate-100 font-sans">
+      {/* Orbit Space Boot Sequence */}
+      <OrbitBootActivation />
+
       {/* PIN Security Modal */}
       {isLocked && <PinLockModal />}
 
