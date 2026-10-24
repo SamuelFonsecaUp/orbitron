@@ -2,8 +2,9 @@ import { useState, useRef, useCallback } from 'react';
 import { canvasStore, useCanvasStore } from '../store/canvasStore';
 import { screenToWorld } from '../scene/camera';
 import { Point, Rect, HandleType } from '../scene/types';
-import { CanvasNode } from '../io/jsonCanvas.types';
+import { CanvasNode, CanvasSide } from '../io/jsonCanvas.types';
 import { DragState } from './pointerDragTypes';
+import { EphemeralTransform } from '../scene/ephemeral.types';
 import {
   createMoveNodesCommand,
   createResizeNodeCommand,
@@ -19,6 +20,7 @@ import { createNewPlacedNode, createNewEdge, createPenNode } from './pointerNode
 export function useCanvasPointer(svgRef: React.RefObject<SVGSVGElement | null>) {
   const store = useCanvasStore();
   const [selectionBox, setSelectionBox] = useState<Rect | null>(null);
+  const [ephemeral, setEphemeral] = useState<EphemeralTransform>(null);
   const dragRef = useRef<DragState>({
     mode: 'none',
     startScreen: { x: 0, y: 0 },
@@ -42,6 +44,7 @@ export function useCanvasPointer(svgRef: React.RefObject<SVGSVGElement | null>) 
     if (['sticky', 'shape', 'text', 'frame', 'pen'].includes(store.activeTool)) {
       if (store.activeTool === 'pen') {
         dragRef.current = { mode: 'pen', startScreen: { x: e.clientX, y: e.clientY }, startWorld: ptWorld, lastWorld: ptWorld, penPoints: [ptWorld] };
+        setEphemeral({ type: 'pen', points: [ptWorld], color: store.toolColor });
         return;
       }
       const node = createNewPlacedNode(store.activeTool, store.toolShape, store.toolColor, ptWorld);
@@ -58,13 +61,12 @@ export function useCanvasPointer(svgRef: React.RefObject<SVGSVGElement | null>) 
     e.stopPropagation();
     const ptWorld = getPointerWorld(e);
     if (store.activeTool === 'connector') {
+      const fromPt = { x: node.x + node.width / 2, y: node.y + node.height / 2 };
       dragRef.current = { mode: 'connector', startScreen: { x: e.clientX, y: e.clientY }, startWorld: ptWorld, lastWorld: ptWorld, connectorSourceNode: node };
+      setEphemeral({ type: 'connector', fromNodeId: node.id, fromPt, currentPt: ptWorld });
       return;
     }
-    if (e.shiftKey) {
-      canvasStore.toggleSelection(node.id);
-      return;
-    }
+    if (e.shiftKey) { canvasStore.toggleSelection(node.id); return; }
     let currentSel = store.selection;
     if (!currentSel.includes(node.id)) {
       currentSel = [node.id];
@@ -75,17 +77,19 @@ export function useCanvasPointer(svgRef: React.RefObject<SVGSVGElement | null>) 
     dragRef.current = { mode: 'move', startScreen: { x: e.clientX, y: e.clientY }, startWorld: ptWorld, lastWorld: ptWorld, nodeInitialPos: posMap };
   };
 
+  const onAnchorPointerDown = (e: React.PointerEvent, node: CanvasNode, _side: CanvasSide, pt: Point) => {
+    e.stopPropagation();
+    const ptWorld = getPointerWorld(e);
+    dragRef.current = { mode: 'connector', startScreen: { x: e.clientX, y: e.clientY }, startWorld: ptWorld, lastWorld: ptWorld, connectorSourceNode: node };
+    setEphemeral({ type: 'connector', fromNodeId: node.id, fromPt: pt, currentPt: ptWorld });
+  };
+
   const onHandlePointerDown = (e: React.PointerEvent, handle: HandleType, node: CanvasNode) => {
     e.stopPropagation();
     const ptWorld = getPointerWorld(e);
     dragRef.current = {
-      mode: 'resize',
-      startScreen: { x: e.clientX, y: e.clientY },
-      startWorld: ptWorld,
-      lastWorld: ptWorld,
-      resizeNode: node,
-      resizeInitialRect: { x: node.x, y: node.y, width: node.width, height: node.height },
-      resizeHandle: handle,
+      mode: 'resize', startScreen: { x: e.clientX, y: e.clientY }, startWorld: ptWorld, lastWorld: ptWorld,
+      resizeNode: node, resizeInitialRect: { x: node.x, y: node.y, width: node.width, height: node.height }, resizeHandle: handle,
     };
   };
 
@@ -93,20 +97,10 @@ export function useCanvasPointer(svgRef: React.RefObject<SVGSVGElement | null>) 
     e.stopPropagation();
     const ptWorld = getPointerWorld(e);
     dragRef.current = {
-      mode: 'rotate',
-      startScreen: { x: e.clientX, y: e.clientY },
-      startWorld: ptWorld,
-      lastWorld: ptWorld,
-      rotateNode: node,
-      rotateInitialAngle: node.orbitron?.rotation || 0,
+      mode: 'rotate', startScreen: { x: e.clientX, y: e.clientY }, startWorld: ptWorld, lastWorld: ptWorld,
+      rotateNode: node, rotateInitialAngle: node.orbitron?.rotation || 0,
       rotateCenter: { x: node.x + node.width / 2, y: node.y + node.height / 2 },
     };
-  };
-
-  const onEdgePointerDown = (e: React.PointerEvent, edge: any) => {
-    e.stopPropagation();
-    if (e.shiftKey) canvasStore.toggleSelection(edge.id);
-    else canvasStore.setSelection([edge.id]);
   };
 
   const onPointerMove = (e: React.PointerEvent<SVGSVGElement>) => {
@@ -131,18 +125,37 @@ export function useCanvasPointer(svgRef: React.RefObject<SVGSVGElement | null>) 
         canvasStore.setSnapGuides(snap.guides);
       }
       drag.lastWorld = { x: dx, y: dy };
+      setEphemeral({ type: 'move', nodeIds: store.selection, dx, dy });
+      return;
+    }
+    if (drag.mode === 'resize' && drag.resizeNode && drag.resizeInitialRect && drag.resizeHandle) {
+      const rot = drag.resizeNode.orbitron?.rotation || 0;
+      const res = resizeWithRotation(drag.resizeInitialRect, rot, drag.resizeHandle, ptWorld, e.shiftKey);
+      drag.lastWorld = { x: res.x, y: res.y };
+      setEphemeral({ type: 'resize', nodeId: drag.resizeNode.id, rect: res });
+      return;
+    }
+    if (drag.mode === 'rotate' && drag.rotateNode && drag.rotateCenter) {
+      const newAngle = calculateRotationAngle(drag.rotateCenter, ptWorld, e.shiftKey);
+      setEphemeral({ type: 'rotate', nodeId: drag.rotateNode.id, angle: newAngle });
+      return;
+    }
+    if (drag.mode === 'connector' && drag.connectorSourceNode) {
+      const target = store.nodes.find((n) => n.id !== drag.connectorSourceNode?.id && boxesIntersect(getNodeAABB(n), { x: ptWorld.x, y: ptWorld.y, width: 1, height: 1 }));
+      setEphemeral((prev) => (prev && prev.type === 'connector' ? { ...prev, currentPt: ptWorld, targetNodeId: target?.id } : null));
       return;
     }
     if (drag.mode === 'select_box') {
       setSelectionBox({
-        x: Math.min(drag.startWorld.x, ptWorld.x),
-        y: Math.min(drag.startWorld.y, ptWorld.y),
-        width: Math.abs(ptWorld.x - drag.startWorld.x),
-        height: Math.abs(ptWorld.y - drag.startWorld.y),
+        x: Math.min(drag.startWorld.x, ptWorld.x), y: Math.min(drag.startWorld.y, ptWorld.y),
+        width: Math.abs(ptWorld.x - drag.startWorld.x), height: Math.abs(ptWorld.y - drag.startWorld.y),
       });
       return;
     }
-    if (drag.mode === 'pen') drag.penPoints?.push(ptWorld);
+    if (drag.mode === 'pen') {
+      drag.penPoints?.push(ptWorld);
+      setEphemeral({ type: 'pen', points: [...(drag.penPoints || [])], color: store.toolColor });
+    }
   };
 
   const onPointerUp = (e: React.PointerEvent<SVGSVGElement>) => {
@@ -175,17 +188,18 @@ export function useCanvasPointer(svgRef: React.RefObject<SVGSVGElement | null>) 
       canvasStore.setActiveTool('select');
     }
 
+    setEphemeral(null);
     dragRef.current = { mode: 'none', startScreen: { x: 0, y: 0 }, startWorld: { x: 0, y: 0 }, lastWorld: { x: 0, y: 0 } };
   };
 
   return {
-    selectionBox,
-    onCanvasPointerDown,
-    onNodePointerDown,
-    onHandlePointerDown,
-    onRotateHandlePointerDown,
-    onEdgePointerDown,
-    onPointerMove,
-    onPointerUp,
+    selectionBox, ephemeral, onCanvasPointerDown, onNodePointerDown, onAnchorPointerDown,
+    onHandlePointerDown, onRotateHandlePointerDown,
+    onEdgePointerDown: (e: React.PointerEvent, edge: any) => {
+      e.stopPropagation();
+      if (e.shiftKey) canvasStore.toggleSelection(edge.id);
+      else canvasStore.setSelection([edge.id]);
+    },
+    onPointerMove, onPointerUp,
   };
 }

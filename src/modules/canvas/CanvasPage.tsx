@@ -28,17 +28,16 @@ export const CanvasPage: React.FC<CanvasPageProps> = ({ filePath }) => {
   const camera = useCanvasStore((s) => s.camera);
   const selection = useCanvasStore((s) => s.selection);
   const snapGuides = useCanvasStore((s) => s.snapGuides);
-  const isDirty = useCanvasStore((s) => s.isDirty);
 
-  // Keyboard and Wheel Zoom hooks
   useWheelZoom(containerRef);
   useCanvasKeyboard();
 
-  // Pointer interaction hook
   const {
     selectionBox,
+    ephemeral,
     onCanvasPointerDown,
     onNodePointerDown,
+    onAnchorPointerDown,
     onHandlePointerDown,
     onRotateHandlePointerDown,
     onEdgePointerDown,
@@ -46,7 +45,6 @@ export const CanvasPage: React.FC<CanvasPageProps> = ({ filePath }) => {
     onPointerUp,
   } = useCanvasPointer(svgRef);
 
-  // Load document on filePath change
   useEffect(() => {
     let isCancelled = false;
     const load = async () => {
@@ -65,9 +63,7 @@ export const CanvasPage: React.FC<CanvasPageProps> = ({ filePath }) => {
 
     load();
 
-    const handleBeforeUnload = () => {
-      canvasStore.flushSave();
-    };
+    const handleBeforeUnload = () => { canvasStore.flushSave(); };
     window.addEventListener('beforeunload', handleBeforeUnload);
 
     return () => {
@@ -77,16 +73,13 @@ export const CanvasPage: React.FC<CanvasPageProps> = ({ filePath }) => {
     };
   }, [filePath]);
 
-  // Export image handler (PNG)
   const handleExportImage = async () => {
     const svgEl = svgRef.current;
     if (!svgEl) return;
     try {
       const serializer = new XMLSerializer();
       const svgStr = serializer.serializeToString(svgEl);
-      const svgBlob = new Blob([svgStr], { type: 'image/svg+xml;charset=utf-8' });
-      const url = URL.createObjectURL(svgBlob);
-
+      const url = URL.createObjectURL(new Blob([svgStr], { type: 'image/svg+xml;charset=utf-8' }));
       const img = new Image();
       img.onload = async () => {
         const canvas = document.createElement('canvas');
@@ -99,9 +92,7 @@ export const CanvasPage: React.FC<CanvasPageProps> = ({ filePath }) => {
           ctx.drawImage(img, 0, 0);
           const dataUrl = canvas.toDataURL('image/png');
           const api = (window as any).electronAPI?.canvas || (window as any).orbitronCanvasApi;
-          if (api?.exportImage) {
-            await api.exportImage(filePath, 'png', dataUrl);
-          }
+          if (api?.exportImage) await api.exportImage(filePath, 'png', dataUrl);
         }
         URL.revokeObjectURL(url);
       };
@@ -112,27 +103,30 @@ export const CanvasPage: React.FC<CanvasPageProps> = ({ filePath }) => {
   };
 
   return (
-    <div
-      ref={containerRef}
-      className="relative w-full h-full overflow-hidden bg-[#090d16] select-none"
-    >
-      {/* Floating Toolbar */}
+    <div ref={containerRef} className="relative w-full h-full overflow-hidden bg-[#090d16] select-none">
+      {/* Floating Lucidspark Toolbar */}
       <Toolbar onExportImage={handleExportImage} />
 
       {/* Floating Property Panel for selected items */}
       <PropertyPanel />
 
       {/* Zoom and Fit Controls */}
-      <ZoomControls
-        viewportWidth={size.width}
-        viewportHeight={size.height}
-      />
+      <ZoomControls viewportWidth={size.width} viewportHeight={size.height} />
 
       {/* Interactive MiniMap */}
-      <MiniMap
-        viewportWidth={size.width}
-        viewportHeight={size.height}
-      />
+      <MiniMap viewportWidth={size.width} viewportHeight={size.height} />
+
+      {/* Empty State Helper hint when canvas has 0 nodes */}
+      {nodes.length === 0 && (
+        <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
+          <div className="p-4 rounded-2xl bg-slate-900/60 border border-slate-800 text-center text-slate-400 text-sm max-w-sm backdrop-blur-sm animate-in fade-in duration-300">
+            <p className="font-semibold text-white mb-1">✨ Quadro Infinito Vazio</p>
+            <p className="text-xs text-slate-400">
+              Clique em <span className="text-purple-400 font-medium">Nota</span> ou <span className="text-purple-400 font-medium">Formas</span> na barra superior e clique no quadro para criar ideias livres.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* SVG Canvas Scene */}
       <SvgScene
@@ -145,17 +139,19 @@ export const CanvasPage: React.FC<CanvasPageProps> = ({ filePath }) => {
         viewportWidth={size.width}
         viewportHeight={size.height}
         selectionBox={selectionBox}
+        ephemeral={ephemeral}
         onPointerDown={onCanvasPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         onNodePointerDown={onNodePointerDown}
-        onNodeDoubleClick={(e, node) => setEditingNode(node)}
+        onNodeDoubleClick={(_e, node) => setEditingNode(node)}
+        onAnchorPointerDown={onAnchorPointerDown}
         onEdgePointerDown={onEdgePointerDown}
         onHandlePointerDown={onHandlePointerDown}
         onRotateHandlePointerDown={onRotateHandlePointerDown}
       />
 
-      {/* Inline text editor on double click */}
+      {/* Inline text editor */}
       {editingNode && (
         <NodeTextEditor
           node={editingNode}

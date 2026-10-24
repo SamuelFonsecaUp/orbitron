@@ -1,12 +1,14 @@
 import React from 'react';
 import { CanvasNode } from '../io/jsonCanvas.types';
-import { HandleType, SnapGuide, Rect, Point } from '../scene/types';
+import { HandleType, SnapGuide, Rect } from '../scene/types';
 import { getHandleLocalPos } from '../scene/transforms';
+import { EphemeralTransform, getEffectiveNodeRect, getEffectiveNodeRotation } from '../scene/ephemeral.types';
 
 interface SelectionLayerProps {
   selectedNodes: CanvasNode[];
   snapGuides: SnapGuide[];
   selectionBox?: Rect | null;
+  ephemeral: EphemeralTransform;
   onHandlePointerDown?: (e: React.PointerEvent, handle: HandleType, node: CanvasNode) => void;
   onRotateHandlePointerDown?: (e: React.PointerEvent, node: CanvasNode) => void;
 }
@@ -17,54 +19,56 @@ export const SelectionLayer: React.FC<SelectionLayerProps> = ({
   selectedNodes,
   snapGuides,
   selectionBox,
+  ephemeral,
   onHandlePointerDown,
   onRotateHandlePointerDown,
 }) => {
   const renderSingleNodeHandles = (node: CanvasNode) => {
-    const rotation = node.orbitron?.rotation || 0;
-    const cx = node.x + node.width / 2;
-    const cy = node.y + node.height / 2;
-    const handleSize = 8;
+    const effRect = getEffectiveNodeRect(node, ephemeral);
+    const effRot = getEffectiveNodeRotation(node, ephemeral);
+    const cx = effRect.x + effRect.width / 2;
+    const cy = effRect.y + effRect.height / 2;
+    const handleSize = 9;
 
     return (
-      <g key={`selection-${node.id}`} transform={`rotate(${rotation} ${cx} ${cy})`}>
+      <g key={`selection-${node.id}`} transform={`rotate(${effRot} ${cx} ${cy})`}>
         {/* Selection bounding box */}
         <rect
-          x={node.x}
-          y={node.y}
-          width={node.width}
-          height={node.height}
+          x={effRect.x}
+          y={effRect.y}
+          width={effRect.width}
+          height={effRect.height}
           fill="none"
           stroke="#a855f7"
           strokeWidth={1.5}
           className="pointer-events-none"
         />
 
-        {/* Rotation handle stem line */}
+        {/* Rotation stem */}
         <line
           x1={cx}
-          y1={node.y}
+          y1={effRect.y}
           x2={cx}
-          y2={node.y - 20}
+          y2={effRect.y - 24}
           stroke="#a855f7"
           strokeWidth={1.5}
         />
 
-        {/* Rotation handle circle */}
+        {/* Rotation handle */}
         <circle
           cx={cx}
-          cy={node.y - 20}
-          r={5}
+          cy={effRect.y - 24}
+          r={5.5}
           fill="#c084fc"
           stroke="#581c87"
           strokeWidth={1.5}
-          className="cursor-crosshair"
+          className="cursor-crosshair hover:scale-125 transition-transform"
           onPointerDown={(e) => onRotateHandlePointerDown?.(e, node)}
         />
 
         {/* 8 Resize handles */}
         {HANDLES.map((h) => {
-          const pt = getHandleLocalPos(h, node);
+          const pt = getHandleLocalPos(h, effRect);
           return (
             <rect
               key={h}
@@ -72,11 +76,11 @@ export const SelectionLayer: React.FC<SelectionLayerProps> = ({
               y={pt.y - handleSize / 2}
               width={handleSize}
               height={handleSize}
-              rx={2}
+              rx={2.5}
               fill="#ffffff"
               stroke="#a855f7"
-              strokeWidth={1.5}
-              className="cursor-pointer hover:scale-125 transition-transform"
+              strokeWidth={2}
+              className="cursor-pointer hover:scale-125 transition-transform filter drop-shadow-sm"
               onPointerDown={(e) => onHandlePointerDown?.(e, h, node)}
             />
           );
@@ -87,39 +91,22 @@ export const SelectionLayer: React.FC<SelectionLayerProps> = ({
 
   return (
     <g className="selection-layer">
-      {/* Snap guide lines */}
-      {snapGuides.map((guide, idx) => {
-        if (guide.type === 'x') {
-          return (
-            <line
-              key={`snap-x-${idx}`}
-              x1={guide.position}
-              y1={guide.start}
-              x2={guide.position}
-              y2={guide.end}
-              stroke="#c084fc"
-              strokeWidth={1}
-              strokeDasharray="4 3"
-              className="pointer-events-none"
-            />
-          );
-        }
-        return (
-          <line
-            key={`snap-y-${idx}`}
-            x1={guide.start}
-            y1={guide.position}
-            x2={guide.end}
-            y2={guide.position}
-            stroke="#c084fc"
-            strokeWidth={1}
-            strokeDasharray="4 3"
-            className="pointer-events-none"
-          />
-        );
-      })}
+      {/* Snap guides */}
+      {snapGuides.map((guide, idx) => (
+        <line
+          key={`snap-${idx}`}
+          x1={guide.type === 'x' ? guide.position : guide.start}
+          y1={guide.type === 'x' ? guide.start : guide.position}
+          x2={guide.type === 'x' ? guide.position : guide.end}
+          y2={guide.type === 'x' ? guide.end : guide.position}
+          stroke="#c084fc"
+          strokeWidth={1}
+          strokeDasharray="4 3"
+          className="pointer-events-none"
+        />
+      ))}
 
-      {/* Rubberband multi-selection box */}
+      {/* Rubberband selection box */}
       {selectionBox && (
         <rect
           x={selectionBox.x}
@@ -128,13 +115,13 @@ export const SelectionLayer: React.FC<SelectionLayerProps> = ({
           height={selectionBox.height}
           fill="rgba(168, 85, 247, 0.12)"
           stroke="#a855f7"
-          strokeWidth={1}
+          strokeWidth={1.5}
           strokeDasharray="4 4"
           className="pointer-events-none"
         />
       )}
 
-      {/* Handles for selected nodes */}
+      {/* Handles */}
       {selectedNodes.map(renderSingleNodeHandles)}
     </g>
   );

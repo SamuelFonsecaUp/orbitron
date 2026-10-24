@@ -1,10 +1,11 @@
 import React, { useMemo } from 'react';
-import { CanvasNode, CanvasEdge } from '../io/jsonCanvas.types';
-import { Camera, HandleType, SnapGuide, Rect } from '../scene/types';
+import { CanvasNode, CanvasEdge, CanvasSide } from '../io/jsonCanvas.types';
+import { Camera, HandleType, SnapGuide, Rect, Point } from '../scene/types';
 import { GridLayer } from './GridLayer';
 import { EdgesLayer } from './EdgesLayer';
 import { NodesLayer } from './NodesLayer';
 import { SelectionLayer } from './SelectionLayer';
+import { EphemeralTransform } from '../scene/ephemeral.types';
 
 interface SvgSceneProps {
   nodes: CanvasNode[];
@@ -15,12 +16,14 @@ interface SvgSceneProps {
   viewportWidth: number;
   viewportHeight: number;
   selectionBox?: Rect | null;
+  ephemeral: EphemeralTransform;
   svgRef?: React.RefObject<SVGSVGElement | null>;
   onPointerDown?: (e: React.PointerEvent<SVGSVGElement>) => void;
   onPointerMove?: (e: React.PointerEvent<SVGSVGElement>) => void;
   onPointerUp?: (e: React.PointerEvent<SVGSVGElement>) => void;
   onNodePointerDown?: (e: React.PointerEvent, node: CanvasNode) => void;
   onNodeDoubleClick?: (e: React.MouseEvent, node: CanvasNode) => void;
+  onAnchorPointerDown?: (e: React.PointerEvent, node: CanvasNode, side: CanvasSide, pt: Point) => void;
   onEdgePointerDown?: (e: React.PointerEvent, edge: CanvasEdge) => void;
   onHandlePointerDown?: (e: React.PointerEvent, handle: HandleType, node: CanvasNode) => void;
   onRotateHandlePointerDown?: (e: React.PointerEvent, node: CanvasNode) => void;
@@ -35,12 +38,14 @@ export const SvgScene: React.FC<SvgSceneProps> = ({
   viewportWidth,
   viewportHeight,
   selectionBox,
+  ephemeral,
   svgRef,
   onPointerDown,
   onPointerMove,
   onPointerUp,
   onNodePointerDown,
   onNodeDoubleClick,
+  onAnchorPointerDown,
   onEdgePointerDown,
   onHandlePointerDown,
   onRotateHandlePointerDown,
@@ -75,6 +80,7 @@ export const SvgScene: React.FC<SvgSceneProps> = ({
           edges={edges}
           nodesMap={nodesMap}
           selection={selection}
+          ephemeral={ephemeral}
           onEdgePointerDown={onEdgePointerDown}
         />
 
@@ -82,8 +88,10 @@ export const SvgScene: React.FC<SvgSceneProps> = ({
         <NodesLayer
           nodes={nodes}
           selection={selection}
+          ephemeral={ephemeral}
           onNodePointerDown={onNodePointerDown}
           onNodeDoubleClick={onNodeDoubleClick}
+          onAnchorPointerDown={onAnchorPointerDown}
         />
 
         {/* Handles, guides and selection rectangle */}
@@ -91,6 +99,7 @@ export const SvgScene: React.FC<SvgSceneProps> = ({
           selectedNodes={selectedNodes}
           snapGuides={snapGuides}
           selectionBox={selectionBox}
+          ephemeral={ephemeral}
           onHandlePointerDown={onHandlePointerDown}
           onRotateHandlePointerDown={onRotateHandlePointerDown}
         />

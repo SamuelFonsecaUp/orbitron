@@ -1,5 +1,5 @@
 import React from 'react';
-import { Trash2, ArrowUp, ArrowDown } from 'lucide-react';
+import { Trash2, ArrowUp, ArrowDown, Copy } from 'lucide-react';
 import { useCanvasStore, canvasStore } from '../store/canvasStore';
 import { CANVAS_COLORS } from '../render/colors';
 import {
@@ -7,7 +7,9 @@ import {
   createUpdateEdgeCommand,
   createDeleteElementsCommand,
   createReorderNodesCommand,
+  createAddNodeCommand,
 } from '../scene/commands';
+import { CanvasNode } from '../io/jsonCanvas.types';
 
 export const PropertyPanel: React.FC = () => {
   const selection = useCanvasStore((s) => s.selection);
@@ -59,6 +61,18 @@ export const PropertyPanel: React.FC = () => {
     });
   };
 
+  const handleDuplicate = () => {
+    selectedNodes.forEach((n) => {
+      const cloned: CanvasNode = {
+        ...n,
+        id: `node-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        x: n.x + 30,
+        y: n.y + 30,
+      };
+      canvasStore.dispatch(createAddNodeCommand(cloned));
+    });
+  };
+
   const handleBringToFront = () => {
     const unselected = nodes.filter((n) => !selection.includes(n.id));
     const newOrder = [...unselected, ...selectedNodes].map((n) => n.id);
@@ -76,7 +90,7 @@ export const PropertyPanel: React.FC = () => {
   };
 
   return (
-    <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 p-2 rounded-xl canvas-glass-panel">
+    <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 p-2 rounded-2xl canvas-glass-panel animate-in fade-in slide-in-from-bottom-2 duration-150">
       {/* Colors palette */}
       <div className="flex items-center gap-1.5 px-1">
         {Object.entries(CANVAS_COLORS).map(([id, col]) => (
@@ -93,42 +107,40 @@ export const PropertyPanel: React.FC = () => {
       {selectedNodes.length > 0 && (
         <>
           <div className="w-[1px] h-5 bg-white/10 my-auto" />
-          {/* Font Sizes */}
           <div className="flex items-center gap-1">
-            {[12, 14, 18, 24].map((sz) => (
+            {[12, 15, 18, 24].map((sz) => (
               <button
                 key={sz}
                 onClick={() => handleFontSizeChange(sz)}
-                className="px-2 py-0.5 rounded text-xs text-slate-300 hover:text-white hover:bg-white/10"
+                className="px-2 py-0.5 rounded-lg text-xs font-medium text-slate-300 hover:text-white hover:bg-white/10"
               >
                 {sz}
               </button>
             ))}
           </div>
+
+          <div className="w-[1px] h-5 bg-white/10 my-auto" />
+          <button
+            onClick={handleDuplicate}
+            className="canvas-tool-btn !w-7 !h-7"
+            title="Duplicar (Ctrl+D)"
+          >
+            <Copy className="w-3.5 h-3.5" />
+          </button>
         </>
       )}
 
       {selectedEdges.length > 0 && (
         <>
           <div className="w-[1px] h-5 bg-white/10 my-auto" />
-          {/* Routing Types */}
           <div className="flex items-center gap-1 text-xs text-slate-300">
-            <button
-              onClick={() => handleRoutingChange('orthogonal')}
-              className="px-2 py-0.5 rounded hover:bg-white/10 hover:text-white"
-            >
+            <button onClick={() => handleRoutingChange('orthogonal')} className="px-2 py-0.5 rounded-lg hover:bg-white/10 hover:text-white">
               Ortogonal
             </button>
-            <button
-              onClick={() => handleRoutingChange('bezier')}
-              className="px-2 py-0.5 rounded hover:bg-white/10 hover:text-white"
-            >
+            <button onClick={() => handleRoutingChange('bezier')} className="px-2 py-0.5 rounded-lg hover:bg-white/10 hover:text-white">
               Curva
             </button>
-            <button
-              onClick={() => handleRoutingChange('straight')}
-              className="px-2 py-0.5 rounded hover:bg-white/10 hover:text-white"
-            >
+            <button onClick={() => handleRoutingChange('straight')} className="px-2 py-0.5 rounded-lg hover:bg-white/10 hover:text-white">
               Reta
             </button>
           </div>
@@ -138,27 +150,16 @@ export const PropertyPanel: React.FC = () => {
       {selectedNodes.length > 0 && (
         <>
           <div className="w-[1px] h-5 bg-white/10 my-auto" />
-          {/* Reordering */}
-          <button
-            onClick={handleBringToFront}
-            className="canvas-tool-btn !w-7 !h-7"
-            title="Trazer para frente"
-          >
+          <button onClick={handleBringToFront} className="canvas-tool-btn !w-7 !h-7" title="Trazer para frente">
             <ArrowUp className="w-3.5 h-3.5" />
           </button>
-          <button
-            onClick={handleSendToBack}
-            className="canvas-tool-btn !w-7 !h-7"
-            title="Enviar para trás"
-          >
+          <button onClick={handleSendToBack} className="canvas-tool-btn !w-7 !h-7" title="Enviar para trás">
             <ArrowDown className="w-3.5 h-3.5" />
           </button>
         </>
       )}
 
       <div className="w-[1px] h-5 bg-white/10 my-auto" />
-
-      {/* Delete */}
       <button
         onClick={handleDelete}
         className="canvas-tool-btn !w-7 !h-7 text-red-400 hover:text-red-300 hover:bg-red-500/20"

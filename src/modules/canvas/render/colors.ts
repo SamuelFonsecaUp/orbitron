@@ -5,16 +5,73 @@ export interface CanvasColorDef {
   border: string;
   text: string;
   accent: string;
+  shadow: string;
 }
 
 export const CANVAS_COLORS: Record<string, CanvasColorDef> = {
-  '1': { id: '1', name: 'Vermelho', bg: '#ef444420', border: '#ef4444', text: '#fca5a5', accent: '#ef4444' },
-  '2': { id: '2', name: 'Laranja', bg: '#f9731620', border: '#f97316', text: '#fdba74', accent: '#f97316' },
-  '3': { id: '3', name: 'Amarelo', bg: '#eab30820', border: '#eab308', text: '#fde047', accent: '#eab308' },
-  '4': { id: '4', name: 'Verde', bg: '#22c55e20', border: '#22c55e', text: '#86efac', accent: '#22c55e' },
-  '5': { id: '5', name: 'Ciano', bg: '#06b6d420', border: '#06b6d4', text: '#67e8f9', accent: '#06b6d4' },
-  '6': { id: '6', name: 'Roxo', bg: '#a855f720', border: '#a855f7', text: '#d8b4fe', accent: '#a855f7' },
-  default: { id: 'default', name: 'Neutro', bg: '#1e293b80', border: '#475569', text: '#f1f5f9', accent: '#94a3b8' },
+  '1': {
+    id: '1',
+    name: 'Rosa',
+    bg: '#fdf2f8',
+    border: '#f472b6',
+    text: '#831843',
+    accent: '#ec4899',
+    shadow: 'rgba(236, 72, 153, 0.2)',
+  },
+  '2': {
+    id: '2',
+    name: 'Laranja',
+    bg: '#fff7ed',
+    border: '#fb923c',
+    text: '#7c2d12',
+    accent: '#f97316',
+    shadow: 'rgba(249, 115, 22, 0.2)',
+  },
+  '3': {
+    id: '3',
+    name: 'Amarelo',
+    bg: '#fefce8',
+    border: '#facc15',
+    text: '#713f12',
+    accent: '#eab308',
+    shadow: 'rgba(234, 179, 8, 0.2)',
+  },
+  '4': {
+    id: '4',
+    name: 'Verde',
+    bg: '#f0fdf4',
+    border: '#4ade80',
+    text: '#14532d',
+    accent: '#22c55e',
+    shadow: 'rgba(34, 197, 94, 0.2)',
+  },
+  '5': {
+    id: '5',
+    name: 'Azul',
+    bg: '#f0f9ff',
+    border: '#38bdf8',
+    text: '#0c4a6e',
+    accent: '#0ea5e9',
+    shadow: 'rgba(14, 165, 233, 0.2)',
+  },
+  '6': {
+    id: '6',
+    name: 'Roxo',
+    bg: '#faf5ff',
+    border: '#c084fc',
+    text: '#581c87',
+    accent: '#a855f7',
+    shadow: 'rgba(168, 85, 247, 0.2)',
+  },
+  default: {
+    id: 'default',
+    name: 'Ardósia',
+    bg: '#1e293b',
+    border: '#475569',
+    text: '#f8fafc',
+    accent: '#94a3b8',
+    shadow: 'rgba(0, 0, 0, 0.3)',
+  },
 };
 
 export function getCanvasColor(colorId?: string): CanvasColorDef {
@@ -24,10 +81,11 @@ export function getCanvasColor(colorId?: string): CanvasColorDef {
     return {
       id: colorId,
       name: 'Custom',
-      bg: `${colorId}25`,
+      bg: colorId,
       border: colorId,
-      text: '#f1f5f9',
+      text: '#ffffff',
       accent: colorId,
+      shadow: `${colorId}33`,
     };
   }
   return CANVAS_COLORS.default;
