@@ -153,11 +153,11 @@ export const Navbar: React.FC = () => {
           </button>
         )}
 
-        <XpPill />
+        <div data-tour="xp-pill" className="inline-flex"><XpPill /></div>
 
         {/* Privacy Mode (Olho Mágico) Toggle */}
         <button
-          onClick={togglePrivacyMode}
+          data-tour="privacy-toggle" onClick={togglePrivacyMode}
           title={
             privacyMode
               ? 'Mostrar valores financeiros (Alt + P)'

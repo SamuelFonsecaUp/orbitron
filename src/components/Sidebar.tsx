@@ -317,7 +317,7 @@ export const Sidebar: React.FC = () => {
 
       <div className="flex flex-col min-h-0 flex-1 relative z-10">
         {/* Brand Header */}
-        <div className="p-4 border-b border-white/[0.06] flex items-center justify-between app-drag">
+        <div data-tour="brand-header" className="p-4 border-b border-white/[0.06] flex items-center justify-between app-drag">
           <div className="flex items-center gap-3">
             <OrbitLogo module={activeModule} size={36} animated withGlow />
             <div>
@@ -341,7 +341,7 @@ export const Sidebar: React.FC = () => {
         {/* =========================================================
             LIQUID GLASS MODULE SWITCHER (SLIDING CAPSULE LENS)
            ========================================================= */}
-        <div className="px-3 pt-3.5 pb-1.5">
+        <div data-tour="module-switcher" className="px-3 pt-3.5 pb-1.5">
           <div className="liquid-glass-well p-1.5 rounded-2xl relative overflow-hidden">
             {/* Ambient background glow shifting behind the active lens */}
             <div
@@ -427,7 +427,7 @@ export const Sidebar: React.FC = () => {
             </div>
           ) : (
             <button
-              onClick={() => openNewTransaction()}
+              data-tour="new-transaction-btn" onClick={() => openNewTransaction()}
               style={{ ['--cta-glow' as any]: meta.ctaGlow }}
               className="liquid-glass-cta w-full py-2.5 px-4 bg-gradient-to-r from-emerald-600/90 via-brand-500/85 to-teal-500/90 hover:from-emerald-500 hover:to-teal-400 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
             >
@@ -438,7 +438,7 @@ export const Sidebar: React.FC = () => {
         </div>
 
         {/* Grouped Navigation Sections */}
-        <nav className="px-3 py-1.5 space-y-4 overflow-y-auto flex-1 scrollbar-thin">
+        <nav data-tour="sidebar-nav" className="px-3 py-1.5 space-y-4 overflow-y-auto flex-1 scrollbar-thin">
           {currentSections.map((section) => (
             <div key={section.title} className="space-y-1">
               <div className="px-2.5 text-[10px] font-bold uppercase tracking-wider text-slate-500/90">
@@ -490,7 +490,7 @@ export const Sidebar: React.FC = () => {
       <div className="p-3 border-t border-white/[0.06] space-y-1 relative z-10">
         <button
           type="button"
-          onClick={() => window.dispatchEvent(new CustomEvent('pigo:open-tour'))}
+          onClick={() => window.dispatchEvent(new CustomEvent('orbit:open-tour'))}
           className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium text-slate-400 hover:text-slate-200 hover:bg-white/[0.04] transition-all"
         >
           <Sparkles className="w-4 h-4 text-emerald-400" />

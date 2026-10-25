@@ -525,6 +525,30 @@ export const SettingsView: React.FC = () => {
 
       <AppVersionCard />
 
+      {/* Tour Guiado Interativo (Spotlight Overlay) */}
+      <div className="p-6 rounded-2xl bg-slate-900/60 border border-slate-800/80 space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h2 className="text-base font-semibold text-white flex items-center gap-2">
+              <Sparkles className="w-5 h-5 text-cyan-400" />
+              Onboarding Guiado Interativo (Tour com Spotlight)
+            </h2>
+            <p className="text-xs text-slate-400 mt-1 max-w-2xl">
+              Inicie a expedição guiada do Orbitron: holofote dinâmico sobre a interface real, dicas contextuais e prática interativa de ações financeiras e de rotina.
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => window.dispatchEvent(new CustomEvent('orbit:open-tour'))}
+            className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-cyan-600 to-teal-500 hover:from-cyan-500 hover:to-teal-400 text-white text-xs font-bold transition shadow-lg shadow-cyan-600/20 flex items-center gap-2 shrink-0 active:scale-95"
+          >
+            <Sparkles className="w-4 h-4" />
+            <span>Reiniciar Tour Guiado</span>
+          </button>
+        </div>
+      </div>
+
       {/* 5. Bank Statements Vault (OFX / CSV) */}
       <div className="p-6 rounded-2xl bg-slate-900/60 border border-slate-800/80 space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">

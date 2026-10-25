@@ -29,6 +29,8 @@ import { ToolsView } from './views/ToolsView';
 import { GameCelebration } from './components/GameWidgets';
 import { IntelligenceView } from './views/IntelligenceView';
 import { OrbitBootActivation } from './components/OrbitBootActivation';
+import { TourProvider } from './modules/tour/TourContext';
+import { ProductTourManager } from './modules/tour/components/ProductTourManager';
 
 export const App: React.FC = () => {
   const {
@@ -99,7 +101,10 @@ export const App: React.FC = () => {
       : 'from-brand-500/[0.06] via-emerald-500/[0.02] to-transparent';
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-[#0c0c0e] text-slate-100 font-sans">
+    <TourProvider>
+      <div className="flex h-screen w-screen overflow-hidden bg-[#0c0c0e] text-slate-100 font-sans">
+        {/* Product Tour Interactive Spotlight Overlay */}
+        <ProductTourManager />
       {/* Orbit Space Boot Sequence */}
       <OrbitBootActivation />
 
@@ -161,5 +166,6 @@ export const App: React.FC = () => {
         </main>
       </div>
     </div>
+    </TourProvider>
   );
 };
