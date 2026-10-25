@@ -97,7 +97,7 @@ export const Navbar: React.FC = () => {
     habits: 'Hoje • Check-in Diário',
     habits_week: 'Grade Semanal (7 Dias)',
     habits_analytics: 'Consistência & Mapas de Calor',
-    habits_intelligence: 'Inteligência & Insights de Hábitos',
+    habits_intelligence: 'Dashboards & Algoritmos de Consistência',
     habits_manage: 'Meus Hábitos • Catálogo',
     journey: 'Visão Geral & Nível',
     journey_missions: 'Missões da Semana',

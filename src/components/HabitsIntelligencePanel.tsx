@@ -2,11 +2,11 @@ import React, { useEffect, useState } from 'react';
 import { useHabits } from '../context/HabitsContext';
 import { HabitsIntelligenceOverview, HabitInsightItem } from '../types';
 import {
-  BrainCircuit,
+  BarChart3,
   TrendingUp,
   AlertTriangle,
   Zap,
-  Sparkles,
+  Activity,
   Link2,
   Calendar,
   CheckCircle2,
@@ -25,7 +25,7 @@ export const HabitsIntelligencePanel: React.FC = () => {
       const res = await getIntelligence();
       setData(res);
     } catch (err) {
-      console.error('[HabitsIntelligencePanel] Erro ao carregar inteligência:', err);
+      console.error('[HabitsIntelligencePanel] Erro ao carregar algoritmos:', err);
     } finally {
       setLoading(false);
     }
@@ -39,7 +39,7 @@ export const HabitsIntelligencePanel: React.FC = () => {
     return (
       <div className="flex flex-col items-center justify-center p-12 text-slate-400 gap-3">
         <RefreshCw className="w-6 h-6 animate-spin text-cyan-400" />
-        <span className="text-xs font-semibold">Analisando histórico de consistência e padrões...</span>
+        <span className="text-xs font-semibold">Processando cálculos determinísticos e algoritmos estatísticos...</span>
       </div>
     );
   }
@@ -68,12 +68,29 @@ export const HabitsIntelligencePanel: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Top Banner: Consistency Score & Momentum */}
+      {/* Top Banner: Transparency & Deterministic Algorithms */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-2xl bg-slate-900/60 border border-slate-800/80 backdrop-blur-sm">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-cyan-500/15 border border-cyan-500/30 flex items-center justify-center text-cyan-400">
+            <BarChart3 className="w-5 h-5" />
+          </div>
+          <div>
+            <h3 className="text-sm font-bold text-white">Dashboards & Algoritmos Determinísticos</h3>
+            <p className="text-xs text-slate-400">Modelos matemáticos locais, probabilidade condicional e suavização exponencial (Zero IA externa)</p>
+          </div>
+        </div>
+        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-[11px] font-semibold text-emerald-300 self-start sm:self-auto">
+          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+          Algoritmo Puro & Auditável
+        </div>
+      </div>
+
+      {/* Consistency Score & Momentum KPIs */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="p-5 rounded-2xl bg-slate-900/60 border border-slate-800/80 backdrop-blur-sm flex flex-col justify-between">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Score de Consistência</span>
-            <BrainCircuit className="w-4 h-4 text-cyan-400" />
+            <Activity className="w-4 h-4 text-cyan-400" />
           </div>
           <div className="my-3 flex items-baseline gap-2">
             <span className="text-3xl font-black text-white">{data.consistencyScore}</span>
@@ -102,7 +119,7 @@ export const HabitsIntelligencePanel: React.FC = () => {
               <span className="font-bold text-slate-300">{data.rate30Days}%</span>
             </div>
           </div>
-          <span className="text-[11px] text-slate-500">Comparação móvel ponderada</span>
+          <span className="text-[11px] text-slate-500">Média móvel exponencial ponderada</span>
         </div>
 
         <div className="p-5 rounded-2xl bg-slate-900/60 border border-slate-800/80 backdrop-blur-sm flex flex-col justify-between">
@@ -187,7 +204,7 @@ export const HabitsIntelligencePanel: React.FC = () => {
       {/* Actionable Insights List */}
       <div className="space-y-3">
         <h3 className="text-xs font-extrabold uppercase tracking-wider text-white flex items-center gap-2">
-          <Sparkles className="w-4 h-4 text-purple-400" /> Recomendações e Diagnósticos Atômicos
+          <TrendingUp className="w-4 h-4 text-cyan-400" /> Recomendações e Diagnósticos Algorítmicos
         </h3>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">

@@ -20,7 +20,7 @@ import {
   ListTodo,
   SlidersHorizontal,
   CheckCircle2,
-  BrainCircuit,
+  BarChart3,
 } from 'lucide-react';
 
 const PERIOD_LABELS: Record<HabitPeriod, { label: string; icon: string; desc: string }> = {
@@ -179,16 +179,16 @@ export const HabitsView: React.FC = () => {
     const weekDayNames = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 
     for (let i = 6; i >= 0; i--) {
-      const d = new Date(now);
-      d.setDate(now.getDate() - i);
-      const y = d.getFullYear();
-      const m = String(d.getMonth() + 1).padStart(2, '0');
-      const day = String(d.getDate()).padStart(2, '0');
-      const dateStr = `${y}-${m}-${d}`;
+      const dt = new Date(now);
+      dt.setDate(now.getDate() - i);
+      const y = dt.getFullYear();
+      const m = String(dt.getMonth() + 1).padStart(2, '0');
+      const day = String(dt.getDate()).padStart(2, '0');
+      const dateStr = `${y}-${m}-${day}`;
       dates.push({
         dateStr,
-        label: i === 0 ? 'Hoje' : weekDayNames[d.getDay()],
-        dayNumber: d.getDate(),
+        label: i === 0 ? 'Hoje' : weekDayNames[dt.getDay()],
+        dayNumber: dt.getDate(),
         isToday: i === 0,
       });
     }
@@ -316,7 +316,7 @@ export const HabitsView: React.FC = () => {
           {([
             ['habits', 'Check-in Diário', ListTodo],
             ['habits_week', 'Grade 7 Dias', Calendar],
-            ['habits_intelligence', 'Insights & IA', BrainCircuit],
+            ['habits_intelligence', 'Dashboards & Algoritmos', BarChart3],
             ['habits_analytics', 'Mapas de Calor', Grid],
             ['habits_manage', 'Meus Hábitos', SlidersHorizontal],
           ] as const).map(([viewId, label, Icon]) => {
@@ -533,14 +533,31 @@ export const HabitsView: React.FC = () => {
            SUB-PÁGINA 2: GRADE SEMANAL (ÚLTIMOS 7 DIAS)
            ========================================================= */
         <div className="rounded-3xl bg-slate-900/60 border border-slate-800/80 overflow-hidden shadow-xl backdrop-blur-md">
-          <div className="grid grid-cols-12 px-5 py-3.5 border-b border-slate-800/80 bg-slate-950/50 text-xs font-semibold text-slate-400 select-none items-center">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between px-5 py-3 border-b border-slate-800/80 bg-slate-950/50 gap-2">
+            <div className="flex items-center gap-3">
+              <span className="text-xs font-semibold text-slate-300">Grade dos Últimos 7 Dias</span>
+              <div className="flex items-center gap-3 text-[11px] text-slate-400 pl-3 border-l border-slate-800">
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.6)]"></span>
+                  <span>Hoje (Cor do Hábito)</span>
+                </span>
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-full bg-amber-400 shadow-[0_0_8px_rgba(250,204,21,0.6)]"></span>
+                  <span className="text-amber-300 font-semibold">Retroativo (Amarelo)</span>
+                </span>
+              </div>
+            </div>
+            <span className="text-[11px] text-slate-500 hidden md:inline">Clique em qualquer dia para marcar ou desmarcar</span>
+          </div>
+
+          <div className="grid grid-cols-12 px-5 py-2.5 border-b border-slate-800/60 bg-slate-950/30 text-xs font-semibold text-slate-400 select-none items-center">
             <div className="col-span-5 sm:col-span-6">Hábito & Categoria</div>
             <div className="col-span-7 sm:col-span-6 flex justify-end gap-2.5 sm:gap-4 pr-1">
               {last7Days.map((d) => (
                 <div
                   key={d.dateStr}
                   className={`flex flex-col items-center justify-center w-8 sm:w-10 py-1 rounded-xl transition ${
-                    d.isToday ? 'bg-cyan-500/15 border border-cyan-500/40 text-cyan-300 font-bold' : ''
+                    d.isToday ? 'bg-cyan-500/15 border border-cyan-500/40 text-cyan-300 font-bold shadow-[0_0_10px_rgba(34,211,238,0.2)]' : 'text-slate-400'
                   }`}
                 >
                   <span className="text-[10px] uppercase font-bold">{d.label}</span>
@@ -600,23 +617,35 @@ export const HabitsView: React.FC = () => {
 
                   <div className="col-span-7 sm:col-span-6 flex justify-end gap-2.5 sm:gap-4 pr-1 items-center">
                     {last7Days.map((d) => {
-                      const isCompleted = d.isToday
-                        ? habit.completedToday
-                        : habit.recentHistory?.find((h) => h.date === d.dateStr)?.completed;
+                      const isCompleted = Boolean(
+                        d.isToday
+                          ? habit.completedToday
+                          : habit.recentHistory?.find((h) => h.date === d.dateStr)?.completed
+                      );
+                      const isRetroactive = isCompleted && !d.isToday;
 
                       return (
                         <button
                           key={d.dateStr}
+                          type="button"
                           onClick={() => toggleDay(habit.id, d.dateStr)}
-                          title={`${d.dateStr}: ${isCompleted ? 'Concluído' : 'Clique para marcar'}`}
+                          title={`${d.dateStr} (${d.isToday ? 'Hoje' : 'Retroativo'}): ${
+                            isCompleted ? 'Concluído (clique para alternar)' : 'Clique para marcar'
+                          }`}
                           className={`w-8 h-8 sm:w-10 sm:h-10 rounded-2xl flex items-center justify-center transition-all ${
                             isCompleted
-                              ? 'scale-100 shadow-md'
-                              : 'bg-slate-950/60 border border-slate-800 text-transparent hover:border-slate-700 hover:text-slate-600'
+                              ? isRetroactive
+                                ? 'scale-100 shadow-md ring-2 ring-amber-400/80 border border-amber-300 hover:scale-105'
+                                : 'scale-100 shadow-md hover:scale-105'
+                              : 'bg-slate-950/60 border border-slate-800 text-transparent hover:border-amber-400/50 hover:text-amber-400/60 hover:scale-105'
                           }`}
                           style={{
-                            backgroundColor: isCompleted ? habitColor : undefined,
-                            boxShadow: isCompleted ? `0 0 12px ${habitColor}50` : undefined,
+                            backgroundColor: isCompleted ? (isRetroactive ? '#facc15' : habitColor) : undefined,
+                            boxShadow: isCompleted
+                              ? isRetroactive
+                                ? '0 0 16px rgba(250, 204, 21, 0.55)'
+                                : `0 0 12px ${habitColor}50`
+                              : undefined,
                           }}
                         >
                           <Check className={`w-4 h-4 stroke-[3.5] ${isCompleted ? 'text-slate-950' : ''}`} />
@@ -654,7 +683,7 @@ export const HabitsView: React.FC = () => {
         </div>
       ) : currentView === 'habits_intelligence' ? (
         /* =========================================================
-           SUB-PÁGINA: INSIGHTS IA & ANÁLISE DE CONSISTÊNCIA
+           SUB-PÁGINA: DASHBOARDS & ALGORITMOS DE CONSISTÊNCIA
            ========================================================= */
         <HabitsIntelligencePanel />
       ) : (

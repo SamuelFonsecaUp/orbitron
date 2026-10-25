@@ -166,7 +166,7 @@ export const HabitsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         await refreshGame();
 
         if (markedCompleted) {
-          showToast(isToday ? 'Hábito concluído! +5 XP ⚡' : `Hábito de ${date} concluído!`, 'success');
+          showToast(isToday ? 'Hábito concluído! +5 XP ⚡' : `Hábito retroativo (${date}) concluído em amarelo!`, 'success');
         }
       }
     } catch (err) {

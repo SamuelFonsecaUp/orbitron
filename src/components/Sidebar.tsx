@@ -29,6 +29,7 @@ import {
   FolderKanban,
   StickyNote,
   BrainCircuit,
+  BarChart3,
   Network,
   KeyRound,
 } from 'lucide-react';
@@ -211,8 +212,8 @@ export const Sidebar: React.FC = () => {
         },
         {
           id: 'habits_intelligence',
-          label: 'Insights IA & Análise',
-          icon: BrainCircuit,
+          label: 'Dashboards & Algoritmos',
+          icon: BarChart3,
         },
         {
           id: 'habits_manage',
