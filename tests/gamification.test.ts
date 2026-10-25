@@ -27,8 +27,8 @@ describe('Gamification (Pigo RPG Financeiro)', () => {
     expect(levelFromXp(100).level).toBe(2);
     expect(levelFromXp(250).level).toBe(3);
     expect(levelFromXp(249)).toEqual({ level: 2, xpIntoLevel: 149, xpForNext: 150 });
-    expect(titleForLevel(1)).toBe('Porquinho Curioso');
-    expect(titleForLevel(12)).toBe('Estrategista Financeiro');
+    expect(titleForLevel(1)).toBe('Recruta Orbital');
+    expect(titleForLevel(12)).toBe('Pioneiro Cósmico');
     expect(weekStart('2026-10-08')).toBe('2026-10-05');
   });
 

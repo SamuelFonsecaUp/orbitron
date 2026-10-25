@@ -21,6 +21,14 @@ import {
   Target,
   TrendingUp,
   Trophy,
+  GitBranch,
+  Network,
+  BookOpen,
+  Star,
+  Radar,
+  Rocket,
+  Orbit,
+  Satellite,
 } from 'lucide-react';
 import { useFinancial } from '../context/FinancialContext';
 import { GameRarity } from '../types';
