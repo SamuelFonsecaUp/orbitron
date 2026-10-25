@@ -1,5 +1,5 @@
 import { Point, Rect, HandleType } from '../scene/types';
-import { CanvasNode } from '../io/jsonCanvas.types';
+import { CanvasNode, CanvasSide } from '../io/jsonCanvas.types';
 
 export type DragMode =
   | 'none'
@@ -24,5 +24,7 @@ export interface DragState {
   rotateInitialAngle?: number;
   rotateCenter?: Point;
   connectorSourceNode?: CanvasNode;
+  connectorSourceSide?: CanvasSide;
+  connectorFromPt?: Point;
   penPoints?: Point[];
 }

@@ -14,15 +14,16 @@ export function useWheelZoom(containerRef: RefObject<HTMLElement | null>) {
         y: e.clientY - rect.top,
       };
 
-      if (e.ctrlKey || e.metaKey) {
-        // Zoom anchored at pointer
-        const delta = e.deltaY > 0 ? 0.9 : 1.1;
+      if (e.shiftKey) {
+        // Shift + Wheel = Horizontal pan
+        canvasStore.pan(-e.deltaY, 0);
+      } else if (e.ctrlKey || e.metaKey || e.deltaMode !== 0 || Math.abs(e.deltaY) >= 40) {
+        // Direct mouse wheel zoom anchored at cursor
+        const delta = e.deltaY > 0 ? 0.92 : 1.08;
         canvasStore.zoomAt(screenPoint, { width: rect.width, height: rect.height }, delta);
       } else {
-        // Pan
-        const dx = e.shiftKey ? -e.deltaY : -e.deltaX;
-        const dy = e.shiftKey ? 0 : -e.deltaY;
-        canvasStore.pan(dx, dy);
+        // Trackpad 2-finger pan
+        canvasStore.pan(-e.deltaX, -e.deltaY);
       }
     };
 

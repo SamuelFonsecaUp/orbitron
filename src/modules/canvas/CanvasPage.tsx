@@ -10,9 +10,9 @@ import { useResizeObserver } from './hooks/useResizeObserver';
 import { useWheelZoom } from './hooks/useWheelZoom';
 import { useCanvasKeyboard } from './hooks/useCanvasKeyboard';
 import { useCanvasPointer } from './hooks/useCanvasPointer';
-import { CanvasNode } from './io/jsonCanvas.types';
+import { CanvasNode, CanvasEdge } from './io/jsonCanvas.types';
 import { screenToWorld } from './scene/camera';
-import { createAddNodeCommand } from './scene/commands';
+import { createAddNodeCommand, createUpdateEdgeCommand } from './scene/commands';
 import { createNewPlacedNode } from './hooks/pointerNodeCreation';
 import './ui/canvas.css';
 
@@ -69,7 +69,6 @@ export const CanvasPage: React.FC<CanvasPageProps> = ({ filePath }) => {
     if (!rect) return;
     const ptWorld = screenToWorld({ x: e.clientX - rect.left, y: e.clientY - rect.top }, camera);
 
-    // 1. Dragged from Toolbar (Sticky, Shape, Text, Frame)
     const toolData = e.dataTransfer.getData('application/orbitron-tool');
     if (toolData) {
       try {
@@ -80,7 +79,6 @@ export const CanvasPage: React.FC<CanvasPageProps> = ({ filePath }) => {
       } catch (err) {}
     }
 
-    // 2. Dragged from Vault Sidebar (Markdown note or file)
     const noteData = e.dataTransfer.getData('application/orbitron-note');
     if (noteData) {
       try {
@@ -101,7 +99,6 @@ export const CanvasPage: React.FC<CanvasPageProps> = ({ filePath }) => {
       } catch (err) {}
     }
 
-    // 3. Dragged image file from desktop
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
       const file = e.dataTransfer.files[0];
       if (file.type.startsWith('image/')) {
@@ -124,12 +121,33 @@ export const CanvasPage: React.FC<CanvasPageProps> = ({ filePath }) => {
       }
     }
 
-    // 4. Fallback plain text drop
     const text = e.dataTransfer.getData('text/plain');
     if (text) {
       const node = createNewPlacedNode('sticky', 'sticky', toolColor, ptWorld);
       node.text = text;
       canvasStore.dispatch(createAddNodeCommand(node));
+    }
+  };
+
+  const handleCanvasDoubleClick = (e: React.MouseEvent<SVGSVGElement>) => {
+    const svg = svgRef.current;
+    if (!svg) return;
+    const rect = svg.getBoundingClientRect();
+    const ptWorld = screenToWorld({ x: e.clientX - rect.left, y: e.clientY - rect.top }, camera);
+    const target = e.target as HTMLElement;
+    if (target.tagName === 'svg' || target.classList.contains('canvas-grid-bg') || target.tagName === 'line') {
+      const node = createNewPlacedNode('sticky', 'sticky', toolColor, ptWorld);
+      canvasStore.dispatch(createAddNodeCommand(node));
+      canvasStore.setSelection([node.id]);
+      setEditingNode(node);
+    }
+  };
+
+  const handleEdgeDoubleClick = (_e: React.MouseEvent, edge: CanvasEdge) => {
+    const current = edge.label || '';
+    const newLabel = window.prompt('Rótulo da conexão:', current);
+    if (newLabel !== null) {
+      canvasStore.dispatch(createUpdateEdgeCommand(edge.id, { label: current }, { label: newLabel.trim() }));
     }
   };
 
@@ -177,7 +195,7 @@ export const CanvasPage: React.FC<CanvasPageProps> = ({ filePath }) => {
           <div className="p-5 rounded-2xl bg-slate-900/70 border border-slate-800 text-center text-slate-400 text-sm max-w-sm backdrop-blur-md animate-in fade-in duration-300 shadow-2xl">
             <p className="font-semibold text-white mb-1.5 text-base">✨ Quadro em Branco</p>
             <p className="text-xs text-slate-400 leading-relaxed">
-              Arraste notas adesivas ou formas diretamente da barra superior, ou puxe notas da barra lateral para cá!
+              Dê um duplo clique para criar notas, ou arraste notas e formas da barra superior para cá!
             </p>
           </div>
         </div>
@@ -197,10 +215,12 @@ export const CanvasPage: React.FC<CanvasPageProps> = ({ filePath }) => {
         onPointerDown={onCanvasPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
+        onCanvasDoubleClick={handleCanvasDoubleClick}
         onNodePointerDown={onNodePointerDown}
         onNodeDoubleClick={(_e, node) => setEditingNode(node)}
         onAnchorPointerDown={onAnchorPointerDown}
         onEdgePointerDown={onEdgePointerDown}
+        onEdgeDoubleClick={handleEdgeDoubleClick}
         onHandlePointerDown={onHandlePointerDown}
         onRotateHandlePointerDown={onRotateHandlePointerDown}
       />

@@ -1,6 +1,7 @@
 import { CanvasNode, CanvasEdge, CanvasSide } from '../io/jsonCanvas.types';
 import { Point } from './types';
 import { rotatePoint, getNodeCenter } from './geometry';
+import { isPointInNode } from './hitTest';
 
 export interface RouteResult {
   path: string;
@@ -42,13 +43,60 @@ export function getSideNormal(side?: CanvasSide, rotation = 0): Point {
   return rotatePoint(n, { x: 0, y: 0 }, rotation);
 }
 
+export function getAutoSide(fromNode: CanvasNode, toNode: CanvasNode): { fromSide: CanvasSide; toSide: CanvasSide } {
+  const dx = (toNode.x + toNode.width / 2) - (fromNode.x + fromNode.width / 2);
+  const dy = (toNode.y + toNode.height / 2) - (fromNode.y + fromNode.height / 2);
+  if (Math.abs(dx) >= Math.abs(dy)) {
+    return dx >= 0
+      ? { fromSide: 'right', toSide: 'left' }
+      : { fromSide: 'left', toSide: 'right' };
+  } else {
+    return dy >= 0
+      ? { fromSide: 'bottom', toSide: 'top' }
+      : { fromSide: 'top', toSide: 'bottom' };
+  }
+}
+
+export function findConnectorTarget(
+  nodes: CanvasNode[],
+  sourceNodeId: string,
+  ptWorld: Point,
+  tolerance = 30
+): { target: CanvasNode; bestSide: CanvasSide; snapPt: Point } | null {
+  const sides: CanvasSide[] = ['top', 'right', 'bottom', 'left'];
+  for (let i = nodes.length - 1; i >= 0; i--) {
+    const node = nodes[i];
+    if (node.id === sourceNodeId) continue;
+    if (isPointInNode(ptWorld, node, tolerance)) {
+      let bestSide: CanvasSide = 'left';
+      let bestDist = Infinity;
+      let snapPt: Point = { x: node.x, y: node.y };
+      for (const s of sides) {
+        const p = getNodeSidePoint(node, s);
+        const d = Math.hypot(p.x - ptWorld.x, p.y - ptWorld.y);
+        if (d < bestDist) {
+          bestDist = d;
+          bestSide = s;
+          snapPt = p;
+        }
+      }
+      return { target: node, bestSide, snapPt };
+    }
+  }
+  return null;
+}
+
 export function routeEdge(
   edge: CanvasEdge,
   fromNode: CanvasNode,
   toNode: CanvasNode
 ): RouteResult {
-  const fromPt = getNodeSidePoint(fromNode, edge.fromSide);
-  const toPt = getNodeSidePoint(toNode, edge.toSide);
+  const autoSides = getAutoSide(fromNode, toNode);
+  const fromSide = edge.fromSide || autoSides.fromSide;
+  const toSide = edge.toSide || autoSides.toSide;
+
+  const fromPt = getNodeSidePoint(fromNode, fromSide);
+  const toPt = getNodeSidePoint(toNode, toSide);
   const routing = edge.orbitron?.routing || 'orthogonal';
 
   if (routing === 'straight') {
@@ -57,10 +105,10 @@ export function routeEdge(
   }
 
   if (routing === 'bezier') {
-    return routeBezier(fromPt, toPt, edge.fromSide, edge.toSide, fromNode.orbitron?.rotation, toNode.orbitron?.rotation);
+    return routeBezier(fromPt, toPt, fromSide, toSide, fromNode.orbitron?.rotation, toNode.orbitron?.rotation);
   }
 
-  return routeOrthogonal(fromPt, toPt, edge.fromSide, edge.toSide, fromNode, toNode);
+  return routeOrthogonal(fromPt, toPt, fromSide, toSide, fromNode, toNode);
 }
 
 function routeBezier(

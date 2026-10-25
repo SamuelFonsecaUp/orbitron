@@ -9,6 +9,9 @@ interface StickyNodeProps {
   effectiveRect: Rect;
   effectiveRotation: number;
   isSelected: boolean;
+  isTargetCandidate?: boolean;
+  targetSide?: CanvasSide;
+  isConnecting?: boolean;
   onPointerDown?: (e: React.PointerEvent) => void;
   onDoubleClick?: (e: React.MouseEvent) => void;
   onAnchorPointerDown?: (e: React.PointerEvent, side: CanvasSide, pt: Point) => void;
@@ -19,6 +22,9 @@ export const StickyNode: React.FC<StickyNodeProps> = ({
   effectiveRect,
   effectiveRotation,
   isSelected,
+  isTargetCandidate,
+  targetSide,
+  isConnecting,
   onPointerDown,
   onDoubleClick,
   onAnchorPointerDown,
@@ -48,8 +54,8 @@ export const StickyNode: React.FC<StickyNodeProps> = ({
         height={height}
         rx={8}
         fill={color.bg}
-        stroke={isSelected ? '#a855f7' : color.border}
-        strokeWidth={isSelected ? 2.5 : 1.5}
+        stroke={isTargetCandidate ? '#38bdf8' : isSelected ? '#a855f7' : color.border}
+        strokeWidth={isTargetCandidate ? 2.5 : isSelected ? 2.5 : 1.5}
         filter="drop-shadow(0 10px 18px rgba(0,0,0,0.35))"
         className="transition-all duration-75"
       />
@@ -93,7 +99,9 @@ export const StickyNode: React.FC<StickyNodeProps> = ({
       <NodeHotspots
         width={width}
         height={height}
-        visible={isHovered || isSelected}
+        visible={isHovered || isSelected || Boolean(isConnecting)}
+        isTargetCandidate={isTargetCandidate}
+        activeSide={targetSide}
         onAnchorPointerDown={(e, side, pt) => {
           onAnchorPointerDown?.(e, side, { x: x + pt.x, y: y + pt.y });
         }}

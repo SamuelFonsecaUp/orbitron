@@ -2,6 +2,8 @@ import { describe, it, expect } from 'vitest';
 import {
   getNodeSidePoint,
   getSideNormal,
+  getAutoSide,
+  findConnectorTarget,
   routeEdge,
 } from '../../src/modules/canvas/scene/connectors';
 import { CanvasNode, CanvasEdge } from '../../src/modules/canvas/io/jsonCanvas.types';
@@ -37,12 +39,28 @@ describe('Canvas Connectors & Routing', () => {
       ...nodeA,
       orbitron: { rotation: 90 },
     };
-    // Center is (200, 150). 'right' was (300, 150). Rotated 90 deg around center:
-    // (x-cx)*cos - (y-cy)*sin + cx = 0 + 200 = 200
-    // (x-cx)*sin + (y-cy)*cos + cy = 100 + 150 = 250
     const pt = getNodeSidePoint(rotatedNode, 'right');
     expect(pt.x).toBeCloseTo(200);
     expect(pt.y).toBeCloseTo(250);
+  });
+
+  it('calculates optimal geometric auto sides between distant nodes', () => {
+    const sides = getAutoSide(nodeA, nodeB);
+    expect(sides).toEqual({ fromSide: 'right', toSide: 'left' });
+
+    const nodeBelow: CanvasNode = { id: 'nBelow', type: 'text', x: 100, y: 500, width: 200, height: 100 };
+    const verticalSides = getAutoSide(nodeA, nodeBelow);
+    expect(verticalSides).toEqual({ fromSide: 'bottom', toSide: 'top' });
+  });
+
+  it('finds candidate target node and nearest anchor with magnetic tolerance', () => {
+    const nodes = [nodeA, nodeB];
+    // Cursor hovering near left edge of nodeB (which is at x=500, y=150)
+    const hit = findConnectorTarget(nodes, nodeA.id, { x: 490, y: 150 }, 30);
+    expect(hit).not.toBeNull();
+    expect(hit?.target.id).toBe('nB');
+    expect(hit?.bestSide).toBe('left');
+    expect(hit?.snapPt).toEqual({ x: 500, y: 150 });
   });
 
   it('routes orthogonal edge between two nodes', () => {
@@ -90,5 +108,17 @@ describe('Canvas Connectors & Routing', () => {
     const res = routeEdge(edge, nodeA, nodeB);
     expect(res.path).toBe('M 200 200 L 600 100');
     expect(res.midpoint).toEqual({ x: 400, y: 150 });
+  });
+
+  it('gracefully falls back to auto sides when sides are omitted in edge', () => {
+    const edge: CanvasEdge = {
+      id: 'e4',
+      fromNode: 'nA',
+      toNode: 'nB',
+    };
+
+    const res = routeEdge(edge, nodeA, nodeB);
+    expect(res.fromPoint).toEqual({ x: 300, y: 150 });
+    expect(res.toPoint).toEqual({ x: 500, y: 150 });
   });
 });

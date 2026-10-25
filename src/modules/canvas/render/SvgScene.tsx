@@ -21,10 +21,12 @@ interface SvgSceneProps {
   onPointerDown?: (e: React.PointerEvent<SVGSVGElement>) => void;
   onPointerMove?: (e: React.PointerEvent<SVGSVGElement>) => void;
   onPointerUp?: (e: React.PointerEvent<SVGSVGElement>) => void;
+  onCanvasDoubleClick?: (e: React.MouseEvent<SVGSVGElement>) => void;
   onNodePointerDown?: (e: React.PointerEvent, node: CanvasNode) => void;
   onNodeDoubleClick?: (e: React.MouseEvent, node: CanvasNode) => void;
   onAnchorPointerDown?: (e: React.PointerEvent, node: CanvasNode, side: CanvasSide, pt: Point) => void;
   onEdgePointerDown?: (e: React.PointerEvent, edge: CanvasEdge) => void;
+  onEdgeDoubleClick?: (e: React.MouseEvent, edge: CanvasEdge) => void;
   onHandlePointerDown?: (e: React.PointerEvent, handle: HandleType, node: CanvasNode) => void;
   onRotateHandlePointerDown?: (e: React.PointerEvent, node: CanvasNode) => void;
 }
@@ -43,10 +45,12 @@ export const SvgScene: React.FC<SvgSceneProps> = ({
   onPointerDown,
   onPointerMove,
   onPointerUp,
+  onCanvasDoubleClick,
   onNodePointerDown,
   onNodeDoubleClick,
   onAnchorPointerDown,
   onEdgePointerDown,
+  onEdgeDoubleClick,
   onHandlePointerDown,
   onRotateHandlePointerDown,
 }) => {
@@ -64,6 +68,7 @@ export const SvgScene: React.FC<SvgSceneProps> = ({
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
+      onDoubleClick={onCanvasDoubleClick}
       className="w-full h-full block bg-[#090d16] select-none touch-none overflow-hidden"
     >
       {/* Background Infinite Grid */}
@@ -82,6 +87,7 @@ export const SvgScene: React.FC<SvgSceneProps> = ({
           selection={selection}
           ephemeral={ephemeral}
           onEdgePointerDown={onEdgePointerDown}
+          onEdgeDoubleClick={onEdgeDoubleClick}
         />
 
         {/* Nodes */}

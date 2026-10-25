@@ -28,6 +28,7 @@ export const NodesLayer: React.FC<NodesLayerProps> = ({
   onAnchorPointerDown,
 }) => {
   const selectionSet = new Set(selection);
+  const isConnecting = ephemeral?.type === 'connector';
 
   const sortedNodes = [...nodes].sort((a, b) => {
     if (a.type === 'group' && b.type !== 'group') return -1;
@@ -39,6 +40,8 @@ export const NodesLayer: React.FC<NodesLayerProps> = ({
     const isSelected = selectionSet.has(node.id);
     const effRect = getEffectiveNodeRect(node, ephemeral);
     const effRot = getEffectiveNodeRotation(node, ephemeral);
+    const isTargetCandidate = isConnecting && ephemeral?.targetNodeId === node.id;
+    const targetSide = isTargetCandidate ? ephemeral?.targetSide : undefined;
 
     const commonProps = {
       key: node.id,
@@ -46,6 +49,9 @@ export const NodesLayer: React.FC<NodesLayerProps> = ({
       effectiveRect: effRect,
       effectiveRotation: effRot,
       isSelected,
+      isTargetCandidate,
+      targetSide,
+      isConnecting,
       onPointerDown: (e: React.PointerEvent) => onNodePointerDown?.(e, node),
       onDoubleClick: (e: React.MouseEvent) => onNodeDoubleClick?.(e, node),
       onAnchorPointerDown: (e: React.PointerEvent, side: CanvasSide, pt: Point) =>

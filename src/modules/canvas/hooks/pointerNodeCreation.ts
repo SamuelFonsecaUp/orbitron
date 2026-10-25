@@ -1,4 +1,4 @@
-import { CanvasNode, CanvasEdge } from '../io/jsonCanvas.types';
+import { CanvasNode, CanvasEdge, CanvasSide } from '../io/jsonCanvas.types';
 import { Point } from '../scene/types';
 
 export function createNewPlacedNode(
@@ -12,7 +12,7 @@ export function createNewPlacedNode(
   const isFrame = tool === 'frame';
 
   return {
-    id: `node-${Date.now()}`,
+    id: `node-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
     type: isFrame ? 'group' : 'text',
     x: Math.round(ptWorld.x - (isFrame ? 200 : 120)),
     y: Math.round(ptWorld.y - (isFrame ? 150 : 70)),
@@ -28,19 +28,29 @@ export function createNewPlacedNode(
   };
 }
 
-export function createNewEdge(fromId: string, toId: string, color: string): CanvasEdge {
+export function createNewEdge(
+  fromId: string,
+  toId: string,
+  color: string,
+  fromSide?: CanvasSide,
+  toSide?: CanvasSide,
+  routing: 'orthogonal' | 'bezier' | 'straight' = 'orthogonal'
+): CanvasEdge {
   return {
-    id: `edge-${Date.now()}`,
+    id: `edge-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
     fromNode: fromId,
+    fromSide: fromSide || 'right',
     toNode: toId,
+    toSide: toSide || 'left',
     toEnd: 'arrow',
     color,
+    orbitron: { routing },
   };
 }
 
 export function createPenNode(points: Point[], color: string): CanvasNode {
   return {
-    id: `pen-${Date.now()}`,
+    id: `pen-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
     type: 'text',
     x: 0,
     y: 0,

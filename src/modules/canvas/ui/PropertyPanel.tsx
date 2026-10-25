@@ -1,5 +1,5 @@
 import React from 'react';
-import { Trash2, ArrowUp, ArrowDown, Copy } from 'lucide-react';
+import { Trash2, ArrowUp, ArrowDown, Copy, Tag, ArrowRight } from 'lucide-react';
 import { useCanvasStore, canvasStore } from '../store/canvasStore';
 import { CANVAS_COLORS } from '../render/colors';
 import {
@@ -59,6 +59,27 @@ export const PropertyPanel: React.FC = () => {
         )
       );
     });
+  };
+
+  const handleToggleArrow = () => {
+    selectedEdges.forEach((edge) => {
+      const newEnd = edge.toEnd === 'none' ? 'arrow' : 'none';
+      canvasStore.dispatch(
+        createUpdateEdgeCommand(edge.id, { toEnd: edge.toEnd }, { toEnd: newEnd })
+      );
+    });
+  };
+
+  const handleEditLabel = () => {
+    if (selectedEdges.length === 0) return;
+    const edge = selectedEdges[0];
+    const current = edge.label || '';
+    const newLabel = window.prompt('Rótulo do conector:', current);
+    if (newLabel !== null) {
+      canvasStore.dispatch(
+        createUpdateEdgeCommand(edge.id, { label: current }, { label: newLabel.trim() })
+      );
+    }
   };
 
   const handleDuplicate = () => {
@@ -134,16 +155,32 @@ export const PropertyPanel: React.FC = () => {
         <>
           <div className="w-[1px] h-5 bg-white/10 my-auto" />
           <div className="flex items-center gap-1 text-xs text-slate-300">
-            <button onClick={() => handleRoutingChange('orthogonal')} className="px-2 py-0.5 rounded-lg hover:bg-white/10 hover:text-white">
+            <button onClick={() => handleRoutingChange('orthogonal')} className="px-2 py-0.5 rounded-lg hover:bg-white/10 hover:text-white" title="Conector Ortogonal (90°)">
               Ortogonal
             </button>
-            <button onClick={() => handleRoutingChange('bezier')} className="px-2 py-0.5 rounded-lg hover:bg-white/10 hover:text-white">
+            <button onClick={() => handleRoutingChange('bezier')} className="px-2 py-0.5 rounded-lg hover:bg-white/10 hover:text-white" title="Conector Curvo">
               Curva
             </button>
-            <button onClick={() => handleRoutingChange('straight')} className="px-2 py-0.5 rounded-lg hover:bg-white/10 hover:text-white">
+            <button onClick={() => handleRoutingChange('straight')} className="px-2 py-0.5 rounded-lg hover:bg-white/10 hover:text-white" title="Linha Reta">
               Reta
             </button>
           </div>
+
+          <div className="w-[1px] h-5 bg-white/10 my-auto" />
+          <button
+            onClick={handleToggleArrow}
+            className="canvas-tool-btn !w-7 !h-7 text-xs"
+            title="Alternar ponta de seta"
+          >
+            <ArrowRight className="w-3.5 h-3.5" />
+          </button>
+          <button
+            onClick={handleEditLabel}
+            className="canvas-tool-btn !w-7 !h-7 text-xs"
+            title="Editar rótulo do conector"
+          >
+            <Tag className="w-3.5 h-3.5" />
+          </button>
         </>
       )}
 

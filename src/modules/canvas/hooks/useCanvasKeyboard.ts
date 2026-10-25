@@ -4,8 +4,12 @@ import {
   createDeleteElementsCommand,
   createMoveNodesCommand,
   createAddNodeCommand,
+  createAddEdgeCommand,
 } from '../scene/commands';
-import { CanvasNode } from '../io/jsonCanvas.types';
+import { CanvasNode, CanvasEdge } from '../io/jsonCanvas.types';
+
+let clipboardNodes: CanvasNode[] = [];
+let clipboardEdges: CanvasEdge[] = [];
 
 export function useCanvasKeyboard() {
   useEffect(() => {
@@ -32,6 +36,44 @@ export function useCanvasKeyboard() {
         return;
       }
 
+      // Copy (Ctrl+C)
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c') {
+        const selSet = new Set(snap.selection);
+        clipboardNodes = snap.nodes.filter((n) => selSet.has(n.id));
+        clipboardEdges = snap.edges.filter((ed) => selSet.has(ed.fromNode) && selSet.has(ed.toNode));
+        return;
+      }
+
+      // Paste (Ctrl+V)
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'v') {
+        if (clipboardNodes.length === 0) return;
+        e.preventDefault();
+        const idMap = new Map<string, string>();
+        const newNodes: CanvasNode[] = [];
+        clipboardNodes.forEach((n) => {
+          const newId = `node-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+          idMap.set(n.id, newId);
+          const cloned: CanvasNode = { ...n, id: newId, x: n.x + 35, y: n.y + 35 };
+          newNodes.push(cloned);
+          canvasStore.dispatch(createAddNodeCommand(cloned));
+        });
+        clipboardEdges.forEach((ed) => {
+          const fromId = idMap.get(ed.fromNode);
+          const toId = idMap.get(ed.toNode);
+          if (fromId && toId) {
+            const newEdge: CanvasEdge = {
+              ...ed,
+              id: `edge-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+              fromNode: fromId,
+              toNode: toId,
+            };
+            canvasStore.dispatch(createAddEdgeCommand(newEdge));
+          }
+        });
+        canvasStore.setSelection(newNodes.map((n) => n.id));
+        return;
+      }
+
       // Select All
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'a') {
         e.preventDefault();
@@ -43,15 +85,14 @@ export function useCanvasKeyboard() {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'd') {
         e.preventDefault();
         const selected = snap.nodes.filter((n) => snap.selection.includes(n.id));
+        const newIds: string[] = [];
         selected.forEach((n) => {
-          const cloned: CanvasNode = {
-            ...n,
-            id: `node-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-            x: n.x + 30,
-            y: n.y + 30,
-          };
+          const clonedId = `node-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+          newIds.push(clonedId);
+          const cloned: CanvasNode = { ...n, id: clonedId, x: n.x + 30, y: n.y + 30 };
           canvasStore.dispatch(createAddNodeCommand(cloned));
         });
+        if (newIds.length > 0) canvasStore.setSelection(newIds);
         return;
       }
 

@@ -1,23 +1,33 @@
-import React from 'react';
-import { CanvasNode } from '../../io/jsonCanvas.types';
+import React, { useState } from 'react';
+import { CanvasNode, CanvasSide } from '../../io/jsonCanvas.types';
 import { getCanvasColor } from '../colors';
-import { Rect } from '../../scene/types';
+import { Point, Rect } from '../../scene/types';
+import { NodeHotspots } from './NodeHotspots';
 
 interface FrameNodeProps {
   node: CanvasNode;
   effectiveRect: Rect;
   isSelected: boolean;
+  isTargetCandidate?: boolean;
+  targetSide?: CanvasSide;
+  isConnecting?: boolean;
   onPointerDown?: (e: React.PointerEvent) => void;
   onDoubleClick?: (e: React.MouseEvent) => void;
+  onAnchorPointerDown?: (e: React.PointerEvent, side: CanvasSide, pt: Point) => void;
 }
 
 export const FrameNode: React.FC<FrameNodeProps> = ({
   node,
   effectiveRect,
   isSelected,
+  isTargetCandidate,
+  targetSide,
+  isConnecting,
   onPointerDown,
   onDoubleClick,
+  onAnchorPointerDown,
 }) => {
+  const [isHovered, setIsHovered] = useState(false);
   const color = getCanvasColor(node.color);
   const isFilled = node.orbitron?.filled ?? false;
   const label = node.label || 'Grupo';
@@ -28,6 +38,8 @@ export const FrameNode: React.FC<FrameNodeProps> = ({
       transform={`translate(${x} ${y})`}
       onPointerDown={onPointerDown}
       onDoubleClick={onDoubleClick}
+      onPointerEnter={() => setIsHovered(true)}
+      onPointerLeave={() => setIsHovered(false)}
       className="cursor-pointer select-none"
     >
       <rect
@@ -35,9 +47,9 @@ export const FrameNode: React.FC<FrameNodeProps> = ({
         height={h}
         rx={12}
         fill={isFilled ? color.bg : 'rgba(255, 255, 255, 0.02)'}
-        stroke={isSelected ? '#a855f7' : color.border}
-        strokeWidth={isSelected ? 2 : 1.5}
-        strokeDasharray={isSelected ? undefined : '6 4'}
+        stroke={isTargetCandidate ? '#38bdf8' : isSelected ? '#a855f7' : color.border}
+        strokeWidth={isTargetCandidate ? 2.5 : isSelected ? 2 : 1.5}
+        strokeDasharray={isSelected || isTargetCandidate ? undefined : '6 4'}
       />
 
       <g transform="translate(12, -14)">
@@ -60,6 +72,18 @@ export const FrameNode: React.FC<FrameNodeProps> = ({
           {label}
         </text>
       </g>
+
+      {/* Hotspots */}
+      <NodeHotspots
+        width={w}
+        height={h}
+        visible={isHovered || isSelected || Boolean(isConnecting)}
+        isTargetCandidate={isTargetCandidate}
+        activeSide={targetSide}
+        onAnchorPointerDown={(e, side, pt) => {
+          onAnchorPointerDown?.(e, side, { x: x + pt.x, y: y + pt.y });
+        }}
+      />
     </g>
   );
 };

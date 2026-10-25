@@ -1,15 +1,20 @@
-import React from 'react';
-import { CanvasNode } from '../../io/jsonCanvas.types';
+import React, { useState } from 'react';
+import { CanvasNode, CanvasSide } from '../../io/jsonCanvas.types';
 import { getCanvasColor } from '../colors';
-import { Rect } from '../../scene/types';
+import { Point, Rect } from '../../scene/types';
+import { NodeHotspots } from './NodeHotspots';
 
 interface TextNodeProps {
   node: CanvasNode;
   effectiveRect: Rect;
   effectiveRotation: number;
   isSelected: boolean;
+  isTargetCandidate?: boolean;
+  targetSide?: CanvasSide;
+  isConnecting?: boolean;
   onPointerDown?: (e: React.PointerEvent) => void;
   onDoubleClick?: (e: React.MouseEvent) => void;
+  onAnchorPointerDown?: (e: React.PointerEvent, side: CanvasSide, pt: Point) => void;
 }
 
 export const TextNode: React.FC<TextNodeProps> = ({
@@ -17,9 +22,14 @@ export const TextNode: React.FC<TextNodeProps> = ({
   effectiveRect,
   effectiveRotation,
   isSelected,
+  isTargetCandidate,
+  targetSide,
+  isConnecting,
   onPointerDown,
   onDoubleClick,
+  onAnchorPointerDown,
 }) => {
+  const [isHovered, setIsHovered] = useState(false);
   const color = getCanvasColor(node.color);
   const { x, y, width: w, height: h } = effectiveRect;
   const cx = x + w / 2;
@@ -31,17 +41,19 @@ export const TextNode: React.FC<TextNodeProps> = ({
       transform={`rotate(${effectiveRotation} ${cx} ${cy}) translate(${x} ${y})`}
       onPointerDown={onPointerDown}
       onDoubleClick={onDoubleClick}
+      onPointerEnter={() => setIsHovered(true)}
+      onPointerLeave={() => setIsHovered(false)}
       className="cursor-pointer select-none"
     >
-      {isSelected && (
+      {(isSelected || isTargetCandidate) && (
         <rect
           width={w}
           height={h}
           rx={6}
           fill="none"
-          stroke="#a855f7"
-          strokeWidth={1.5}
-          strokeDasharray="4 2"
+          stroke={isTargetCandidate ? '#38bdf8' : '#a855f7'}
+          strokeWidth={isTargetCandidate ? 2.5 : 1.5}
+          strokeDasharray={isTargetCandidate ? undefined : '4 2'}
         />
       )}
 
@@ -59,6 +71,18 @@ export const TextNode: React.FC<TextNodeProps> = ({
           {node.text || 'Texto vazio...'}
         </div>
       </foreignObject>
+
+      {/* Hotspots */}
+      <NodeHotspots
+        width={w}
+        height={h}
+        visible={isHovered || isSelected || Boolean(isConnecting)}
+        isTargetCandidate={isTargetCandidate}
+        activeSide={targetSide}
+        onAnchorPointerDown={(e, side, pt) => {
+          onAnchorPointerDown?.(e, side, { x: x + pt.x, y: y + pt.y });
+        }}
+      />
     </g>
   );
 };

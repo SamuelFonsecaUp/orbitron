@@ -10,6 +10,7 @@ interface EdgesLayerProps {
   selection: string[];
   ephemeral: EphemeralTransform;
   onEdgePointerDown?: (e: React.PointerEvent, edge: CanvasEdge) => void;
+  onEdgeDoubleClick?: (e: React.MouseEvent, edge: CanvasEdge) => void;
 }
 
 export const EdgesLayer: React.FC<EdgesLayerProps> = ({
@@ -18,6 +19,7 @@ export const EdgesLayer: React.FC<EdgesLayerProps> = ({
   selection,
   ephemeral,
   onEdgePointerDown,
+  onEdgeDoubleClick,
 }) => {
   const selectionSet = new Set(selection);
 
@@ -34,6 +36,17 @@ export const EdgesLayer: React.FC<EdgesLayerProps> = ({
           orient="auto-start-reverse"
         >
           <path d="M 0 1 L 10 5 L 0 9 z" fill="#a855f7" />
+        </marker>
+        <marker
+          id="edge-arrowhead-target"
+          viewBox="0 0 10 10"
+          refX="8"
+          refY="5"
+          markerWidth="7"
+          markerHeight="7"
+          orient="auto-start-reverse"
+        >
+          <path d="M 0 1 L 10 5 L 0 9 z" fill="#38bdf8" />
         </marker>
         <marker
           id="edge-arrowhead-default"
@@ -80,9 +93,10 @@ export const EdgesLayer: React.FC<EdgesLayerProps> = ({
             key={edge.id}
             className="cursor-pointer"
             onPointerDown={(e) => onEdgePointerDown?.(e, edge)}
+            onDoubleClick={(e) => onEdgeDoubleClick?.(e, edge)}
           >
-            <path d={route.path} fill="none" stroke="transparent" strokeWidth={14} />
-            {isSelected && <path d={route.path} fill="none" stroke="#a855f7" strokeWidth={5} opacity={0.4} />}
+            <path d={route.path} fill="none" stroke="transparent" strokeWidth={16} />
+            {isSelected && <path d={route.path} fill="none" stroke="#a855f7" strokeWidth={6} opacity={0.35} />}
             <path
               d={route.path}
               fill="none"
@@ -122,16 +136,49 @@ export const EdgesLayer: React.FC<EdgesLayerProps> = ({
       {/* Live elastic connector dragging in progress (Lucidspark style) */}
       {ephemeral && ephemeral.type === 'connector' && (
         <g className="live-connector pointer-events-none">
-          <path
-            d={`M ${ephemeral.fromPt.x} ${ephemeral.fromPt.y} Q ${(ephemeral.fromPt.x + ephemeral.currentPt.x) / 2} ${ephemeral.fromPt.y} ${ephemeral.currentPt.x} ${ephemeral.currentPt.y}`}
-            fill="none"
-            stroke="#c084fc"
-            strokeWidth={2.5}
-            strokeDasharray="6 4"
-            markerEnd="url(#edge-arrowhead)"
-          />
-          <circle cx={ephemeral.fromPt.x} cy={ephemeral.fromPt.y} r={4} fill="#c084fc" />
-          <circle cx={ephemeral.currentPt.x} cy={ephemeral.currentPt.y} r={4} fill="#a855f7" />
+          {(() => {
+            const p1 = ephemeral.fromPt;
+            const p2 = ephemeral.currentPt;
+            const isSnapped = Boolean(ephemeral.targetNodeId);
+            const dx = p2.x - p1.x;
+            const dy = p2.y - p1.y;
+            const cx1 = p1.x + (Math.abs(dx) > Math.abs(dy) ? dx * 0.5 : 0);
+            const cy1 = p1.y + (Math.abs(dx) <= Math.abs(dy) ? dy * 0.5 : 0);
+            const cx2 = p2.x - (Math.abs(dx) > Math.abs(dy) ? dx * 0.5 : 0);
+            const cy2 = p2.y - (Math.abs(dx) <= Math.abs(dy) ? dy * 0.5 : 0);
+            const d = `M ${p1.x} ${p1.y} C ${cx1} ${cy1}, ${cx2} ${cy2}, ${p2.x} ${p2.y}`;
+
+            return (
+              <>
+                {isSnapped && (
+                  <path
+                    d={d}
+                    fill="none"
+                    stroke="#38bdf8"
+                    strokeWidth={6}
+                    opacity={0.3}
+                  />
+                )}
+                <path
+                  d={d}
+                  fill="none"
+                  stroke={isSnapped ? '#38bdf8' : '#c084fc'}
+                  strokeWidth={isSnapped ? 3 : 2.5}
+                  strokeDasharray={isSnapped ? undefined : '6 4'}
+                  markerEnd={isSnapped ? 'url(#edge-arrowhead-target)' : 'url(#edge-arrowhead)'}
+                />
+                <circle cx={p1.x} cy={p1.y} r={5} fill="#a855f7" />
+                <circle
+                  cx={p2.x}
+                  cy={p2.y}
+                  r={isSnapped ? 6 : 4.5}
+                  fill={isSnapped ? '#38bdf8' : '#c084fc'}
+                  stroke={isSnapped ? '#0284c7' : '#581c87'}
+                  strokeWidth={1.5}
+                />
+              </>
+            );
+          })()}
         </g>
       )}
 

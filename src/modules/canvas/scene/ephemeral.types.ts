@@ -1,11 +1,19 @@
 import { Point, Rect, HandleType } from './types';
-import { CanvasNode } from '../io/jsonCanvas.types';
+import { CanvasNode, CanvasSide } from '../io/jsonCanvas.types';
 
 export type EphemeralTransform =
   | { type: 'move'; nodeIds: string[]; dx: number; dy: number }
   | { type: 'resize'; nodeId: string; rect: Rect }
   | { type: 'rotate'; nodeId: string; angle: number }
-  | { type: 'connector'; fromNodeId: string; fromPt: Point; currentPt: Point; targetNodeId?: string }
+  | {
+      type: 'connector';
+      fromNodeId: string;
+      fromSide?: CanvasSide;
+      fromPt: Point;
+      currentPt: Point;
+      targetNodeId?: string;
+      targetSide?: CanvasSide;
+    }
   | { type: 'pen'; points: Point[]; color: string }
   | { type: 'select_box'; rect: Rect }
   | null;

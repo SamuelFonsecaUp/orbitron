@@ -1,23 +1,33 @@
-import React from 'react';
-import { CanvasNode } from '../../io/jsonCanvas.types';
+import React, { useState } from 'react';
+import { CanvasNode, CanvasSide } from '../../io/jsonCanvas.types';
 import { getCanvasColor } from '../colors';
-import { Rect } from '../../scene/types';
+import { Point, Rect } from '../../scene/types';
+import { NodeHotspots } from './NodeHotspots';
 
 interface ImageNodeProps {
   node: CanvasNode;
   effectiveRect: Rect;
   isSelected: boolean;
+  isTargetCandidate?: boolean;
+  targetSide?: CanvasSide;
+  isConnecting?: boolean;
   onPointerDown?: (e: React.PointerEvent) => void;
   onDoubleClick?: (e: React.MouseEvent) => void;
+  onAnchorPointerDown?: (e: React.PointerEvent, side: CanvasSide, pt: Point) => void;
 }
 
 export const ImageNode: React.FC<ImageNodeProps> = ({
   node,
   effectiveRect,
   isSelected,
+  isTargetCandidate,
+  targetSide,
+  isConnecting,
   onPointerDown,
   onDoubleClick,
+  onAnchorPointerDown,
 }) => {
+  const [isHovered, setIsHovered] = useState(false);
   const color = getCanvasColor(node.color);
   const src = node.url || node.file || '';
   const { x, y, width: w, height: h } = effectiveRect;
@@ -27,6 +37,8 @@ export const ImageNode: React.FC<ImageNodeProps> = ({
       transform={`translate(${x} ${y})`}
       onPointerDown={onPointerDown}
       onDoubleClick={onDoubleClick}
+      onPointerEnter={() => setIsHovered(true)}
+      onPointerLeave={() => setIsHovered(false)}
       className="cursor-pointer select-none"
     >
       <rect
@@ -34,8 +46,8 @@ export const ImageNode: React.FC<ImageNodeProps> = ({
         height={h}
         rx={10}
         fill="#0f172a"
-        stroke={isSelected ? '#a855f7' : color.border}
-        strokeWidth={isSelected ? 2.5 : 1.5}
+        stroke={isTargetCandidate ? '#38bdf8' : isSelected ? '#a855f7' : color.border}
+        strokeWidth={isTargetCandidate ? 2.5 : isSelected ? 2.5 : 1.5}
         filter="drop-shadow(0 10px 18px rgba(0,0,0,0.35))"
       />
 
@@ -55,6 +67,18 @@ export const ImageNode: React.FC<ImageNodeProps> = ({
           )}
         </div>
       </foreignObject>
+
+      {/* Hotspots */}
+      <NodeHotspots
+        width={w}
+        height={h}
+        visible={isHovered || isSelected || Boolean(isConnecting)}
+        isTargetCandidate={isTargetCandidate}
+        activeSide={targetSide}
+        onAnchorPointerDown={(e, side, pt) => {
+          onAnchorPointerDown?.(e, side, { x: x + pt.x, y: y + pt.y });
+        }}
+      />
     </g>
   );
 };

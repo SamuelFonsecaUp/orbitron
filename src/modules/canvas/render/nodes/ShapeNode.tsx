@@ -9,6 +9,9 @@ interface ShapeNodeProps {
   effectiveRect: Rect;
   effectiveRotation: number;
   isSelected: boolean;
+  isTargetCandidate?: boolean;
+  targetSide?: CanvasSide;
+  isConnecting?: boolean;
   onPointerDown?: (e: React.PointerEvent) => void;
   onDoubleClick?: (e: React.MouseEvent) => void;
   onAnchorPointerDown?: (e: React.PointerEvent, side: CanvasSide, pt: Point) => void;
@@ -19,6 +22,9 @@ export const ShapeNode: React.FC<ShapeNodeProps> = ({
   effectiveRect,
   effectiveRotation,
   isSelected,
+  isTargetCandidate,
+  targetSide,
+  isConnecting,
   onPointerDown,
   onDoubleClick,
   onAnchorPointerDown,
@@ -31,8 +37,8 @@ export const ShapeNode: React.FC<ShapeNodeProps> = ({
   const cy = y + h / 2;
   const fontSize = node.orbitron?.fontSize || 14;
 
-  const strokeColor = isSelected ? '#a855f7' : color.border;
-  const strokeWidth = isSelected ? 2.5 : 2;
+  const strokeColor = isTargetCandidate ? '#38bdf8' : isSelected ? '#a855f7' : color.border;
+  const strokeWidth = isTargetCandidate ? 3 : isSelected ? 2.5 : 2;
 
   const renderShapeSvg = () => {
     switch (shape) {
@@ -123,7 +129,9 @@ export const ShapeNode: React.FC<ShapeNodeProps> = ({
       <NodeHotspots
         width={w}
         height={h}
-        visible={isHovered || isSelected}
+        visible={isHovered || isSelected || Boolean(isConnecting)}
+        isTargetCandidate={isTargetCandidate}
+        activeSide={targetSide}
         onAnchorPointerDown={(e, side, pt) => {
           onAnchorPointerDown?.(e, side, { x: x + pt.x, y: y + pt.y });
         }}
