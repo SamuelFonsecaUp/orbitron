@@ -431,23 +431,23 @@ $$\text{XP para o próximo nível}(N) = 100 + 50 \times (N - 1)$$
 | `notas_5` | Cinco Fragmentos de Conhecimento | Alcance 5 anotações salvas no Orbitron. | Comum | `Library` | `notesCount` | 5 |
 | `notas_15` | Arquivo Pessoal Ativo | Alcance 15 anotações salvas no Orbitron. | Raro | `GraduationCap` | `notesCount` | 15 |
 | `notas_30` | Enciclopédia Estelar | Alcance 30 anotações salvas no Orbitron. | Épico | `Crown` | `notesCount` | 30 |
-| `orb_12_06` | Diário de Bordo | Alcance 45 anotações salvas no Orbitron. | Raro | `BookOpen` | `notesCount` | 45 |
-| `orb_12_07` | Sinal de Conhecimento | Alcance 67 anotações salvas no Orbitron. | Épico | `BookOpen` | `notesCount` | 67 |
-| `orb_12_08` | Bibliotecário Orbital | Alcance 101 anotações salvas no Orbitron. | Épico | `BookOpen` | `notesCount` | 101 |
-| `orb_12_09` | Arquivo de Ideias | Alcance 151 anotações salvas no Orbitron. | Lendário | `BookOpen` | `notesCount` | 151 |
-| `orb_12_10` | Cartógrafo do Pensamento | Alcance 227 anotações salvas no Orbitron. | Comum | `BookOpen` | `notesCount` | 227 |
-| `orb_12_11` | Colecionador de Insights | Alcance 341 anotações salvas no Orbitron. | Comum | `BookOpen` | `notesCount` | 341 |
-| `orb_12_12` | Registro de Descobertas | Alcance 511 anotações salvas no Orbitron. | Raro | `BookOpen` | `notesCount` | 511 |
-| `orb_12_13` | Observatório Mental | Alcance 767 anotações salvas no Orbitron. | Raro | `BookOpen` | `notesCount` | 767 |
-| `orb_12_14` | Atlas de Anotações | Alcance 1151 anotações salvas no Orbitron. | Épico | `BookOpen` | `notesCount` | 1151 |
-| `orb_12_15` | Mente em Expansão | Alcance 1727 anotações salvas no Orbitron. | Épico | `BookOpen` | `notesCount` | 1727 |
-| `orb_12_16` | Biblioteca Cósmica | Alcance 2591 anotações salvas no Orbitron. | Lendário | `BookOpen` | `notesCount` | 2591 |
-| `orb_12_17` | Cronista do Cosmos | Alcance 3887 anotações salvas no Orbitron. | Comum | `BookOpen` | `notesCount` | 3887 |
-| `orb_12_18` | Arquivo de Andrômeda | Alcance 5831 anotações salvas no Orbitron. | Comum | `BookOpen` | `notesCount` | 5831 |
-| `orb_12_19` | Guardião do Conhecimento | Alcance 8747 anotações salvas no Orbitron. | Raro | `BookOpen` | `notesCount` | 8747 |
-| `orb_12_20` | Memória Interestelar | Alcance 13121 anotações salvas no Orbitron. | Raro | `BookOpen` | `notesCount` | 13121 |
-| `orb_12_21` | Oráculo de Ideias | Alcance 19681 anotações salvas no Orbitron. | Épico | `BookOpen` | `notesCount` | 19681 |
-| `orb_12_22` | Biblioteca do Infinito | Alcance 29521 anotações salvas no Orbitron. | Épico | `BookOpen` | `notesCount` | 29521 |
+| `orb_12_06` | Diário de Bordo | Alcance 35 anotações salvas no Orbitron. | Raro | `BookOpen` | `notesCount` | 35 |
+| `orb_12_07` | Sinal de Conhecimento | Alcance 40 anotações salvas no Orbitron. | Épico | `BookOpen` | `notesCount` | 40 |
+| `orb_12_08` | Bibliotecário Orbital | Alcance 45 anotações salvas no Orbitron. | Épico | `BookOpen` | `notesCount` | 45 |
+| `orb_12_09` | Arquivo de Ideias | Alcance 50 anotações salvas no Orbitron. | Lendário | `BookOpen` | `notesCount` | 50 |
+| `orb_12_10` | Cartógrafo do Pensamento | Alcance 55 anotações salvas no Orbitron. | Comum | `BookOpen` | `notesCount` | 55 |
+| `orb_12_11` | Colecionador de Insights | Alcance 60 anotações salvas no Orbitron. | Comum | `BookOpen` | `notesCount` | 60 |
+| `orb_12_12` | Registro de Descobertas | Alcance 65 anotações salvas no Orbitron. | Raro | `BookOpen` | `notesCount` | 65 |
+| `orb_12_13` | Observatório Mental | Alcance 70 anotações salvas no Orbitron. | Raro | `BookOpen` | `notesCount` | 70 |
+| `orb_12_14` | Atlas de Anotações | Alcance 75 anotações salvas no Orbitron. | Épico | `BookOpen` | `notesCount` | 75 |
+| `orb_12_15` | Mente em Expansão | Alcance 80 anotações salvas no Orbitron. | Épico | `BookOpen` | `notesCount` | 80 |
+| `orb_12_16` | Biblioteca Cósmica | Alcance 85 anotações salvas no Orbitron. | Lendário | `BookOpen` | `notesCount` | 85 |
+| `orb_12_17` | Cronista do Cosmos | Alcance 90 anotações salvas no Orbitron. | Comum | `BookOpen` | `notesCount` | 90 |
+| `orb_12_18` | Arquivo de Andrômeda | Alcance 92 anotações salvas no Orbitron. | Comum | `BookOpen` | `notesCount` | 92 |
+| `orb_12_19` | Guardião do Conhecimento | Alcance 94 anotações salvas no Orbitron. | Raro | `BookOpen` | `notesCount` | 94 |
+| `orb_12_20` | Memória Interestelar | Alcance 96 anotações salvas no Orbitron. | Raro | `BookOpen` | `notesCount` | 96 |
+| `orb_12_21` | Oráculo de Ideias | Alcance 98 anotações salvas no Orbitron. | Épico | `BookOpen` | `notesCount` | 98 |
+| `orb_12_22` | Biblioteca do Infinito | Alcance 100 anotações salvas no Orbitron. | Épico | `BookOpen` | `notesCount` | 100 |
 
 ### 13. Mapas Mentais e Constelações de Ideias (`tools`)
 
@@ -488,24 +488,24 @@ $$\text{XP para o próximo nível}(N) = 100 + 50 \times (N - 1)$$
 | `cofre_5` | Cinco Chaves Protegidas | Alcance 5 credenciais protegidas no Orbitron. | Comum | `ShieldCheck` | `vaultItemsCount` | 5 |
 | `cofre_15` | Guardião Digital | Alcance 15 credenciais protegidas no Orbitron. | Raro | `ShieldCheck` | `vaultItemsCount` | 15 |
 | `cofre_30` | Fortaleza Criptografada | Alcance 30 credenciais protegidas no Orbitron. | Épico | `Castle` | `vaultItemsCount` | 30 |
-| `orb_14_05` | Sentinela de Acessos | Alcance 45 credenciais protegidas no Orbitron. | Épico | `ShieldCheck` | `vaultItemsCount` | 45 |
-| `orb_14_06` | Escudo de Credenciais | Alcance 67 credenciais protegidas no Orbitron. | Épico | `ShieldCheck` | `vaultItemsCount` | 67 |
-| `orb_14_07` | Cofre Orbital | Alcance 101 credenciais protegidas no Orbitron. | Lendário | `ShieldCheck` | `vaultItemsCount` | 101 |
-| `orb_14_08` | Protocolo de Segurança | Alcance 151 credenciais protegidas no Orbitron. | Comum | `ShieldCheck` | `vaultItemsCount` | 151 |
-| `orb_14_09` | Chaveiro Estelar | Alcance 227 credenciais protegidas no Orbitron. | Comum | `ShieldCheck` | `vaultItemsCount` | 227 |
-| `orb_14_10` | Guardião de Sistemas | Alcance 341 credenciais protegidas no Orbitron. | Raro | `ShieldCheck` | `vaultItemsCount` | 341 |
-| `orb_14_11` | Barreira Cibernética | Alcance 511 credenciais protegidas no Orbitron. | Raro | `ShieldCheck` | `vaultItemsCount` | 511 |
-| `orb_14_12` | Cofre de Titã | Alcance 767 credenciais protegidas no Orbitron. | Épico | `ShieldCheck` | `vaultItemsCount` | 767 |
-| `orb_14_13` | Sentinela Interestelar | Alcance 1151 credenciais protegidas no Orbitron. | Épico | `ShieldCheck` | `vaultItemsCount` | 1151 |
-| `orb_14_14` | Defesa de Andrômeda | Alcance 1727 credenciais protegidas no Orbitron. | Lendário | `ShieldCheck` | `vaultItemsCount` | 1727 |
-| `orb_14_15` | Criptógrafo Cósmico | Alcance 2591 credenciais protegidas no Orbitron. | Comum | `ShieldCheck` | `vaultItemsCount` | 2591 |
-| `orb_14_16` | Fortaleza de Dados | Alcance 3887 credenciais protegidas no Orbitron. | Comum | `ShieldCheck` | `vaultItemsCount` | 3887 |
-| `orb_14_17` | Mestre das Chaves | Alcance 5831 credenciais protegidas no Orbitron. | Raro | `ShieldCheck` | `vaultItemsCount` | 5831 |
-| `orb_14_18` | Escudo de Alta Segurança | Alcance 8747 credenciais protegidas no Orbitron. | Raro | `ShieldCheck` | `vaultItemsCount` | 8747 |
-| `orb_14_19` | Cofre Galáctico | Alcance 13121 credenciais protegidas no Orbitron. | Épico | `ShieldCheck` | `vaultItemsCount` | 13121 |
-| `orb_14_20` | Guardião da Rede | Alcance 19681 credenciais protegidas no Orbitron. | Épico | `ShieldCheck` | `vaultItemsCount` | 19681 |
-| `orb_14_21` | Protetor do Orbitron | Alcance 29521 credenciais protegidas no Orbitron. | Lendário | `ShieldCheck` | `vaultItemsCount` | 29521 |
-| `orb_14_22` | Bastião Digital | Alcance 44281 credenciais protegidas no Orbitron. | Comum | `ShieldCheck` | `vaultItemsCount` | 44281 |
+| `orb_14_05` | Sentinela de Acessos | Alcance 35 credenciais protegidas no Orbitron. | Épico | `ShieldCheck` | `vaultItemsCount` | 35 |
+| `orb_14_06` | Escudo de Credenciais | Alcance 40 credenciais protegidas no Orbitron. | Épico | `ShieldCheck` | `vaultItemsCount` | 40 |
+| `orb_14_07` | Cofre Orbital | Alcance 45 credenciais protegidas no Orbitron. | Lendário | `ShieldCheck` | `vaultItemsCount` | 45 |
+| `orb_14_08` | Protocolo de Segurança | Alcance 50 credenciais protegidas no Orbitron. | Comum | `ShieldCheck` | `vaultItemsCount` | 50 |
+| `orb_14_09` | Chaveiro Estelar | Alcance 55 credenciais protegidas no Orbitron. | Comum | `ShieldCheck` | `vaultItemsCount` | 55 |
+| `orb_14_10` | Guardião de Sistemas | Alcance 60 credenciais protegidas no Orbitron. | Raro | `ShieldCheck` | `vaultItemsCount` | 60 |
+| `orb_14_11` | Barreira Cibernética | Alcance 65 credenciais protegidas no Orbitron. | Raro | `ShieldCheck` | `vaultItemsCount` | 65 |
+| `orb_14_12` | Cofre de Titã | Alcance 70 credenciais protegidas no Orbitron. | Épico | `ShieldCheck` | `vaultItemsCount` | 70 |
+| `orb_14_13` | Sentinela Interestelar | Alcance 75 credenciais protegidas no Orbitron. | Épico | `ShieldCheck` | `vaultItemsCount` | 75 |
+| `orb_14_14` | Defesa de Andrômeda | Alcance 80 credenciais protegidas no Orbitron. | Lendário | `ShieldCheck` | `vaultItemsCount` | 80 |
+| `orb_14_15` | Criptógrafo Cósmico | Alcance 85 credenciais protegidas no Orbitron. | Comum | `ShieldCheck` | `vaultItemsCount` | 85 |
+| `orb_14_16` | Fortaleza de Dados | Alcance 90 credenciais protegidas no Orbitron. | Comum | `ShieldCheck` | `vaultItemsCount` | 90 |
+| `orb_14_17` | Mestre das Chaves | Alcance 92 credenciais protegidas no Orbitron. | Raro | `ShieldCheck` | `vaultItemsCount` | 92 |
+| `orb_14_18` | Escudo de Alta Segurança | Alcance 94 credenciais protegidas no Orbitron. | Raro | `ShieldCheck` | `vaultItemsCount` | 94 |
+| `orb_14_19` | Cofre Galáctico | Alcance 96 credenciais protegidas no Orbitron. | Épico | `ShieldCheck` | `vaultItemsCount` | 96 |
+| `orb_14_20` | Guardião da Rede | Alcance 98 credenciais protegidas no Orbitron. | Épico | `ShieldCheck` | `vaultItemsCount` | 98 |
+| `orb_14_21` | Protetor do Orbitron | Alcance 99 credenciais protegidas no Orbitron. | Lendário | `ShieldCheck` | `vaultItemsCount` | 99 |
+| `orb_14_22` | Bastião Digital | Alcance 100 credenciais protegidas no Orbitron. | Comum | `ShieldCheck` | `vaultItemsCount` | 100 |
 
 ---
 

@@ -2600,172 +2600,172 @@ const ACHIEVEMENTS = [
   {
     "id": "orb_12_06",
     "name": "Diário de Bordo",
-    "description": "Alcance 45 anotações salvas no Orbitron.",
+    "description": "Alcance 35 anotações salvas no Orbitron.",
     "rarity": "raro",
+    "icon": "BookOpen",
+    "category": "tools",
+    "metric": "notesCount",
+    "target": 35
+  },
+  {
+    "id": "orb_12_07",
+    "name": "Sinal de Conhecimento",
+    "description": "Alcance 40 anotações salvas no Orbitron.",
+    "rarity": "epico",
+    "icon": "BookOpen",
+    "category": "tools",
+    "metric": "notesCount",
+    "target": 40
+  },
+  {
+    "id": "orb_12_08",
+    "name": "Bibliotecário Orbital",
+    "description": "Alcance 45 anotações salvas no Orbitron.",
+    "rarity": "epico",
     "icon": "BookOpen",
     "category": "tools",
     "metric": "notesCount",
     "target": 45
   },
   {
-    "id": "orb_12_07",
-    "name": "Sinal de Conhecimento",
-    "description": "Alcance 67 anotações salvas no Orbitron.",
-    "rarity": "epico",
-    "icon": "BookOpen",
-    "category": "tools",
-    "metric": "notesCount",
-    "target": 67
-  },
-  {
-    "id": "orb_12_08",
-    "name": "Bibliotecário Orbital",
-    "description": "Alcance 101 anotações salvas no Orbitron.",
-    "rarity": "epico",
-    "icon": "BookOpen",
-    "category": "tools",
-    "metric": "notesCount",
-    "target": 101
-  },
-  {
     "id": "orb_12_09",
     "name": "Arquivo de Ideias",
-    "description": "Alcance 151 anotações salvas no Orbitron.",
+    "description": "Alcance 50 anotações salvas no Orbitron.",
     "rarity": "lendario",
     "icon": "BookOpen",
     "category": "tools",
     "metric": "notesCount",
-    "target": 151
+    "target": 50
   },
   {
     "id": "orb_12_10",
     "name": "Cartógrafo do Pensamento",
-    "description": "Alcance 227 anotações salvas no Orbitron.",
+    "description": "Alcance 55 anotações salvas no Orbitron.",
     "rarity": "comum",
     "icon": "BookOpen",
     "category": "tools",
     "metric": "notesCount",
-    "target": 227
+    "target": 55
   },
   {
     "id": "orb_12_11",
     "name": "Colecionador de Insights",
-    "description": "Alcance 341 anotações salvas no Orbitron.",
+    "description": "Alcance 60 anotações salvas no Orbitron.",
     "rarity": "comum",
     "icon": "BookOpen",
     "category": "tools",
     "metric": "notesCount",
-    "target": 341
+    "target": 60
   },
   {
     "id": "orb_12_12",
     "name": "Registro de Descobertas",
-    "description": "Alcance 511 anotações salvas no Orbitron.",
+    "description": "Alcance 65 anotações salvas no Orbitron.",
     "rarity": "raro",
     "icon": "BookOpen",
     "category": "tools",
     "metric": "notesCount",
-    "target": 511
+    "target": 65
   },
   {
     "id": "orb_12_13",
     "name": "Observatório Mental",
-    "description": "Alcance 767 anotações salvas no Orbitron.",
+    "description": "Alcance 70 anotações salvas no Orbitron.",
     "rarity": "raro",
     "icon": "BookOpen",
     "category": "tools",
     "metric": "notesCount",
-    "target": 767
+    "target": 70
   },
   {
     "id": "orb_12_14",
     "name": "Atlas de Anotações",
-    "description": "Alcance 1151 anotações salvas no Orbitron.",
+    "description": "Alcance 75 anotações salvas no Orbitron.",
     "rarity": "epico",
     "icon": "BookOpen",
     "category": "tools",
     "metric": "notesCount",
-    "target": 1151
+    "target": 75
   },
   {
     "id": "orb_12_15",
     "name": "Mente em Expansão",
-    "description": "Alcance 1727 anotações salvas no Orbitron.",
+    "description": "Alcance 80 anotações salvas no Orbitron.",
     "rarity": "epico",
     "icon": "BookOpen",
     "category": "tools",
     "metric": "notesCount",
-    "target": 1727
+    "target": 80
   },
   {
     "id": "orb_12_16",
     "name": "Biblioteca Cósmica",
-    "description": "Alcance 2591 anotações salvas no Orbitron.",
+    "description": "Alcance 85 anotações salvas no Orbitron.",
     "rarity": "lendario",
     "icon": "BookOpen",
     "category": "tools",
     "metric": "notesCount",
-    "target": 2591
+    "target": 85
   },
   {
     "id": "orb_12_17",
     "name": "Cronista do Cosmos",
-    "description": "Alcance 3887 anotações salvas no Orbitron.",
+    "description": "Alcance 90 anotações salvas no Orbitron.",
     "rarity": "comum",
     "icon": "BookOpen",
     "category": "tools",
     "metric": "notesCount",
-    "target": 3887
+    "target": 90
   },
   {
     "id": "orb_12_18",
     "name": "Arquivo de Andrômeda",
-    "description": "Alcance 5831 anotações salvas no Orbitron.",
+    "description": "Alcance 92 anotações salvas no Orbitron.",
     "rarity": "comum",
     "icon": "BookOpen",
     "category": "tools",
     "metric": "notesCount",
-    "target": 5831
+    "target": 92
   },
   {
     "id": "orb_12_19",
     "name": "Guardião do Conhecimento",
-    "description": "Alcance 8747 anotações salvas no Orbitron.",
+    "description": "Alcance 94 anotações salvas no Orbitron.",
     "rarity": "raro",
     "icon": "BookOpen",
     "category": "tools",
     "metric": "notesCount",
-    "target": 8747
+    "target": 94
   },
   {
     "id": "orb_12_20",
     "name": "Memória Interestelar",
-    "description": "Alcance 13121 anotações salvas no Orbitron.",
+    "description": "Alcance 96 anotações salvas no Orbitron.",
     "rarity": "raro",
     "icon": "BookOpen",
     "category": "tools",
     "metric": "notesCount",
-    "target": 13121
+    "target": 96
   },
   {
     "id": "orb_12_21",
     "name": "Oráculo de Ideias",
-    "description": "Alcance 19681 anotações salvas no Orbitron.",
+    "description": "Alcance 98 anotações salvas no Orbitron.",
     "rarity": "epico",
     "icon": "BookOpen",
     "category": "tools",
     "metric": "notesCount",
-    "target": 19681
+    "target": 98
   },
   {
     "id": "orb_12_22",
     "name": "Biblioteca do Infinito",
-    "description": "Alcance 29521 anotações salvas no Orbitron.",
+    "description": "Alcance 100 anotações salvas no Orbitron.",
     "rarity": "epico",
     "icon": "BookOpen",
     "category": "tools",
     "metric": "notesCount",
-    "target": 29521
+    "target": 100
   },
   {
     "id": "mapa_primeiro",
@@ -3030,182 +3030,182 @@ const ACHIEVEMENTS = [
   {
     "id": "orb_14_05",
     "name": "Sentinela de Acessos",
-    "description": "Alcance 45 credenciais protegidas no Orbitron.",
+    "description": "Alcance 35 credenciais protegidas no Orbitron.",
     "rarity": "epico",
+    "icon": "ShieldCheck",
+    "category": "tools",
+    "metric": "vaultItemsCount",
+    "target": 35
+  },
+  {
+    "id": "orb_14_06",
+    "name": "Escudo de Credenciais",
+    "description": "Alcance 40 credenciais protegidas no Orbitron.",
+    "rarity": "epico",
+    "icon": "ShieldCheck",
+    "category": "tools",
+    "metric": "vaultItemsCount",
+    "target": 40
+  },
+  {
+    "id": "orb_14_07",
+    "name": "Cofre Orbital",
+    "description": "Alcance 45 credenciais protegidas no Orbitron.",
+    "rarity": "lendario",
     "icon": "ShieldCheck",
     "category": "tools",
     "metric": "vaultItemsCount",
     "target": 45
   },
   {
-    "id": "orb_14_06",
-    "name": "Escudo de Credenciais",
-    "description": "Alcance 67 credenciais protegidas no Orbitron.",
-    "rarity": "epico",
-    "icon": "ShieldCheck",
-    "category": "tools",
-    "metric": "vaultItemsCount",
-    "target": 67
-  },
-  {
-    "id": "orb_14_07",
-    "name": "Cofre Orbital",
-    "description": "Alcance 101 credenciais protegidas no Orbitron.",
-    "rarity": "lendario",
-    "icon": "ShieldCheck",
-    "category": "tools",
-    "metric": "vaultItemsCount",
-    "target": 101
-  },
-  {
     "id": "orb_14_08",
     "name": "Protocolo de Segurança",
-    "description": "Alcance 151 credenciais protegidas no Orbitron.",
+    "description": "Alcance 50 credenciais protegidas no Orbitron.",
     "rarity": "comum",
     "icon": "ShieldCheck",
     "category": "tools",
     "metric": "vaultItemsCount",
-    "target": 151
+    "target": 50
   },
   {
     "id": "orb_14_09",
     "name": "Chaveiro Estelar",
-    "description": "Alcance 227 credenciais protegidas no Orbitron.",
+    "description": "Alcance 55 credenciais protegidas no Orbitron.",
     "rarity": "comum",
     "icon": "ShieldCheck",
     "category": "tools",
     "metric": "vaultItemsCount",
-    "target": 227
+    "target": 55
   },
   {
     "id": "orb_14_10",
     "name": "Guardião de Sistemas",
-    "description": "Alcance 341 credenciais protegidas no Orbitron.",
+    "description": "Alcance 60 credenciais protegidas no Orbitron.",
     "rarity": "raro",
     "icon": "ShieldCheck",
     "category": "tools",
     "metric": "vaultItemsCount",
-    "target": 341
+    "target": 60
   },
   {
     "id": "orb_14_11",
     "name": "Barreira Cibernética",
-    "description": "Alcance 511 credenciais protegidas no Orbitron.",
+    "description": "Alcance 65 credenciais protegidas no Orbitron.",
     "rarity": "raro",
     "icon": "ShieldCheck",
     "category": "tools",
     "metric": "vaultItemsCount",
-    "target": 511
+    "target": 65
   },
   {
     "id": "orb_14_12",
     "name": "Cofre de Titã",
-    "description": "Alcance 767 credenciais protegidas no Orbitron.",
+    "description": "Alcance 70 credenciais protegidas no Orbitron.",
     "rarity": "epico",
     "icon": "ShieldCheck",
     "category": "tools",
     "metric": "vaultItemsCount",
-    "target": 767
+    "target": 70
   },
   {
     "id": "orb_14_13",
     "name": "Sentinela Interestelar",
-    "description": "Alcance 1151 credenciais protegidas no Orbitron.",
+    "description": "Alcance 75 credenciais protegidas no Orbitron.",
     "rarity": "epico",
     "icon": "ShieldCheck",
     "category": "tools",
     "metric": "vaultItemsCount",
-    "target": 1151
+    "target": 75
   },
   {
     "id": "orb_14_14",
     "name": "Defesa de Andrômeda",
-    "description": "Alcance 1727 credenciais protegidas no Orbitron.",
+    "description": "Alcance 80 credenciais protegidas no Orbitron.",
     "rarity": "lendario",
     "icon": "ShieldCheck",
     "category": "tools",
     "metric": "vaultItemsCount",
-    "target": 1727
+    "target": 80
   },
   {
     "id": "orb_14_15",
     "name": "Criptógrafo Cósmico",
-    "description": "Alcance 2591 credenciais protegidas no Orbitron.",
+    "description": "Alcance 85 credenciais protegidas no Orbitron.",
     "rarity": "comum",
     "icon": "ShieldCheck",
     "category": "tools",
     "metric": "vaultItemsCount",
-    "target": 2591
+    "target": 85
   },
   {
     "id": "orb_14_16",
     "name": "Fortaleza de Dados",
-    "description": "Alcance 3887 credenciais protegidas no Orbitron.",
+    "description": "Alcance 90 credenciais protegidas no Orbitron.",
     "rarity": "comum",
     "icon": "ShieldCheck",
     "category": "tools",
     "metric": "vaultItemsCount",
-    "target": 3887
+    "target": 90
   },
   {
     "id": "orb_14_17",
     "name": "Mestre das Chaves",
-    "description": "Alcance 5831 credenciais protegidas no Orbitron.",
+    "description": "Alcance 92 credenciais protegidas no Orbitron.",
     "rarity": "raro",
     "icon": "ShieldCheck",
     "category": "tools",
     "metric": "vaultItemsCount",
-    "target": 5831
+    "target": 92
   },
   {
     "id": "orb_14_18",
     "name": "Escudo de Alta Segurança",
-    "description": "Alcance 8747 credenciais protegidas no Orbitron.",
+    "description": "Alcance 94 credenciais protegidas no Orbitron.",
     "rarity": "raro",
     "icon": "ShieldCheck",
     "category": "tools",
     "metric": "vaultItemsCount",
-    "target": 8747
+    "target": 94
   },
   {
     "id": "orb_14_19",
     "name": "Cofre Galáctico",
-    "description": "Alcance 13121 credenciais protegidas no Orbitron.",
+    "description": "Alcance 96 credenciais protegidas no Orbitron.",
     "rarity": "epico",
     "icon": "ShieldCheck",
     "category": "tools",
     "metric": "vaultItemsCount",
-    "target": 13121
+    "target": 96
   },
   {
     "id": "orb_14_20",
     "name": "Guardião da Rede",
-    "description": "Alcance 19681 credenciais protegidas no Orbitron.",
+    "description": "Alcance 98 credenciais protegidas no Orbitron.",
     "rarity": "epico",
     "icon": "ShieldCheck",
     "category": "tools",
     "metric": "vaultItemsCount",
-    "target": 19681
+    "target": 98
   },
   {
     "id": "orb_14_21",
     "name": "Protetor do Orbitron",
-    "description": "Alcance 29521 credenciais protegidas no Orbitron.",
+    "description": "Alcance 99 credenciais protegidas no Orbitron.",
     "rarity": "lendario",
     "icon": "ShieldCheck",
     "category": "tools",
     "metric": "vaultItemsCount",
-    "target": 29521
+    "target": 99
   },
   {
     "id": "orb_14_22",
     "name": "Bastião Digital",
-    "description": "Alcance 44281 credenciais protegidas no Orbitron.",
+    "description": "Alcance 100 credenciais protegidas no Orbitron.",
     "rarity": "comum",
     "icon": "ShieldCheck",
     "category": "tools",
     "metric": "vaultItemsCount",
-    "target": 44281
+    "target": 100
   }
 ];
 
