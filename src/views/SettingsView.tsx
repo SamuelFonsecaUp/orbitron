@@ -13,6 +13,7 @@ import {
   Check,
   Lock,
   Unlock,
+  KeyRound,
   AlertTriangle,
   BookOpen,
   Tag,
@@ -192,6 +193,17 @@ export const SettingsView: React.FC = () => {
     }
   };
 
+  const handleToggleVaultPin = async () => {
+    try {
+      const current = settings?.vaultPinEnabled !== false;
+      await window.electronAPI.updateSettings({ vaultPinEnabled: !current });
+      showToast(!current ? "PIN exigido para o Cofre de Senhas." : "PIN dispensado para o Cofre de Senhas.", "info");
+      await refreshAll();
+    } catch (e: any) {
+      showToast(e.message || "Erro ao atualizar configuração", "error");
+    }
+  };
+
   const handleDisablePin = async () => {
     const entered = prompt('Digite seu PIN atual para desativar a proteção:');
     if (!entered) return;
@@ -330,7 +342,7 @@ export const SettingsView: React.FC = () => {
               Segurança Local por PIN
             </h2>
             <p className="text-xs text-slate-400 mt-1 max-w-lg">
-              Proteja seus dados financeiros exigindo um PIN numérico toda vez que o aplicativo for aberto. O PIN é criptografado localmente com SHA-256 e nunca enviado à internet.
+              Proteja seus dados financeiros e seu Cofre de Senhas exigindo um PIN numérico. O PIN é criptografado localmente no seu computador com PBKDF2/SHA-256 e nunca enviado à internet.
             </p>
           </div>
 
@@ -347,16 +359,32 @@ export const SettingsView: React.FC = () => {
           </div>
         </div>
 
-        <div className="pt-2 flex items-center gap-3">
+        <div className="pt-2 flex flex-wrap items-center gap-3">
           {settings?.pinEnabled ? (
-            <button
-              onClick={handleDisablePin}
-              className="px-3.5 py-2 bg-rose-600/20 hover:bg-rose-600/30 text-rose-300 border border-rose-500/30 rounded-xl text-xs font-semibold transition-colors flex items-center gap-1.5"
-            >
-              <Unlock className="w-4 h-4" /> Desativar Proteção por PIN
-            </button>
+            <>
+              <button
+                type="button"
+                onClick={() => {
+                  setPin('');
+                  setPinConfirm('');
+                  setPinError('');
+                  setPinModalOpen(true);
+                }}
+                className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-xl text-xs font-semibold transition-colors flex items-center gap-1.5"
+              >
+                <KeyRound className="w-4 h-4 text-emerald-400" /> Alterar PIN
+              </button>
+              <button
+                type="button"
+                onClick={handleDisablePin}
+                className="px-3.5 py-2 bg-rose-600/20 hover:bg-rose-600/30 text-rose-300 border border-rose-500/30 rounded-xl text-xs font-semibold transition-colors flex items-center gap-1.5"
+              >
+                <Unlock className="w-4 h-4" /> Desativar Proteção por PIN
+              </button>
+            </>
           ) : (
             <button
+              type="button"
               onClick={() => {
                 setPin('');
                 setPinConfirm('');
@@ -368,6 +396,41 @@ export const SettingsView: React.FC = () => {
               <Lock className="w-4 h-4" /> Configurar PIN de Acesso
             </button>
           )}
+        </div>
+
+        {/* Opção configurável: Exigir PIN para o Cofre de Senhas */}
+        <div className="pt-4 border-t border-slate-800/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <div className="text-xs font-bold text-white flex items-center gap-1.5">
+              <KeyRound className="w-3.5 h-3.5 text-emerald-400" />
+              <span>Exigir PIN para o Cofre de Senhas (Ferramentas)</span>
+            </div>
+            <p className="text-[11px] text-slate-400 mt-0.5 max-w-md">
+              Bloqueia a aba de senhas e exige o PIN numérico sempre que você entrar no Cofre para visualizar credenciais.
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={settings?.pinEnabled ? handleToggleVaultPin : () => {
+              setPin('');
+              setPinConfirm('');
+              setPinError('');
+              setPinModalOpen(true);
+            }}
+            className={
+              'relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none shrink-0 ' +
+              (settings?.pinEnabled && settings?.vaultPinEnabled !== false ? 'bg-emerald-600' : 'bg-slate-700')
+            }
+            title={settings?.pinEnabled ? 'Alternar exigência de PIN no cofre' : 'Configure o PIN primeiro'}
+          >
+            <span
+              className={
+                'inline-block h-4 w-4 transform rounded-full bg-white transition-transform ' +
+                (settings?.pinEnabled && settings?.vaultPinEnabled !== false ? 'translate-x-6' : 'translate-x-1')
+              }
+            />
+          </button>
         </div>
       </div>
 

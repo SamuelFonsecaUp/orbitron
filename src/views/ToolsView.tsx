@@ -1,3 +1,4 @@
+import { VaultPinGate } from '../components/VaultPinGate';
 import { VaultShell } from '../modules/vault/components/VaultShell';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
@@ -383,7 +384,7 @@ const VAULT_CATEGORIES = [
 const NODE_COLORS = ['#a855f7', '#10b981', '#38bdf8', '#f59e0b', '#ec4899', '#ef4444', '#6366f1', '#14b8a6'];
 
 const ToolsViewInner: React.FC = () => {
-  const { currentView, setCurrentView, showToast, refreshGame } = useFinancial();
+  const { currentView, setCurrentView, showToast, refreshGame, settings } = useFinancial();
 
   const activeTool: 'notes' | 'mindmap' | 'vault' =
     currentView === 'tools_mindmap'
@@ -483,6 +484,16 @@ const ToolsViewInner: React.FC = () => {
   const [vaultCategoryFilter, setVaultCategoryFilter] = useState<string>('all');
   const [revealedIds, setRevealedIds] = useState<Record<string, boolean>>({});
   const [editingVault, setEditingVault] = useState<Partial<VaultItem> | null>(null);
+  const [isVaultUnlocked, setIsVaultUnlocked] = useState(false);
+
+  useEffect(() => {
+    if (activeTool !== 'vault') {
+      setIsVaultUnlocked(false);
+    }
+  }, [activeTool]);
+
+  const isPinActive = Boolean(settings?.pinEnabled);
+  const requiresVaultPin = isPinActive ? settings?.vaultPinEnabled !== false : true;
 
   const loadAllTools = useCallback(async () => {
     if (!window.electronAPI) return;
@@ -4261,7 +4272,15 @@ const ToolsViewInner: React.FC = () => {
       {/* =========================================================
           ABA 3: COFRE DE SENHAS CRIPTOGRAFADO (AES-256)
          ========================================================= */}
-      {activeTool === 'vault' && (
+      {activeTool === 'vault' && requiresVaultPin && !isVaultUnlocked && (
+        <VaultPinGate
+          isConfigured={isPinActive}
+          onUnlock={() => setIsVaultUnlocked(true)}
+          onConfigureInSettings={() => setCurrentView('settings')}
+        />
+      )}
+
+      {activeTool === 'vault' && (!requiresVaultPin || isVaultUnlocked) && (
         <div className="space-y-4">
           {/* Security Banner & Top Controls */}
           <div className="p-4 rounded-3xl bg-slate-900/85 border border-white/[0.07] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -4279,23 +4298,36 @@ const ToolsViewInner: React.FC = () => {
               </div>
             </div>
 
-            <button
-              onClick={() =>
-                setEditingVault({
-                  title: '',
-                  category: 'bancos',
-                  username: '',
-                  password: '',
-                  url: '',
-                  notes: '',
-                  favorite: false,
-                })
-              }
-              className="liquid-glass-cta px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 text-white text-xs font-extrabold flex items-center gap-1.5 shrink-0"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Guardar Nova Senha</span>
-            </button>
+            <div className="flex items-center gap-2 shrink-0">
+              {isPinActive && (
+                <button
+                  type="button"
+                  onClick={() => setIsVaultUnlocked(false)}
+                  className="px-3 py-2 rounded-xl bg-slate-800/90 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-bold flex items-center gap-1.5 transition border border-slate-700/60"
+                  title="Bloquear cofre com PIN agora"
+                >
+                  <Lock className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Bloquear Cofre</span>
+                </button>
+              )}
+              <button
+                onClick={() =>
+                  setEditingVault({
+                    title: '',
+                    category: 'bancos',
+                    username: '',
+                    password: '',
+                    url: '',
+                    notes: '',
+                    favorite: false,
+                  })
+                }
+                className="liquid-glass-cta px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 text-white text-xs font-extrabold flex items-center gap-1.5 shrink-0"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Guardar Nova Senha</span>
+              </button>
+            </div>
           </div>
 
           {/* Search & Category Filter */}

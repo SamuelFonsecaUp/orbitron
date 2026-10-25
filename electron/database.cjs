@@ -58,6 +58,7 @@ function initDatabase(customPath = null) {
       pin_enabled INTEGER DEFAULT 0,
       pin_hash TEXT,
       pin_salt TEXT,
+      vault_pin_enabled INTEGER DEFAULT 1,
       theme TEXT DEFAULT 'dark',
       onboarding_completed INTEGER DEFAULT 0,
       first_day_of_week INTEGER DEFAULT 0,

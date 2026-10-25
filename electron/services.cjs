@@ -209,6 +209,7 @@ class FinancialService {
       roomLayouts: parseJsonObject(row.room_layouts),
       avatarLook: parseJsonObject(row.avatar_look),
       reserveAutoDetect: row.reserve_auto_detect === null || row.reserve_auto_detect === undefined ? true : Boolean(row.reserve_auto_detect),
+      vaultPinEnabled: row.vault_pin_enabled === null || row.vault_pin_enabled === undefined ? true : Boolean(row.vault_pin_enabled),
     };
   }
 
@@ -224,6 +225,7 @@ class FinancialService {
     if (data.dateFormat !== undefined) { fields.push('date_format = ?'); values.push(data.dateFormat); }
     if (data.autoBackupEnabled !== undefined) { fields.push('auto_backup_enabled = ?'); values.push(data.autoBackupEnabled ? 1 : 0); }
     if (data.autoBackupDir !== undefined) { fields.push('auto_backup_dir = ?'); values.push(data.autoBackupDir); }
+    if (data.vaultPinEnabled !== undefined) { fields.push('vault_pin_enabled = ?'); values.push(data.vaultPinEnabled ? 1 : 0); }
     if (data.reserveTargetMonths !== undefined) {
       const months = Math.min(24, Math.max(1, parseInt(data.reserveTargetMonths, 10) || 6));
       fields.push('reserve_target_months = ?'); values.push(months);

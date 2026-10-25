@@ -332,6 +332,7 @@ export interface Settings {
   reserveAutoDetect?: boolean;
   roomLayouts?: unknown;
   avatarLook?: Record<string, string> | null;
+  vaultPinEnabled?: boolean;
 }
 
 
