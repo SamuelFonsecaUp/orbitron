@@ -58,17 +58,17 @@ export const OrbitBootActivation: React.FC<OrbitBootActivationProps> = ({ onComp
 
     sessionStorage.setItem('orbit_boot_seen', 'true');
 
-    // Slower, graceful tempo: 1200ms per phase so the emergence completes and breathes
+    // Slower, graceful tempo: 2200ms per phase so the emergence of each color breathes majestically
     const timeouts: NodeJS.Timeout[] = [
-      setTimeout(() => setPhaseIndex(1), 1200), // 1.2s -> Habits (Cyan)
-      setTimeout(() => setPhaseIndex(2), 2400), // 2.4s -> Tools (Purple)
-      setTimeout(() => setPhaseIndex(3), 3600), // 3.6s -> Journey (Amber)
-      setTimeout(() => setPhaseIndex(4), 4800), // 4.8s -> Convergence (All 4)
-      setTimeout(() => setFadingOut(true), 5600), // 5.6s -> Smooth Fade Out
+      setTimeout(() => setPhaseIndex(1), 2200), // 2.2s -> Habits (Cyan)
+      setTimeout(() => setPhaseIndex(2), 4400), // 4.4s -> Tools (Purple)
+      setTimeout(() => setPhaseIndex(3), 6600), // 6.6s -> Journey (Amber)
+      setTimeout(() => setPhaseIndex(4), 8800), // 8.8s -> Convergence (All 4)
+      setTimeout(() => setFadingOut(true), 10600), // 10.6s -> Smooth Fade Out
       setTimeout(() => {
         setVisible(false);
         onComplete?.();
-      }, 6200), // 6.2s -> App Opens!
+      }, 11600), // 11.6s -> App Opens!
     ];
 
     return () => {
@@ -91,7 +91,7 @@ export const OrbitBootActivation: React.FC<OrbitBootActivationProps> = ({ onComp
   return (
     <div
       onClick={handleSkip}
-      className={`fixed inset-0 z-50 flex flex-col items-center justify-center bg-[#07090e] cursor-pointer transition-opacity duration-600 ease-out select-none ${
+      className={`fixed inset-0 z-50 flex flex-col items-center justify-center bg-[#07090e] cursor-pointer transition-opacity duration-800 ease-out select-none ${
         fadingOut ? 'opacity-0 pointer-events-none' : 'opacity-100'
       }`}
     >
@@ -117,7 +117,7 @@ export const OrbitBootActivation: React.FC<OrbitBootActivationProps> = ({ onComp
             className="absolute inset-0 rounded-full blur-2xl transition-all duration-700 opacity-30"
             style={{ backgroundColor: currentPhase.glow }}
           />
-          <OrbitLogo module={currentPhase.module} size={110} animated withGlow />
+          <OrbitLogo module={currentPhase.module} size={110} animated withGlow durationMs={2000} />
         </div>
 
         {/* Brand Title in Space Font */}

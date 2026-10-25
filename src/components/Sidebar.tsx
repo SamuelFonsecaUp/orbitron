@@ -311,7 +311,7 @@ export const Sidebar: React.FC = () => {
     <aside className="w-72 bg-slate-950/85 border-r border-white/[0.07] flex flex-col justify-between select-none shrink-0 h-full backdrop-blur-2xl relative overflow-hidden">
       {/* Subtle ambient light refraction in the sidebar corner */}
       <div
-        className="pointer-events-none absolute -top-16 -left-16 w-48 h-48 rounded-full blur-3xl opacity-30 transition-all duration-700"
+        className="pointer-events-none absolute -top-16 -left-16 w-48 h-48 rounded-full blur-3xl opacity-30 transition-all duration-1000"
         style={{ background: meta.lensGlow }}
       />
 
@@ -326,7 +326,7 @@ export const Sidebar: React.FC = () => {
                   ORBITRON
                 </h1>
                 <span
-                  className={`text-[9px] uppercase font-bold tracking-widest px-1.5 py-0.5 rounded-md border backdrop-blur-md transition-all duration-500 ${meta.badgeClass}`}
+                  className={`text-[9px] uppercase font-bold tracking-widest px-1.5 py-0.5 rounded-md border backdrop-blur-md transition-all duration-700 ${meta.badgeClass}`}
                 >
                   {meta.badge}
                 </span>
@@ -345,7 +345,7 @@ export const Sidebar: React.FC = () => {
           <div className="liquid-glass-well p-1.5 rounded-2xl relative overflow-hidden">
             {/* Ambient background glow shifting behind the active lens */}
             <div
-              className="pointer-events-none absolute top-1 bottom-1 w-[calc((100%-12px)/4)] rounded-xl blur-md opacity-60 transition-transform duration-500 ease-out"
+              className="pointer-events-none absolute top-1 bottom-1 w-[calc((100%-12px)/4)] rounded-xl blur-md opacity-60 transition-transform duration-700 ease-out"
               style={{
                 transform: `translateX(${meta.index * 100}%)`,
                 background: meta.lensGlow,

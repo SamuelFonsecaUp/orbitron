@@ -7,6 +7,7 @@ export interface OrbitLogoProps {
   className?: string;
   animated?: boolean;
   withGlow?: boolean;
+  durationMs?: number;
 }
 
 const MODULE_COLORS: Record<AppModule, { primary: string; secondary: string; glow: string }> = {
@@ -38,6 +39,7 @@ export const OrbitLogo: React.FC<OrbitLogoProps> = ({
   className = '',
   animated = true,
   withGlow = true,
+  durationMs = 1700,
 }) => {
   const isMulti = module === 'all';
   const colors = isMulti ? null : MODULE_COLORS[module] || MODULE_COLORS.finance;
@@ -59,7 +61,7 @@ export const OrbitLogo: React.FC<OrbitLogoProps> = ({
       xmlns="http://www.w3.org/2000/svg"
       role="img"
       aria-label="Orbitron Logo"
-      className={`transition-all duration-500 shrink-0 select-none ${className}`}
+      className={`transition-all duration-1000 shrink-0 select-none ${className}`}
       style={{
         filter: withGlow ? `drop-shadow(0 0 9px ${glow})` : undefined,
       }}
@@ -90,23 +92,23 @@ export const OrbitLogo: React.FC<OrbitLogoProps> = ({
         }
         ${animated ? `
           .orbitron-orbit-a {
-            animation: orbit-emerge-a 900ms cubic-bezier(.16,1,.3,1) 40ms both;
+            animation: orbit-emerge-a ${durationMs}ms cubic-bezier(.16,1,.3,1) 40ms both;
           }
           .orbitron-orbit-b {
-            animation: orbit-emerge-b 900ms cubic-bezier(.16,1,.3,1) 100ms both;
+            animation: orbit-emerge-b ${durationMs}ms cubic-bezier(.16,1,.3,1) 120ms both;
           }
           .orbitron-core {
-            animation: orbit-emerge-core 750ms cubic-bezier(.16,1,.3,1) 180ms both;
+            animation: orbit-emerge-core ${Math.round(durationMs * 0.82)}ms cubic-bezier(.16,1,.3,1) 220ms both;
           }
         ` : ''}
         @keyframes orbit-emerge-a {
           0% {
             opacity: 0;
-            transform: rotate(-72deg);
+            transform: rotate(-68deg);
           }
-          72% {
+          75% {
             opacity: 1;
-            transform: rotate(4deg);
+            transform: rotate(3deg);
           }
           100% {
             opacity: 1;
@@ -116,11 +118,11 @@ export const OrbitLogo: React.FC<OrbitLogoProps> = ({
         @keyframes orbit-emerge-b {
           0% {
             opacity: 0;
-            transform: rotate(72deg);
+            transform: rotate(68deg);
           }
-          72% {
+          75% {
             opacity: 1;
-            transform: rotate(-4deg);
+            transform: rotate(-3deg);
           }
           100% {
             opacity: 1;
@@ -130,9 +132,9 @@ export const OrbitLogo: React.FC<OrbitLogoProps> = ({
         @keyframes orbit-emerge-core {
           0% {
             opacity: 0;
-            transform: rotate(-10deg);
+            transform: rotate(-8deg);
           }
-          78% {
+          80% {
             opacity: 1;
             transform: rotate(1deg);
           }
