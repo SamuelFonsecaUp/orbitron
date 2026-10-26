@@ -418,7 +418,7 @@ const ToolsViewInner: React.FC = () => {
   const canvasRef = useRef<HTMLDivElement | null>(null);
 
   // Estados de navegação por pastas e documentos (Hub inicial estilo Lucidspark)
-  const [lucidViewMode, setLucidViewMode] = useState<'folders' | 'canvas'>('folders');
+  const [lucidViewMode, setLucidViewMode] = useState<'folders' | 'canvas'>('canvas');
   const [activeFolder, setActiveFolder] = useState<string>('all');
   const [folders, setFolders] = useState<string[]>(() => {
     try {
@@ -432,8 +432,11 @@ const ToolsViewInner: React.FC = () => {
   const [newFolderName, setNewFolderName] = useState<string>('');
   const [newFolderModalOpen, setNewFolderModalOpen] = useState<boolean>(false);
 
-  // Estados de conexões livres entre nós
+  // Estados de conexões livres e drag offset suave
   const [connectingFromNodeId, setConnectingFromNodeId] = useState<string | null>(null);
+  const [dragOffset, setDragOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [mouseWorldPos, setMouseWorldPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [isSpacePressed, setIsSpacePressed] = useState<boolean>(false);
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
 
   // Estados específicos estilo Lucidspark
@@ -476,6 +479,49 @@ const ToolsViewInner: React.FC = () => {
     currentY: number;
   } | null>(null);
 
+  // Wheel zoom anchored at cursor
+  useEffect(() => {
+    const el = canvasRef.current;
+    if (!el) return;
+    const onWheelRaw = (e: WheelEvent) => {
+      e.preventDefault();
+      const rect = el.getBoundingClientRect();
+      const mouseX = e.clientX - rect.left;
+      const mouseY = e.clientY - rect.top;
+      const zoomFactor = e.deltaY < 0 ? 1.12 : 0.89;
+      setZoom((prevZoom) => {
+        const nextZoom = Math.min(2.5, Math.max(0.2, Number((prevZoom * zoomFactor).toFixed(2))));
+        setPanOffset((prevPan) => ({
+          x: Math.round(mouseX - (mouseX - prevPan.x) * (nextZoom / prevZoom)),
+          y: Math.round(mouseY - (mouseY - prevPan.y) * (nextZoom / prevZoom)),
+        }));
+        return nextZoom;
+      });
+    };
+    el.addEventListener('wheel', onWheelRaw, { passive: false });
+    return () => el.removeEventListener('wheel', onWheelRaw);
+  }, []);
+
+  // Spacebar pan tracking
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.code === 'Space' && !['INPUT', 'TEXTAREA'].includes((e.target as HTMLElement)?.tagName)) {
+        setIsSpacePressed(true);
+      }
+    };
+    const onKeyUp = (e: KeyboardEvent) => {
+      if (e.code === 'Space') {
+        setIsSpacePressed(false);
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    window.addEventListener('keyup', onKeyUp);
+    return () => {
+      window.removeEventListener('keydown', onKeyDown);
+      window.removeEventListener('keyup', onKeyUp);
+    };
+  }, []);
+
   // =========================================================
   // 3. COFRE DE SENHAS CRIPTOGRAFADO
   // =========================================================
@@ -508,8 +554,22 @@ const ToolsViewInner: React.FC = () => {
         setSelectedNoteId(loadedNotes[0].id);
       }
       setMindmaps(loadedMaps || []);
-      if (loadedMaps?.length > 0 && !selectedMapId) {
-        setSelectedMapId(loadedMaps[0].id);
+      if (loadedMaps?.length > 0) {
+        if (!selectedMapId) setSelectedMapId(loadedMaps[0].id);
+      } else if (window.electronAPI?.createMindmap) {
+        // Auto-create initial board so user immediately has a functional whiteboard
+        const defaultNodes = [
+          { id: 'n1', label: 'Ideia Central', x: 500, y: 260, color: '#6366f1', shape: 'sticky', connections: [{ targetId: 'n2', label: 'Estratégia' }, { targetId: 'n3', label: 'Ação' }] },
+          { id: 'n2', label: 'Estratégia Principal', x: 260, y: 160, color: '#8b5cf6', shape: 'sticky', connections: [] },
+          { id: 'n3', label: 'Plano de Execução', x: 740, y: 160, color: '#0ea5e9', shape: 'sticky', connections: [] },
+        ];
+        window.electronAPI.createMindmap({ title: 'Quadro Inicial', description: 'Geral', nodes: defaultNodes }).then((created) => {
+          if (created?.id) {
+            setSelectedMapId(created.id);
+            setSelectedNodeId('n1');
+            setMindmaps([created]);
+          }
+        });
       }
       setVaultItems(loadedVault || []);
     } catch (err) {
@@ -945,7 +1005,8 @@ const ToolsViewInner: React.FC = () => {
 
   // Criar elemento livremente ao dar clique duplo no canvas
   const handleCanvasDoubleClick = (e: React.MouseEvent) => {
-    if (e.target !== canvasRef.current && (e.target as HTMLElement).tagName !== 'svg') return;
+    const target = e.target as HTMLElement;
+    if (target.closest('.lucid-node') || target.closest('button') || target.closest('input') || target.closest('textarea')) return;
     if (!selectedMap || !canvasRef.current) return;
 
     const rect = canvasRef.current.getBoundingClientRect();
@@ -1897,14 +1958,17 @@ const ToolsViewInner: React.FC = () => {
 
   // Pan & Drag Handlers do Quadro Branco
   const handleCanvasMouseDown = (e: React.MouseEvent) => {
-    if (e.target !== canvasRef.current && (e.target as HTMLElement).tagName !== 'svg') return;
+    const target = e.target as HTMLElement;
+    if (target.closest('.lucid-node') || target.closest('button') || target.closest('input') || target.closest('textarea') || target.closest('select')) {
+      return;
+    }
     if (!canvasRef.current || !selectedMap) return;
 
     const rect = canvasRef.current.getBoundingClientRect();
     const clickX = Math.round((e.clientX - rect.left - panOffset.x) / zoom);
     const clickY = Math.round((e.clientY - rect.top - panOffset.y) / zoom);
 
-    if (whiteboardTool === 'pan' || e.button === 1 || e.altKey) {
+    if (whiteboardTool === 'pan' || e.button === 1 || e.altKey || isSpacePressed) {
       setIsPanning(true);
       setPanStart({ x: e.clientX - panOffset.x, y: e.clientY - panOffset.y });
       return;
@@ -1966,6 +2030,7 @@ const ToolsViewInner: React.FC = () => {
     const rect = canvasRef.current.getBoundingClientRect();
     const curX = Math.round((e.clientX - rect.left - panOffset.x) / zoom);
     const curY = Math.round((e.clientY - rect.top - panOffset.y) / zoom);
+    setMouseWorldPos({ x: curX, y: curY });
 
     if (currentDrawingPath) {
       setCurrentDrawingPath((prev) => (prev ? [...prev, { x: curX, y: curY }] : null));
@@ -1981,8 +2046,10 @@ const ToolsViewInner: React.FC = () => {
     const draggingNode = selectedMap.nodes.find((n) => n.id === draggingNodeId);
     if (draggingNode?.locked) return;
 
-    const newX = gridSnap ? Math.round(curX / 20) * 20 : curX;
-    const newY = gridSnap ? Math.round(curY / 20) * 20 : curY;
+    const targetX = curX - dragOffset.x;
+    const targetY = curY - dragOffset.y;
+    const newX = gridSnap ? Math.round(targetX / 20) * 20 : targetX;
+    const newY = gridSnap ? Math.round(targetY / 20) * 20 : targetY;
 
     const deltaX = newX - (draggingNode?.x || newX);
     const deltaY = newY - (draggingNode?.y || newY);
@@ -3345,10 +3412,10 @@ const ToolsViewInner: React.FC = () => {
                 onMouseLeave={handleCanvasMouseUp}
                 onDoubleClick={handleCanvasDoubleClick}
                 className={`relative w-full flex-1 overflow-hidden select-none ${
-                  whiteboardTool === 'pan'
-                    ? isPanning
-                      ? 'cursor-grabbing'
-                      : 'cursor-grab'
+                  isSpacePressed || isPanning
+                    ? 'cursor-grabbing'
+                    : whiteboardTool === 'pan' || isSpacePressed
+                    ? 'cursor-grab'
                     : whiteboardTool === 'pen'
                     ? 'cursor-crosshair'
                     : whiteboardTool === 'sticky' ||
@@ -3378,6 +3445,23 @@ const ToolsViewInner: React.FC = () => {
                 >
                   {/* Conexões e Traços Vetoriais de Desenho do Quadro */}
                   <svg className="absolute inset-0 w-[5000px] h-[5000px] pointer-events-none overflow-visible">
+                    {/* Linha Provisória que acompanha o cursor durante a conexão */}
+                    {connectingFromNodeId && (() => {
+                      const src = selectedMap.nodes.find((n) => n.id === connectingFromNodeId);
+                      if (!src) return null;
+                      return (
+                        <line
+                          x1={src.x}
+                          y1={src.y}
+                          x2={mouseWorldPos.x}
+                          y2={mouseWorldPos.y}
+                          stroke="#818cf8"
+                          strokeWidth="2.5"
+                          strokeDasharray="6 4"
+                          className="animate-pulse"
+                        />
+                      );
+                    })()}
                     {/* Traços Vetoriais de Desenho Livre da Caneta */}
                     {selectedMap.nodes
                       .filter((n) => n.shape === 'drawing' && n.pathData)
@@ -3594,6 +3678,12 @@ const ToolsViewInner: React.FC = () => {
                             setSelectedNodeId(node.id);
                             setSelectedEdgeId(null);
                             setDraggingNodeId(node.id);
+                            if (canvasRef.current) {
+                              const rect = canvasRef.current.getBoundingClientRect();
+                              const curX = Math.round((e.clientX - rect.left - panOffset.x) / zoom);
+                              const curY = Math.round((e.clientY - rect.top - panOffset.y) / zoom);
+                              setDragOffset({ x: curX - node.x, y: curY - node.y });
+                            }
                           }
                         }}
                         style={{
@@ -3601,7 +3691,7 @@ const ToolsViewInner: React.FC = () => {
                           top: `${node.y}px`,
                           transform: 'translate(-50%, -50%)',
                         }}
-                        className={`group absolute cursor-grab active:cursor-grabbing transition-transform ${
+                        className={`lucid-node group absolute cursor-grab active:cursor-grabbing transition-transform ${
                           connectingFromNodeId && connectingFromNodeId !== node.id
                             ? 'ring-4 ring-indigo-400 animate-pulse cursor-pointer'
                             : ''
