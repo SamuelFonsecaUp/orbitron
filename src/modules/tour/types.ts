@@ -11,6 +11,8 @@ export interface TourStep {
   interactive?: boolean;
   actionHint?: string;
   actionSelector?: string;
+  pillarBadge?: string;
+  pillarColor?: 'emerald' | 'cyan' | 'purple' | 'amber' | 'blue';
 }
 
 export interface TourProgressRecord {

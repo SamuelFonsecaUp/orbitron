@@ -370,6 +370,7 @@ export const Sidebar: React.FC = () => {
                   <button
                     key={id}
                     type="button"
+                    data-tour={`switcher-${id}`}
                     onClick={() => setActiveModule(id)}
                     title={label}
                     className={`flex flex-col items-center justify-center gap-1 py-2 px-0.5 rounded-xl text-[9px] transition-all duration-300 ${
@@ -451,6 +452,7 @@ export const Sidebar: React.FC = () => {
                   return (
                     <button
                       key={item.id}
+                      data-tour={`nav-${item.id}`}
                       onClick={() => setCurrentView(item.id)}
                       style={isActive ? ({ ['--nav-tint' as any]: meta.navTint } as React.CSSProperties) : undefined}
                       className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs transition-all duration-200 relative overflow-hidden ${

@@ -45,6 +45,13 @@ export const App: React.FC = () => {
 
   const [tourOpen, setTourOpen] = useState(false);
   const [setupWizardOpen, setSetupWizardOpen] = useState(false);
+  const [bootCompleted, setBootCompleted] = useState(() => {
+    try {
+      return Boolean(sessionStorage.getItem('orbit_boot_seen'));
+    } catch {
+      return false;
+    }
+  });
   const [mandatoryDone, setMandatoryDone] = useState(() =>
     hasCompletedMandatoryOnboarding(settings?.onboardingCompleted)
   );
@@ -69,7 +76,7 @@ export const App: React.FC = () => {
       <div className="flex h-screen w-screen items-center justify-center bg-[#0c0c0e] text-white">
         <div className="flex flex-col items-center gap-3">
           <div className="w-8 h-8 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" />
-          <span className="text-xs text-slate-400 font-medium">Carregando Pigo...</span>
+          <span className="text-xs text-slate-400 font-medium">Carregando Orbitron...</span>
         </div>
       </div>
     );
@@ -91,6 +98,8 @@ export const App: React.FC = () => {
   }
 
   // Ambient glow color based on active module
+  const isAppReady = !isLoading && bootCompleted && !isLocked && mandatoryDone && !setupWizardOpen;
+
   const ambientGlowClass =
     activeModule === 'habits'
       ? 'from-cyan-500/[0.07] via-sky-500/[0.02] to-transparent'
@@ -101,12 +110,12 @@ export const App: React.FC = () => {
       : 'from-brand-500/[0.06] via-emerald-500/[0.02] to-transparent';
 
   return (
-    <TourProvider>
+    <TourProvider isAppReady={isAppReady}>
       <div className="flex h-screen w-screen overflow-hidden bg-[#0c0c0e] text-slate-100 font-sans">
         {/* Product Tour Interactive Spotlight Overlay */}
         <ProductTourManager />
       {/* Orbit Space Boot Sequence */}
-      <OrbitBootActivation />
+      <OrbitBootActivation onComplete={() => setBootCompleted(true)} />
 
       {/* PIN Security Modal */}
       {isLocked && <PinLockModal />}

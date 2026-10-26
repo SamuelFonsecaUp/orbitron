@@ -23,7 +23,12 @@ function saveProgress(tourId: string, record: TourProgressRecord) {
   } catch {}
 }
 
-export const TourProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+interface TourProviderProps {
+  children: React.ReactNode;
+  isAppReady?: boolean;
+}
+
+export const TourProvider: React.FC<TourProviderProps> = ({ children, isAppReady = true }) => {
   const { setActiveModule, setCurrentView } = useFinancial();
   const [isTourActive, setIsTourActive] = useState(false);
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
@@ -104,28 +109,31 @@ export const TourProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const notifyActionDone = useCallback(() => {
     setActionSuccess(true);
+    // Respect screen pacing: let user celebrate success for 900ms before auto-advancing
     setTimeout(() => {
       nextStep();
-    }, 700);
+    }, 900);
   }, [nextStep]);
 
   const hasCompletedTour = useCallback((tourId: string = 'main_tour') => {
     return Boolean(progress[tourId]?.completed);
   }, [progress]);
 
-  // Listen to custom global events (e.g. from Sidebar tour button)
+  // Listen to manual triggers & schedule auto-start only after screen finishes loading
   useEffect(() => {
     const handleGlobalOpen = () => startTour('main_tour', false);
     window.addEventListener('pigo:open-tour', handleGlobalOpen);
     window.addEventListener('orbit:open-tour', handleGlobalOpen);
 
-    // Auto-prompt tour on first visit if never seen before
-    const hasSeen = localStorage.getItem(STORAGE_KEY);
     let timer: NodeJS.Timeout | null = null;
-    if (!hasSeen) {
-      timer = setTimeout(() => {
-        startTour('main_tour', false);
-      }, 3500);
+    if (isAppReady) {
+      const hasSeen = localStorage.getItem(STORAGE_KEY);
+      if (!hasSeen) {
+        // Respect screen timing: wait 1400ms after the app finishes loading and boot screen
+        timer = setTimeout(() => {
+          startTour('main_tour', false);
+        }, 1400);
+      }
     }
 
     return () => {
@@ -133,7 +141,7 @@ export const TourProvider: React.FC<{ children: React.ReactNode }> = ({ children
       window.removeEventListener('orbit:open-tour', handleGlobalOpen);
       if (timer) clearTimeout(timer);
     };
-  }, [startTour]);
+  }, [isAppReady, startTour]);
 
   const value = useMemo<TourContextValue>(() => ({
     isTourActive,
@@ -170,8 +178,10 @@ export const TourProvider: React.FC<{ children: React.ReactNode }> = ({ children
   return <TourContext.Provider value={value}>{children}</TourContext.Provider>;
 };
 
-export function useProductTour(): TourContextValue {
+export const useProductTour = (): TourContextValue => {
   const ctx = useContext(TourContext);
-  if (!ctx) throw new Error('useProductTour must be used inside a TourProvider');
+  if (!ctx) {
+    throw new Error('useProductTour must be used within a TourProvider');
+  }
   return ctx;
-}
+};

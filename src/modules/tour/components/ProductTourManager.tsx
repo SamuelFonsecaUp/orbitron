@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useProductTour } from '../TourContext';
 import { TourSpotlightOverlay } from './TourSpotlightOverlay';
 import { TourTooltipCard } from './TourTooltipCard';
@@ -24,31 +24,38 @@ export const ProductTourManager: React.FC = () => {
     radius: number;
   } | null>(null);
 
+  const retryTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
   const updateCoordinates = useCallback(() => {
     if (!currentStep) {
       setCoords(null);
       return;
     }
 
-    const element = document.querySelector(currentStep.targetSelector);
-    if (!element) {
-      setCoords(null);
-      return;
-    }
-
-    // Scroll element into view smoothly if hidden offscreen
-    element.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
-
-    const rect = element.getBoundingClientRect();
     const PADDING = 6;
+    let attempts = 0;
 
-    setCoords({
-      x: Math.max(0, rect.left - PADDING),
-      y: Math.max(0, rect.top - PADDING),
-      width: rect.width + PADDING * 2,
-      height: rect.height + PADDING * 2,
-      radius: 14,
-    });
+    const findAndMeasure = () => {
+      const element = document.querySelector(currentStep.targetSelector);
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+        const rect = element.getBoundingClientRect();
+        setCoords({
+          x: Math.max(0, rect.left - PADDING),
+          y: Math.max(0, rect.top - PADDING),
+          width: rect.width + PADDING * 2,
+          height: rect.height + PADDING * 2,
+          radius: 14,
+        });
+      } else if (attempts < 6) {
+        attempts++;
+        retryTimeoutRef.current = setTimeout(findAndMeasure, 70);
+      } else {
+        setCoords(null);
+      }
+    };
+
+    findAndMeasure();
   }, [currentStep]);
 
   // Keep coordinates updated on resize, scroll, and step transitions
@@ -60,14 +67,13 @@ export const ProductTourManager: React.FC = () => {
 
     window.addEventListener('resize', handleScrollOrResize);
     window.addEventListener('scroll', handleScrollOrResize, true);
-
-    // Minor poll interval to ensure dynamic drawer/tab elements are caught
-    const interval = setInterval(updateCoordinates, 250);
+    const interval = setInterval(updateCoordinates, 300);
 
     return () => {
       window.removeEventListener('resize', handleScrollOrResize);
       window.removeEventListener('scroll', handleScrollOrResize, true);
       clearInterval(interval);
+      if (retryTimeoutRef.current) clearTimeout(retryTimeoutRef.current);
     };
   }, [isTourActive, updateCoordinates]);
 
