@@ -6,13 +6,6 @@ export function useMiniMode() {
   useEffect(() => {
     let cleanup: (() => void) | undefined;
 
-    // Check initial state from Electron main process
-    if (window.electronAPI?.isMiniMode) {
-      window.electronAPI.isMiniMode().then((res) => {
-        setIsMiniMode(Boolean(res));
-      }).catch(() => {});
-    }
-
     // Subscribe to IPC mini-mode change events
     if (window.electronAPI?.onMiniModeChanged) {
       cleanup = window.electronAPI.onMiniModeChanged((mini) => {
@@ -53,6 +46,7 @@ export function useMiniMode() {
       }
     } catch (err) {
       console.warn('[useMiniMode] Erro ao alternar modo mini player:', err);
+      setIsMiniMode((prev) => !prev);
     }
   }, []);
 
@@ -66,6 +60,7 @@ export function useMiniMode() {
       }
     } catch (err) {
       console.warn('[useMiniMode] Erro ao definir modo mini player:', err);
+      setIsMiniMode(enable);
     }
   }, []);
 
