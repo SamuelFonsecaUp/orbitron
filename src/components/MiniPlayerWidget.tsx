@@ -135,9 +135,16 @@ export const MiniPlayerWidget: React.FC<MiniPlayerWidgetProps> = ({ onExpand }) 
                 {pomoBadge.label}
               </span>
             ) : (
-              <span className="text-[9px] px-1.5 py-0.2 rounded border font-semibold truncate text-cyan-300 bg-cyan-500/15 border-cyan-500/30">
-                {timeTracker.category || 'Geral'}
-              </span>
+              <>
+                <span className="text-[9px] px-1.5 py-0.2 rounded border font-semibold truncate text-cyan-300 bg-cyan-500/15 border-cyan-500/30">
+                  {timeTracker.category || 'Geral'}
+                </span>
+                {timeTracker.workType && (
+                  <span className="text-[8px] px-1 py-0.2 rounded border border-sky-500/30 bg-sky-500/15 text-sky-300 font-semibold truncate max-w-[70px]">
+                    {timeTracker.workType.replace('Profissional - ', '')}
+                  </span>
+                )}
+              </>
             )}
           </div>
           <span

@@ -21,6 +21,7 @@ export const NavbarTimeTrackerWidget: React.FC = () => {
     isRunning,
     activeTaskTitle,
     category,
+    workType,
     formattedTime,
     categories,
     startTracking,
@@ -211,9 +212,16 @@ export const NavbarTimeTrackerWidget: React.FC = () => {
             <div className="py-3 border-b border-white/[0.08]">
               <div className="flex items-center justify-between">
                 <span className="text-[11px] text-slate-400 font-medium">Tarefa Ativa</span>
-                <span className="text-[10px] px-2 py-0.5 rounded-full bg-cyan-500/10 text-cyan-300 border border-cyan-500/20 font-bold">
-                  {category}
-                </span>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-cyan-500/10 text-cyan-300 border border-cyan-500/20 font-bold">
+                    {category}
+                  </span>
+                  {workType && (
+                    <span className="text-[9px] px-1.5 py-0.5 rounded-full border border-sky-500/30 bg-sky-500/15 text-sky-300 font-semibold truncate max-w-[130px]">
+                      {workType}
+                    </span>
+                  )}
+                </div>
               </div>
               <div className="text-sm font-bold text-white truncate mt-1">{activeTaskTitle}</div>
               <div className="font-mono text-2xl font-black text-cyan-400 my-2">

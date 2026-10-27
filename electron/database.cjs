@@ -302,6 +302,7 @@ function initDatabase(customPath = null) {
       task_id TEXT,
       task_title TEXT NOT NULL,
       category TEXT DEFAULT 'Geral',
+      work_type TEXT DEFAULT 'Profissional - Contratado',
       project_name TEXT,
       started_at INTEGER NOT NULL,
       ended_at INTEGER NOT NULL,
@@ -409,6 +410,7 @@ function initDatabase(customPath = null) {
     `ALTER TABLE habits ADD COLUMN frequency_days TEXT`,
     `ALTER TABLE habits ADD COLUMN frequency_times INTEGER DEFAULT 7`,
     `ALTER TABLE habits ADD COLUMN target_time TEXT`,
+    `ALTER TABLE time_entries ADD COLUMN work_type TEXT DEFAULT 'Profissional - Contratado'`,
   ];
   for (const m of migrations) {
     try { db.exec(m); } catch (e) {}

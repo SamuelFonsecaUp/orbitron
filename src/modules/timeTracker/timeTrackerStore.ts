@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from 'react';
-import { TimeEntry, TimeTrackerState, IdleDetectionNotice, TimeCategory } from './types';
+import { TimeEntry, TimeTrackerState, IdleDetectionNotice, TimeCategory, TimeWorkType } from './types';
 
 const STORAGE_KEY = 'orbitron_time_tracker_state_v1';
 const CATEGORIES_KEY = 'orbitron_time_tracker_categories_v1';
@@ -55,6 +55,7 @@ class TimeTrackerStore {
     activeTaskId: null,
     activeTaskTitle: '',
     category: 'Geral',
+    workType: 'Profissional - Contratado',
     projectName: null,
     startedAt: null,
     accumulatedSeconds: 0,
@@ -88,6 +89,7 @@ class TimeTrackerStore {
           activeTaskId: parsed.activeTaskId || null,
           activeTaskTitle: parsed.activeTaskTitle || '',
           category: parsed.category || 'Geral',
+          workType: parsed.workType || 'Profissional - Contratado',
           projectName: parsed.projectName || null,
           startedAt: parsed.startedAt || null,
           accumulatedSeconds: Number(parsed.accumulatedSeconds) || 0,
@@ -246,6 +248,35 @@ class TimeTrackerStore {
     return newCat;
   }
 
+  public updateCategory(id: string, updates: { name?: string; color?: string }): TimeCategory | null {
+    let found = false;
+    this.categories = this.categories.map((c) => {
+      if (c.id === id || c.name.toLowerCase() === id.toLowerCase()) {
+        found = true;
+        return {
+          ...c,
+          name: updates.name !== undefined && updates.name.trim() ? updates.name.trim() : c.name,
+          color: updates.color !== undefined ? updates.color : c.color,
+        };
+      }
+      return c;
+    });
+
+    if (found) {
+      this.persistCategories();
+      this.notify();
+    }
+    return this.categories.find((c) => c.id === id || c.name.toLowerCase() === id.toLowerCase()) || null;
+  }
+
+  public setWorkType(workType: TimeWorkType) {
+    this.state = {
+      ...this.state,
+      workType,
+    };
+    this.notify();
+  }
+
   public deleteCategory(nameOrId: string): boolean {
     const initialLen = this.categories.length;
     this.categories = this.categories.filter(
@@ -283,7 +314,8 @@ class TimeTrackerStore {
     taskTitle: string,
     taskId?: string | null,
     category: string = 'Geral',
-    projectName?: string | null
+    projectName?: string | null,
+    workType?: TimeWorkType
   ) {
     const trimmedTitle = taskTitle.trim() || 'Tarefa Sem Título';
 
@@ -297,6 +329,7 @@ class TimeTrackerStore {
       activeTaskId: taskId || null,
       activeTaskTitle: trimmedTitle,
       category: category || 'Geral',
+      workType: workType || this.state.workType || 'Profissional - Contratado',
       projectName: projectName || null,
       startedAt: Date.now(),
       accumulatedSeconds: this.state.activeTaskId === taskId && taskId ? this.state.accumulatedSeconds : 0,
@@ -342,6 +375,7 @@ class TimeTrackerStore {
     const taskTitle = this.state.activeTaskTitle || 'Tarefa Geral';
     const taskId = this.state.activeTaskId;
     const category = this.state.category || 'Geral';
+    const workType = this.state.workType || 'Profissional - Contratado';
     const projectName = this.state.projectName;
 
     let savedEntry: TimeEntry | null = null;
@@ -351,6 +385,7 @@ class TimeTrackerStore {
           taskId,
           taskTitle,
           category,
+          workType,
           projectName,
           startedAt,
           endedAt,
@@ -370,6 +405,7 @@ class TimeTrackerStore {
       activeTaskId: null,
       activeTaskTitle: '',
       category: 'Geral',
+      workType: this.state.workType || 'Profissional - Contratado',
       projectName: null,
       startedAt: null,
       accumulatedSeconds: 0,
@@ -394,6 +430,7 @@ class TimeTrackerStore {
       activeTaskId: null,
       activeTaskTitle: '',
       category: 'Geral',
+      workType: this.state.workType || 'Profissional - Contratado',
       projectName: null,
       startedAt: null,
       accumulatedSeconds: 0,
@@ -436,8 +473,13 @@ export function useTimeTracker() {
 
   return {
     ...snapshot,
-    startTracking: (title: string, taskId?: string | null, cat?: string, proj?: string | null) =>
-      timeTrackerStore.startTracking(title, taskId, cat, proj),
+    startTracking: (
+      title: string,
+      taskId?: string | null,
+      cat?: string,
+      proj?: string | null,
+      workType?: TimeWorkType
+    ) => timeTrackerStore.startTracking(title, taskId, cat, proj, workType),
     pauseTracking: () => timeTrackerStore.pauseTracking(),
     resumeTracking: () => timeTrackerStore.resumeTracking(),
     stopAndSave: (notes?: string) => timeTrackerStore.stopAndSave(notes),
@@ -445,6 +487,9 @@ export function useTimeTracker() {
     clearIdleNotice: () => timeTrackerStore.clearIdleNotice(),
     discardIdleSeconds: (sec: number) => timeTrackerStore.discardIdleSeconds(sec),
     addCategory: (name: string, color?: string) => timeTrackerStore.addCategory(name, color),
+    updateCategory: (id: string, updates: { name?: string; color?: string }) =>
+      timeTrackerStore.updateCategory(id, updates),
     deleteCategory: (nameOrId: string) => timeTrackerStore.deleteCategory(nameOrId),
+    setWorkType: (workType: TimeWorkType) => timeTrackerStore.setWorkType(workType),
   };
 }

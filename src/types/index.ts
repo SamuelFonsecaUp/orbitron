@@ -1129,11 +1129,23 @@ export interface SyncResult {
   timestamp?: string;
 }
 
+export type TimeWorkType =
+  | 'Profissional - Contratado'
+  | 'Profissional - Freela'
+  | 'Projeto Pessoal';
+
+export const TIME_WORK_TYPES: TimeWorkType[] = [
+  'Profissional - Contratado',
+  'Profissional - Freela',
+  'Projeto Pessoal',
+];
+
 export interface TimeEntry {
   id: string;
   taskId?: string | null;
   taskTitle: string;
   category?: string;
+  workType?: TimeWorkType;
   projectName?: string | null;
   startedAt: number;
   endedAt: number;
@@ -1149,6 +1161,7 @@ export interface TimeTrackerState {
   activeTaskId?: string | null;
   activeTaskTitle?: string;
   category?: string;
+  workType?: TimeWorkType;
   startedAt?: number | null;
   accumulatedSeconds: number;
 }

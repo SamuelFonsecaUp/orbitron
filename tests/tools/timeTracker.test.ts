@@ -50,7 +50,13 @@ describe('Time Tracker Store (Drift-Free Delta & Idle Time)', () => {
     let mockTime = 1000000;
     vi.spyOn(Date, 'now').mockImplementation(() => mockTime);
 
-    timeTrackerStore.startTracking('Tarefa A');
+    timeTrackerStore.startTracking('Tarefa A', null, 'Geral', null, 'Profissional - Freela');
+    expect(timeTrackerStore.getState().workType).toBe('Profissional - Freela');
+
+    // Change work type on the fly
+    timeTrackerStore.setWorkType('Projeto Pessoal');
+    expect(timeTrackerStore.getState().workType).toBe('Projeto Pessoal');
+
     // Advance 40 seconds
     mockTime += 40000;
     expect(timeTrackerStore.getElapsedSeconds()).toBe(40);
@@ -99,6 +105,12 @@ describe('Time Tracker Store (Drift-Free Delta & Idle Time)', () => {
     expect(added.color).toBe('#ec4899');
     expect(timeTrackerStore.getCategories().some((c) => c.id === added.id)).toBe(true);
 
+    // Update category color
+    const updated = timeTrackerStore.updateCategory(added.id, { color: '#f59e0b' });
+    expect(updated?.color).toBe('#f59e0b');
+    const reloaded = timeTrackerStore.getCategories().find((c) => c.id === added.id);
+    expect(reloaded?.color).toBe('#f59e0b');
+
     // Delete category
     const deleted = timeTrackerStore.deleteCategory(added.id);
     expect(deleted).toBe(true);
@@ -145,6 +157,7 @@ describe('ToolsEngine SQLite Time Tracker Backend', () => {
         task_id TEXT,
         task_title TEXT NOT NULL,
         category TEXT DEFAULT 'Geral',
+        work_type TEXT DEFAULT 'Profissional - Contratado',
         project_name TEXT,
         started_at INTEGER NOT NULL,
         ended_at INTEGER NOT NULL,
@@ -164,6 +177,7 @@ describe('ToolsEngine SQLite Time Tracker Backend', () => {
     const entry = engine.createTimeEntry({
       taskTitle: 'Planejamento Financeiro Q4',
       category: 'Finanças',
+      workType: 'Profissional - Freela',
       startedAt: 1700000000000,
       endedAt: 1700003600000,
       durationSeconds: 3600,
@@ -172,19 +186,23 @@ describe('ToolsEngine SQLite Time Tracker Backend', () => {
 
     expect(entry.id).toBeDefined();
     expect(entry.taskTitle).toBe('Planejamento Financeiro Q4');
+    expect(entry.workType).toBe('Profissional - Freela');
     expect(entry.durationSeconds).toBe(3600);
 
     const all = engine.getTimeEntries();
     expect(all.length).toBe(1);
     expect(all[0].id).toBe(entry.id);
+    expect(all[0].workType).toBe('Profissional - Freela');
 
     // Update
     const updated = engine.updateTimeEntry(entry.id, {
       notes: 'Sessão revisada com metas batidas',
       category: 'Estratégia',
+      workType: 'Projeto Pessoal',
     });
     expect(updated.notes).toBe('Sessão revisada com metas batidas');
     expect(updated.category).toBe('Estratégia');
+    expect(updated.workType).toBe('Projeto Pessoal');
 
     // Stats
     const stats = engine.getTimeTrackerStats();

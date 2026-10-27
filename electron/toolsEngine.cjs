@@ -367,6 +367,10 @@ class ToolsEngine {
       conditions.push(`category = ?`);
       params.push(filter.category);
     }
+    if (filter.workType) {
+      conditions.push(`work_type = ?`);
+      params.push(filter.workType);
+    }
     if (filter.startedAfter) {
       conditions.push(`started_at >= ?`);
       params.push(Number(filter.startedAfter));
@@ -392,6 +396,7 @@ class ToolsEngine {
       taskId: r.task_id,
       taskTitle: r.task_title,
       category: r.category,
+      workType: r.work_type || 'Profissional - Contratado',
       projectName: r.project_name,
       startedAt: r.started_at,
       endedAt: r.ended_at,
@@ -418,14 +423,15 @@ class ToolsEngine {
 
     this.db
       .prepare(
-        `INSERT INTO time_entries (id, task_id, task_title, category, project_name, started_at, ended_at, duration_seconds, is_pomodoro, is_manual, notes, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        `INSERT INTO time_entries (id, task_id, task_title, category, work_type, project_name, started_at, ended_at, duration_seconds, is_pomodoro, is_manual, notes, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
       )
       .run(
         id,
         data.taskId || null,
         data.taskTitle.trim(),
         data.category || 'Geral',
+        data.workType || 'Profissional - Contratado',
         data.projectName || null,
         startedAt,
         endedAt,
@@ -445,6 +451,7 @@ class ToolsEngine {
 
     const taskTitle = data.taskTitle !== undefined ? data.taskTitle.trim() : existing.task_title;
     const category = data.category !== undefined ? data.category : existing.category;
+    const workType = data.workType !== undefined ? data.workType : (existing.work_type || 'Profissional - Contratado');
     const projectName = data.projectName !== undefined ? data.projectName : existing.project_name;
     const startedAt = data.startedAt !== undefined ? Number(data.startedAt) : existing.started_at;
     const endedAt = data.endedAt !== undefined ? Number(data.endedAt) : existing.ended_at;
@@ -457,10 +464,10 @@ class ToolsEngine {
     this.db
       .prepare(
         `UPDATE time_entries
-         SET task_title = ?, category = ?, project_name = ?, started_at = ?, ended_at = ?, duration_seconds = ?, notes = ?
+         SET task_title = ?, category = ?, work_type = ?, project_name = ?, started_at = ?, ended_at = ?, duration_seconds = ?, notes = ?
          WHERE id = ?`
       )
-      .run(taskTitle, category, projectName, startedAt, endedAt, durationSeconds, notes, id);
+      .run(taskTitle, category, workType, projectName, startedAt, endedAt, durationSeconds, notes, id);
 
     return this.getTimeEntries().find((e) => e.id === id);
   }

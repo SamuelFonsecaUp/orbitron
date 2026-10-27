@@ -24,6 +24,9 @@ import {
   ChevronDown,
   Layers,
   FileSpreadsheet,
+  Briefcase,
+  Zap,
+  Palette,
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -42,7 +45,7 @@ import {
   formatTimeHoursMinutesSeconds,
   formatHumanDuration,
 } from '../../modules/timeTracker/timeTrackerStore';
-import { TimeEntry, TimeTrackerStats, TimeCategory } from '../../modules/timeTracker/types';
+import { TimeEntry, TimeTrackerStats, TimeCategory, TimeWorkType, TIME_WORK_TYPES } from '../../modules/timeTracker/types';
 import { useKanban } from '../../modules/kanban/kanbanStore';
 import { useFinancial } from '../../context/FinancialContext';
 import { useAlwaysOnTop } from '../../hooks/useAlwaysOnTop';
@@ -66,6 +69,7 @@ export const TimeTrackerTab: React.FC = () => {
     activeTaskTitle,
     activeTaskId,
     category,
+    workType,
     formattedTime,
     elapsedSeconds,
     categories,
@@ -75,7 +79,9 @@ export const TimeTrackerTab: React.FC = () => {
     stopAndSave,
     discard,
     addCategory,
+    updateCategory,
     deleteCategory,
+    setWorkType,
   } = useTimeTracker();
 
   const { tasks } = useKanban();
@@ -89,21 +95,34 @@ export const TimeTrackerTab: React.FC = () => {
   // Form states
   const [quickInput, setQuickInput] = useState('');
   const [quickCategory, setQuickCategory] = useState('Geral');
+  const [quickWorkType, setQuickWorkType] = useState<TimeWorkType>('Profissional - Contratado');
   const [activeSessionNotes, setActiveSessionNotes] = useState('');
 
   // Category Manager Modal
   const [categoryModalOpen, setCategoryModalOpen] = useState(false);
   const [newCatName, setNewCatName] = useState('');
   const [newCatColor, setNewCatColor] = useState('#06b6d4');
+  const [editingCatId, setEditingCatId] = useState<string | null>(null);
 
   // Manual modal state
   const [manualModalOpen, setManualModalOpen] = useState(false);
   const [manualTitle, setManualTitle] = useState('');
   const [manualCategory, setManualCategory] = useState('Geral');
+  const [manualWorkType, setManualWorkType] = useState<TimeWorkType>('Profissional - Contratado');
   const [manualDate, setManualDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [manualStart, setManualStart] = useState('09:00');
   const [manualEnd, setManualEnd] = useState('10:00');
   const [manualNotes, setManualNotes] = useState('');
+
+  // Edit modal state
+  const [editingEntry, setEditingEntry] = useState<TimeEntry | null>(null);
+  const [editTitle, setEditTitle] = useState('');
+  const [editCategory, setEditCategory] = useState('Geral');
+  const [editWorkType, setEditWorkType] = useState<TimeWorkType>('Profissional - Contratado');
+  const [editDate, setEditDate] = useState('');
+  const [editStart, setEditStart] = useState('');
+  const [editEnd, setEditEnd] = useState('');
+  const [editNotes, setEditNotes] = useState('');
 
   // Period Filter & Custom Dates
   const [period, setPeriod] = useState<PeriodOption>('week');
@@ -114,8 +133,9 @@ export const TimeTrackerTab: React.FC = () => {
   });
   const [customEndDate, setCustomEndDate] = useState(() => new Date().toISOString().split('T')[0]);
 
-  // Category filter
+  // Filters
   const [selectedFilterCategory, setSelectedFilterCategory] = useState<string>('all');
+  const [selectedFilterWorkType, setSelectedFilterWorkType] = useState<string>('all');
 
   const loadData = useCallback(async () => {
     if (!window.electronAPI) return;
@@ -146,9 +166,9 @@ export const TimeTrackerTab: React.FC = () => {
   const handleStartFromInput = (e: React.FormEvent) => {
     e.preventDefault();
     const title = quickInput.trim() || 'Nova Tarefa';
-    startTracking(title, null, quickCategory);
+    startTracking(title, null, quickCategory, null, quickWorkType);
     setQuickInput('');
-    showToast(`Rastreador iniciado: "${title}"`, 'info');
+    showToast(`Rastreador iniciado: "${title}" (${quickWorkType})`, 'info');
   };
 
   const handleStopActive = async () => {
@@ -166,6 +186,64 @@ export const TimeTrackerTab: React.FC = () => {
       await window.electronAPI.deleteTimeEntry(id);
       showToast('Registro excluído com sucesso.', 'info');
       loadData();
+    }
+  };
+
+  const openEditModal = (entry: TimeEntry) => {
+    setEditingEntry(entry);
+    setEditTitle(entry.taskTitle);
+    setEditCategory(entry.category || 'Geral');
+    setEditWorkType(entry.workType || 'Profissional - Contratado');
+
+    const startDate = new Date(entry.startedAt);
+    const endDate = new Date(entry.endedAt || entry.startedAt + entry.durationSeconds * 1000);
+
+    const pad = (n: number) => String(n).padStart(2, '0');
+    setEditDate(
+      `${startDate.getFullYear()}-${pad(startDate.getMonth() + 1)}-${pad(startDate.getDate())}`
+    );
+    setEditStart(`${pad(startDate.getHours())}:${pad(startDate.getMinutes())}`);
+    setEditEnd(`${pad(endDate.getHours())}:${pad(endDate.getMinutes())}`);
+    setEditNotes(entry.notes || '');
+  };
+
+  const handleUpdateEntry = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingEntry) return;
+    if (!editTitle.trim()) {
+      showToast('Informe o título da tarefa.', 'error');
+      return;
+    }
+
+    const startDate = new Date(`${editDate}T${editStart}:00`);
+    const endDate = new Date(`${editDate}T${editEnd}:00`);
+    const startMs = startDate.getTime();
+    const endMs = endDate.getTime();
+
+    if (endMs <= startMs) {
+      showToast('O horário de término deve ser posterior ao início.', 'error');
+      return;
+    }
+
+    const durationSeconds = Math.floor((endMs - startMs) / 1000);
+
+    if (window.electronAPI?.updateTimeEntry) {
+      try {
+        await window.electronAPI.updateTimeEntry(editingEntry.id, {
+          taskTitle: editTitle.trim(),
+          category: editCategory,
+          workType: editWorkType,
+          startedAt: startMs,
+          endedAt: endMs,
+          durationSeconds,
+          notes: editNotes,
+        });
+        showToast('Registro de tempo atualizado com sucesso!', 'success');
+        setEditingEntry(null);
+        loadData();
+      } catch (err: any) {
+        showToast(err.message || 'Erro ao atualizar registro.', 'error');
+      }
     }
   };
 
@@ -192,6 +270,7 @@ export const TimeTrackerTab: React.FC = () => {
       await window.electronAPI.createTimeEntry({
         taskTitle: manualTitle.trim(),
         category: manualCategory,
+        workType: manualWorkType,
         startedAt: startMs,
         endedAt: endMs,
         durationSeconds,
@@ -203,6 +282,28 @@ export const TimeTrackerTab: React.FC = () => {
       setManualTitle('');
       setManualNotes('');
       loadData();
+    }
+  };
+
+  const getWorkTypeBadgeStyle = (type?: string) => {
+    switch (type) {
+      case 'Profissional - Freela':
+        return 'bg-amber-500/15 text-amber-300 border-amber-500/30';
+      case 'Projeto Pessoal':
+        return 'bg-purple-500/15 text-purple-300 border-purple-500/30';
+      default:
+        return 'bg-sky-500/15 text-sky-300 border-sky-500/30';
+    }
+  };
+
+  const getWorkTypeIcon = (type?: string) => {
+    switch (type) {
+      case 'Profissional - Freela':
+        return <Zap className="w-2.5 h-2.5 text-amber-400" />;
+      case 'Projeto Pessoal':
+        return <Sparkles className="w-2.5 h-2.5 text-purple-400" />;
+      default:
+        return <Briefcase className="w-2.5 h-2.5 text-sky-400" />;
     }
   };
 
@@ -270,9 +371,12 @@ export const TimeTrackerTab: React.FC = () => {
       const matchesPeriod = e.startedAt >= startMs && e.startedAt <= endMs;
       const matchesCategory =
         selectedFilterCategory === 'all' ? true : e.category === selectedFilterCategory;
-      return matchesPeriod && matchesCategory;
+      const entryWorkType = e.workType || 'Profissional - Contratado';
+      const matchesWorkType =
+        selectedFilterWorkType === 'all' ? true : entryWorkType === selectedFilterWorkType;
+      return matchesPeriod && matchesCategory && matchesWorkType;
     });
-  }, [entries, period, customStartDate, customEndDate, selectedFilterCategory]);
+  }, [entries, period, customStartDate, customEndDate, selectedFilterCategory, selectedFilterWorkType]);
 
   // Aggregate Stats for Selected Period
   const periodTotalSeconds = useMemo(() => {
@@ -380,6 +484,7 @@ export const TimeTrackerTab: React.FC = () => {
       'Duracao Formatada',
       'Tarefa',
       'Categoria',
+      'Tipo',
       'Pomodoro',
       'Manual',
       'Notas',
@@ -397,6 +502,7 @@ export const TimeTrackerTab: React.FC = () => {
         `"${formatHumanDuration(e.durationSeconds)}"`,
         `"${e.taskTitle.replace(/"/g, '""')}"`,
         `"${e.category || 'Geral'}"`,
+        `"${e.workType || 'Profissional - Contratado'}"`,
         e.isPomodoro ? 'Sim' : 'Nao',
         e.isManual ? 'Sim' : 'Nao',
         `"${(e.notes || '').replace(/"/g, '""')}"`,
@@ -541,6 +647,22 @@ export const TimeTrackerTab: React.FC = () => {
                 >
                   {category}
                 </span>
+
+                {/* Active Session WorkType Selector */}
+                <select
+                  value={workType || 'Profissional - Contratado'}
+                  onChange={(e) => setWorkType(e.target.value as TimeWorkType)}
+                  className={`text-xs px-2.5 py-0.5 rounded-full border font-bold bg-slate-950/80 outline-none cursor-pointer transition ${getWorkTypeBadgeStyle(
+                    workType || 'Profissional - Contratado'
+                  )}`}
+                  title="Alterar tipo de atividade da sessão atual"
+                >
+                  {TIME_WORK_TYPES.map((wt) => (
+                    <option key={wt} value={wt} className="bg-slate-900 text-white font-medium">
+                      {wt}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <h2 className="text-xl font-bold text-white truncate mt-1">{activeTaskTitle}</h2>
@@ -624,6 +746,18 @@ export const TimeTrackerTab: React.FC = () => {
               ))}
             </select>
 
+            <select
+              value={quickWorkType}
+              onChange={(e) => setQuickWorkType(e.target.value as TimeWorkType)}
+              className="bg-slate-950 border border-white/10 rounded-xl px-3 py-2 text-xs text-slate-300 focus:outline-none focus:border-cyan-500 transition font-medium"
+            >
+              {TIME_WORK_TYPES.map((wt) => (
+                <option key={wt} value={wt}>
+                  {wt}
+                </option>
+              ))}
+            </select>
+
             <button
               type="submit"
               className="px-6 py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-teal-400 text-slate-950 text-xs font-black flex items-center justify-center gap-2 transition shadow-lg"
@@ -687,21 +821,40 @@ export const TimeTrackerTab: React.FC = () => {
           </div>
         )}
 
-        {/* Category Filter */}
-        <div className="flex items-center gap-2">
-          <Filter className="w-3.5 h-3.5 text-slate-500" />
-          <select
-            value={selectedFilterCategory}
-            onChange={(e) => setSelectedFilterCategory(e.target.value)}
-            className="bg-slate-950 border border-white/10 rounded-xl px-2.5 py-1 text-xs text-slate-300 focus:outline-none focus:border-cyan-500 transition"
-          >
-            <option value="all">Todas as Categorias</option>
-            {categories.map((c) => (
-              <option key={c.id} value={c.name}>
-                {c.name}
-              </option>
-            ))}
-          </select>
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Category Filter */}
+          <div className="flex items-center gap-1.5">
+            <Filter className="w-3.5 h-3.5 text-slate-500" />
+            <select
+              value={selectedFilterCategory}
+              onChange={(e) => setSelectedFilterCategory(e.target.value)}
+              className="bg-slate-950 border border-white/10 rounded-xl px-2.5 py-1 text-xs text-slate-300 focus:outline-none focus:border-cyan-500 transition"
+            >
+              <option value="all">Todas as Categorias</option>
+              {categories.map((c) => (
+                <option key={c.id} value={c.name}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Work Type Filter */}
+          <div className="flex items-center gap-1.5">
+            <Briefcase className="w-3.5 h-3.5 text-slate-500" />
+            <select
+              value={selectedFilterWorkType}
+              onChange={(e) => setSelectedFilterWorkType(e.target.value)}
+              className="bg-slate-950 border border-white/10 rounded-xl px-2.5 py-1 text-xs text-slate-300 focus:outline-none focus:border-cyan-500 transition font-medium"
+            >
+              <option value="all">Todos os Tipos</option>
+              {TIME_WORK_TYPES.map((t) => (
+                <option key={t} value={t}>
+                  {t}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
       </div>
 
@@ -987,6 +1140,16 @@ export const TimeTrackerTab: React.FC = () => {
                               >
                                 {entry.category}
                               </span>
+
+                              {/* Work Type Badge */}
+                              <span
+                                className={`text-[10px] font-bold px-2 py-0.5 rounded-full border flex items-center gap-1 ${getWorkTypeBadgeStyle(
+                                  entry.workType || 'Profissional - Contratado'
+                                )}`}
+                              >
+                                {getWorkTypeIcon(entry.workType || 'Profissional - Contratado')}
+                                <span>{entry.workType || 'Profissional - Contratado'}</span>
+                              </span>
                               {entry.isPomodoro && (
                                 <span className="flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded bg-rose-500/15 text-rose-300 border border-rose-500/30">
                                   <Timer className="w-2.5 h-2.5 text-rose-400" />
@@ -1018,14 +1181,25 @@ export const TimeTrackerTab: React.FC = () => {
                             </div>
                           </div>
 
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteEntry(entry.id)}
-                            title="Excluir lançamento"
-                            className="p-1.5 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 opacity-0 group-hover:opacity-100 transition"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
+                          <div className="flex items-center gap-1">
+                            <button
+                              type="button"
+                              onClick={() => openEditModal(entry)}
+                              title="Editar registro de tempo"
+                              className="p-1.5 rounded-lg text-slate-400 hover:text-cyan-300 hover:bg-cyan-500/10 opacity-0 group-hover:opacity-100 transition"
+                            >
+                              <Edit2 className="w-3.5 h-3.5" />
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteEntry(entry.id)}
+                              title="Excluir lançamento"
+                              className="p-1.5 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 opacity-0 group-hover:opacity-100 transition"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
                         </div>
                       </div>
                     );
@@ -1111,21 +1285,88 @@ export const TimeTrackerTab: React.FC = () => {
               {categories.map((c) => (
                 <div
                   key={c.id}
-                  className="p-2.5 rounded-xl bg-slate-950/60 border border-white/5 flex items-center justify-between"
+                  className="p-2.5 rounded-xl bg-slate-950/60 border border-white/5 flex flex-col gap-2 transition"
                 >
-                  <div className="flex items-center gap-2.5">
-                    <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: c.color }} />
-                    <span className="text-xs font-bold text-white">{c.name}</span>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <button
+                        type="button"
+                        onClick={() => setEditingCatId(editingCatId === c.id ? null : c.id)}
+                        title="Clique para alterar a cor desta categoria"
+                        className="group/swatch"
+                      >
+                        <span
+                          className="w-4 h-4 rounded-full block border border-white/20 shadow-sm transition transform hover:scale-125"
+                          style={{ backgroundColor: c.color }}
+                        />
+                      </button>
+                      <span className="text-xs font-bold text-white">{c.name}</span>
+                    </div>
+
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => setEditingCatId(editingCatId === c.id ? null : c.id)}
+                        className={`p-1.5 rounded-lg transition ${
+                          editingCatId === c.id
+                            ? 'bg-purple-600 text-white shadow-sm'
+                            : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                        }`}
+                        title="Alterar cor da categoria"
+                      >
+                        <Palette className="w-3.5 h-3.5" />
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteCategory(c.id, c.name)}
+                        className="p-1.5 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition"
+                        title="Excluir categoria"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   </div>
 
-                  <button
-                    type="button"
-                    onClick={() => handleDeleteCategory(c.id, c.name)}
-                    className="p-1 rounded text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition"
-                    title="Excluir categoria"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
+                  {/* Inline Color Palette Picker when editing this category */}
+                  {editingCatId === c.id && (
+                    <div className="pt-2 border-t border-white/10 flex items-center gap-1.5 flex-wrap animate-fade-in">
+                      <span className="text-[10px] text-slate-400 font-semibold mr-1">Nova Cor:</span>
+                      {COLOR_SWATCHES.map((swatch) => (
+                        <button
+                          key={swatch}
+                          type="button"
+                          onClick={() => {
+                            updateCategory(c.id, { color: swatch });
+                            showToast(`Cor da categoria "${c.name}" atualizada!`, 'success');
+                            setEditingCatId(null);
+                          }}
+                          className={`w-5 h-5 rounded-full transition-transform hover:scale-125 ${
+                            c.color === swatch ? 'ring-2 ring-white scale-110' : ''
+                          }`}
+                          style={{ backgroundColor: swatch }}
+                          title={`Selecionar ${swatch}`}
+                        />
+                      ))}
+                      <label
+                        className="relative cursor-pointer flex items-center justify-center w-5 h-5 rounded-full border border-white/20 hover:scale-110 transition overflow-hidden"
+                        title="Cor personalizada (seletor)"
+                      >
+                        <input
+                          type="color"
+                          value={c.color || '#06b6d4'}
+                          onChange={(e) => {
+                            updateCategory(c.id, { color: e.target.value });
+                          }}
+                          className="opacity-0 absolute inset-0 cursor-pointer w-full h-full"
+                        />
+                        <span
+                          className="w-full h-full block"
+                          style={{ backgroundColor: c.color }}
+                        />
+                      </label>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -1166,19 +1407,36 @@ export const TimeTrackerTab: React.FC = () => {
                 />
               </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">Categoria</label>
-                <select
-                  value={manualCategory}
-                  onChange={(e) => setManualCategory(e.target.value)}
-                  className="w-full bg-slate-950 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-cyan-500"
-                >
-                  {categories.map((c) => (
-                    <option key={c.id} value={c.name}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">Categoria</label>
+                  <select
+                    value={manualCategory}
+                    onChange={(e) => setManualCategory(e.target.value)}
+                    className="w-full bg-slate-950 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-cyan-500"
+                  >
+                    {categories.map((c) => (
+                      <option key={c.id} value={c.name}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">Tipo</label>
+                  <select
+                    value={manualWorkType}
+                    onChange={(e) => setManualWorkType(e.target.value as TimeWorkType)}
+                    className="w-full bg-slate-950 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-cyan-500 font-medium"
+                  >
+                    {TIME_WORK_TYPES.map((wt) => (
+                      <option key={wt} value={wt}>
+                        {wt}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
 
               <div>
@@ -1242,6 +1500,142 @@ export const TimeTrackerTab: React.FC = () => {
                   className="px-5 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 text-xs font-bold"
                 >
                   Salvar Registro
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Past Entry Modal */}
+      {editingEntry && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 animate-fade-in">
+          <div className="w-full max-w-md bg-slate-900 border border-white/10 rounded-2xl p-6 shadow-2xl relative">
+            <div className="flex items-center justify-between pb-3 border-b border-white/[0.08] mb-4">
+              <div className="flex items-center gap-2">
+                <Edit2 className="w-4 h-4 text-cyan-400" />
+                <h3 className="text-sm font-bold text-white">Editar Registro de Tempo</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditingEntry(null)}
+                className="text-slate-400 hover:text-white"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleUpdateEntry} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">
+                  Nome da Tarefa *
+                </label>
+                <input
+                  type="text"
+                  placeholder="Título da tarefa..."
+                  value={editTitle}
+                  onChange={(e) => setEditTitle(e.target.value)}
+                  className="w-full bg-slate-950 border border-white/10 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500"
+                  required
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">Categoria</label>
+                  <select
+                    value={editCategory}
+                    onChange={(e) => setEditCategory(e.target.value)}
+                    className="w-full bg-slate-950 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-cyan-500"
+                  >
+                    {categories.map((c) => (
+                      <option key={c.id} value={c.name}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">Tipo</label>
+                  <select
+                    value={editWorkType}
+                    onChange={(e) => setEditWorkType(e.target.value as TimeWorkType)}
+                    className="w-full bg-slate-950 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-cyan-500 font-medium"
+                  >
+                    {TIME_WORK_TYPES.map((wt) => (
+                      <option key={wt} value={wt}>
+                        {wt}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">Data</label>
+                <input
+                  type="date"
+                  value={editDate}
+                  onChange={(e) => setEditDate(e.target.value)}
+                  className="w-full bg-slate-950 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-cyan-500"
+                  required
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">
+                    Horário Início
+                  </label>
+                  <input
+                    type="time"
+                    value={editStart}
+                    onChange={(e) => setEditStart(e.target.value)}
+                    className="w-full bg-slate-950 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-cyan-500"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">
+                    Horário Término
+                  </label>
+                  <input
+                    type="time"
+                    value={editEnd}
+                    onChange={(e) => setEditEnd(e.target.value)}
+                    className="w-full bg-slate-950 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-cyan-500"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">
+                  Notas / Observações
+                </label>
+                <textarea
+                  placeholder="Detalhes ou anotações adicionais..."
+                  value={editNotes}
+                  onChange={(e) => setEditNotes(e.target.value)}
+                  rows={2}
+                  className="w-full bg-slate-950 border border-white/10 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 resize-none"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setEditingEntry(null)}
+                  className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-400 hover:text-white hover:bg-slate-800 transition"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold transition shadow-lg shadow-cyan-950/50"
+                >
+                  Salvar Alterações
                 </button>
               </div>
             </form>
