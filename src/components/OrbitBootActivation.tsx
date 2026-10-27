@@ -58,17 +58,17 @@ export const OrbitBootActivation: React.FC<OrbitBootActivationProps> = ({ onComp
 
     sessionStorage.setItem('orbit_boot_seen', 'true');
 
-    // Slower, graceful tempo: 2200ms per phase so the emergence of each color breathes majestically
+    // Snappy, energetic boot tempo (~1.8s total sequence)
     const timeouts: NodeJS.Timeout[] = [
-      setTimeout(() => setPhaseIndex(1), 2200), // 2.2s -> Habits (Cyan)
-      setTimeout(() => setPhaseIndex(2), 4400), // 4.4s -> Tools (Purple)
-      setTimeout(() => setPhaseIndex(3), 6600), // 6.6s -> Journey (Amber)
-      setTimeout(() => setPhaseIndex(4), 8800), // 8.8s -> Convergence (All 4)
-      setTimeout(() => setFadingOut(true), 10600), // 10.6s -> Smooth Fade Out
+      setTimeout(() => setPhaseIndex(1), 300), // 300ms -> Habits (Cyan)
+      setTimeout(() => setPhaseIndex(2), 600), // 600ms -> Tools (Purple)
+      setTimeout(() => setPhaseIndex(3), 900), // 900ms -> Journey (Amber)
+      setTimeout(() => setPhaseIndex(4), 1200), // 1200ms -> Convergence (All 4)
+      setTimeout(() => setFadingOut(true), 1550), // 1550ms -> Fast Fade Out
       setTimeout(() => {
         setVisible(false);
         onComplete?.();
-      }, 11600), // 11.6s -> App Opens!
+      }, 1800), // 1.8s -> App Opens!
     ];
 
     return () => {
@@ -85,20 +85,20 @@ export const OrbitBootActivation: React.FC<OrbitBootActivationProps> = ({ onComp
     setTimeout(() => {
       setVisible(false);
       onComplete?.();
-    }, 200);
+    }, 50);
   };
 
   return (
     <div
       onClick={handleSkip}
-      className={`fixed inset-0 z-50 flex flex-col items-center justify-center bg-[#07090e] cursor-pointer transition-opacity duration-800 ease-out select-none ${
+      className={`fixed inset-0 z-50 flex flex-col items-center justify-center bg-[#07090e] cursor-pointer transition-opacity duration-300 ease-out select-none ${
         fadingOut ? 'opacity-0 pointer-events-none' : 'opacity-100'
       }`}
     >
       {/* Background Deep Space Starfield & Ambient Nebula */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div
-          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[650px] h-[650px] rounded-full blur-3xl transition-all duration-1000 opacity-60"
+          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[650px] h-[650px] rounded-full blur-3xl transition-all duration-300 opacity-60"
           style={{ backgroundColor: currentPhase.glow }}
         />
 
@@ -114,10 +114,10 @@ export const OrbitBootActivation: React.FC<OrbitBootActivationProps> = ({ onComp
         {/* Animated Símbolo Orbit (Emergence per color) */}
         <div className="relative flex items-center justify-center p-4">
           <div
-            className="absolute inset-0 rounded-full blur-2xl transition-all duration-700 opacity-30"
+            className="absolute inset-0 rounded-full blur-2xl transition-all duration-300 opacity-30"
             style={{ backgroundColor: currentPhase.glow }}
           />
-          <OrbitLogo module={currentPhase.module} size={110} animated withGlow durationMs={2000} />
+          <OrbitLogo module={currentPhase.module} size={110} animated withGlow durationMs={400} />
         </div>
 
         {/* Brand Title in Space Font */}
@@ -143,7 +143,7 @@ export const OrbitBootActivation: React.FC<OrbitBootActivationProps> = ({ onComp
             return (
               <div
                 key={item.mod}
-                className={`h-1.5 rounded-full transition-all duration-500 ${
+                className={`h-1.5 rounded-full transition-all duration-200 ${
                   isCompletedOrActive
                     ? `${isCurrent ? 'w-10' : 'w-7'} ${item.color} shadow-[0_0_12px]`
                     : 'w-2 bg-slate-800'
@@ -154,7 +154,7 @@ export const OrbitBootActivation: React.FC<OrbitBootActivationProps> = ({ onComp
         </div>
 
         {/* Dynamic Status Text */}
-        <p className={`text-xs font-semibold tracking-wide transition-all duration-500 ${currentPhase.colorClass}`}>
+        <p className={`text-xs font-semibold tracking-wide transition-all duration-200 ${currentPhase.colorClass}`}>
           {currentPhase.label}
         </p>
 
