@@ -70,7 +70,7 @@ export const TourProvider: React.FC<TourProviderProps> = ({ children, isAppReady
   }, [steps.length]);
 
   const skipTour = useCallback(() => {
-    saveProgress('main_tour', { completed: false, lastStep: currentStepIndex });
+    saveProgress('main_tour', { completed: true, skipped: true, lastStep: currentStepIndex, completedAt: new Date().toISOString() });
     setProgress(loadAllProgress());
     setIsTourActive(false);
     setIsPaused(true);
@@ -127,8 +127,11 @@ export const TourProvider: React.FC<TourProviderProps> = ({ children, isAppReady
 
     let timer: NodeJS.Timeout | null = null;
     if (isAppReady) {
+      const allProg = loadAllProgress();
+      const mainTourProg = allProg['main_tour'];
+      const alreadyDone = mainTourProg?.completed || Boolean(mainTourProg?.skipped);
       const hasSeen = localStorage.getItem(STORAGE_KEY);
-      if (!hasSeen) {
+      if (!alreadyDone && !hasSeen) {
         // Respect screen timing: wait 1400ms after the app finishes loading and boot screen
         timer = setTimeout(() => {
           startTour('main_tour', false);

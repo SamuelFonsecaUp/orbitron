@@ -487,9 +487,9 @@ export const SettingsView: React.FC = () => {
             <div className="w-8 h-8 rounded-lg bg-cyan-500/10 text-cyan-400 flex items-center justify-center mb-3 group-hover:scale-105 transition-transform">
               <Download className="w-4 h-4" />
             </div>
-            <div className="text-xs font-bold text-white">Exportar Arquivo Orbit (.orbit)</div>
+            <div className="text-xs font-bold text-white">Exportar Pacote Universal (.orbitron)</div>
             <p className="text-[11px] text-slate-500 mt-0.5">
-              Empacota Finanças, Hábitos, Segundo Cérebro (Vault) e Jornada num arquivo único.
+              Empacota Finanças, Hábitos, Segundo Cérebro (Vault), Quadros Canvas, Cofre e Jornada num arquivo único.
             </p>
           </button>
 
@@ -500,9 +500,9 @@ export const SettingsView: React.FC = () => {
             <div className="w-8 h-8 rounded-lg bg-amber-500/10 text-amber-400 flex items-center justify-center mb-3 group-hover:scale-105 transition-transform">
               <Upload className="w-4 h-4" />
             </div>
-            <div className="text-xs font-bold text-white">Restaurar Arquivo Orbit</div>
+            <div className="text-xs font-bold text-white">Restaurar Pacote Orbitron (.orbitron)</div>
             <p className="text-[11px] text-slate-500 mt-0.5">
-              Sobe seu arquivo final (.orbit ou .json) e restaura tudo de forma 100% local.
+              Sobe seu pacote completo (.orbitron, .orbit ou .json) e restaura tudo com integridade total.
             </p>
           </button>
 

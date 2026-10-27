@@ -29,8 +29,10 @@ import {
   Rocket,
   Orbit,
   Satellite,
+  Download,
 } from 'lucide-react';
 import { useFinancial } from '../context/FinancialContext';
+import { AchievementBadgeSvg, downloadAchievementSvgFile } from './AchievementBadgeSvg';
 import { GameRarity } from '../types';
 
 const ICONS: Record<string, React.FC<{ className?: string; style?: React.CSSProperties }>> = {
@@ -99,20 +101,45 @@ export const GameCelebration: React.FC = () => {
     subtitle = current.title;
   } else {
     accent = RARITY_STYLE[current.rarity].color;
-    icon = <AchievementIcon name={current.icon} className="w-10 h-10" color={accent} />;
+    icon = (
+      <AchievementBadgeSvg
+        rarity={current.rarity}
+        iconName={current.icon}
+        unlocked={true}
+        size={84}
+      />
+    );
     kicker = `Conquista ${RARITY_STYLE[current.rarity].label}`;
     title = current.name;
-    subtitle = `+${current.xp} XP`;
+    subtitle = `+${current.xp} XP • Insígnia Desbloqueada`;
   }
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in" onClick={dismissCelebration}>
       <div
         onClick={(e) => e.stopPropagation()}
-        className="w-[360px] max-w-[90vw] p-6 rounded-3xl bg-slate-900 border text-center shadow-2xl animate-scale-in"
+        className="w-[360px] max-w-[90vw] p-6 rounded-3xl bg-slate-900 border text-center shadow-2xl animate-scale-in relative"
         style={{ borderColor: `${accent}66`, boxShadow: `0 0 60px ${accent}33` }}
       >
-        <div className="mx-auto w-20 h-20 rounded-2xl flex items-center justify-center mb-4" style={{ backgroundColor: `${accent}1f`, border: `1px solid ${accent}55` }}>
+        {current && current.type !== 'level' && !welcomeSummary && (
+          <button
+            onClick={() =>
+              downloadAchievementSvgFile({
+                rarity: current.rarity,
+                iconName: current.icon,
+                unlocked: true,
+                title: current.name,
+                size: 512,
+              })
+            }
+            title="Baixar Insígnia em SVG (512x512)"
+            className="absolute top-4 right-4 p-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors flex items-center gap-1 text-[10px] font-semibold border border-slate-700"
+          >
+            <Download className="w-3 h-3 text-cyan-400" />
+            <span>SVG</span>
+          </button>
+        )}
+        <div className="mx-auto flex items-center justify-center mb-4">
           {icon}
         </div>
         <span className="text-[11px] font-bold uppercase tracking-widest" style={{ color: accent }}>{kicker}</span>

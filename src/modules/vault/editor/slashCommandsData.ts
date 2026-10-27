@@ -18,6 +18,7 @@ import {
   Table,
   Calendar,
   Link2,
+  Layers,
 } from 'lucide-react';
 
 export interface SlashItem {
@@ -175,6 +176,21 @@ export const SLASH_COMMANDS: SlashItem[] = [
     keywords: ['link', 'wikilink', 'nota', 'mencao', 'pagina', 'conectar'],
     action: (editor) => {
       editor.chain().focus().insertContent('[[').run();
+    },
+  },
+  {
+    id: 'canvas-citation',
+    title: 'Citar Quadro Branco',
+    description: 'Insere citação de quadro com botão interativo EDITAR',
+    icon: Layers,
+    keywords: ['quadro', 'canvas', 'mapa', 'branco', 'citar', 'board'],
+    action: (editor) => {
+      const defaultName = window.prompt('Nome do Quadro a citar:', 'Quadro Geral');
+      if (defaultName !== null) {
+        const clean = defaultName.trim();
+        const path = clean.endsWith('.canvas') ? clean : `Quadros/${clean}.canvas`;
+        editor.chain().focus().insertContent(`[[${path}]]\n\n`).run();
+      }
     },
   },
   {

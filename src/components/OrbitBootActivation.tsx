@@ -25,7 +25,7 @@ const PHASES: { module: AppModule | 'all'; title: string; label: string; colorCl
   {
     module: 'tools',
     title: 'SEGUNDO CÉREBRO & VAULT',
-    label: 'Acessando notas, markdown e mapa mental local...',
+    label: 'Acessando notas, markdown e quadro branco local...',
     colorClass: 'text-purple-400',
     glow: 'rgba(168, 85, 247, 0.25)',
   },

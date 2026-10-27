@@ -14,12 +14,64 @@ export function useCanvasPointer(svgRef: React.RefObject<SVGSVGElement | null>) 
   const store = useCanvasStore();
   const [selectionBox, setSelectionBox] = useState<Rect | null>(null);
   const [ephemeral, setEphemeral] = useState<EphemeralTransform>(null);
+  const [isSpaceActive, setIsSpaceActive] = useState(false);
+  const [isSpaceDragging, setIsSpaceDragging] = useState(false);
+  const isSpacePressedRef = useRef(false);
+
   const dragRef = useRef<DragState>({
     mode: 'none',
     startScreen: { x: 0, y: 0 },
     startWorld: { x: 0, y: 0 },
     lastWorld: { x: 0, y: 0 },
   });
+
+  // Track global spacebar key for space+drag camera panning
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.code === 'Space') {
+        const target = e.target as HTMLElement;
+        if (
+          target &&
+          (target.tagName === 'INPUT' ||
+            target.tagName === 'TEXTAREA' ||
+            target.isContentEditable ||
+            target.closest('input') ||
+            target.closest('textarea') ||
+            target.closest('.canvas-node-editor'))
+        ) {
+          return;
+        }
+        // Prevent default spacebar page scrolling
+        e.preventDefault();
+        if (!isSpacePressedRef.current) {
+          isSpacePressedRef.current = true;
+          setIsSpaceActive(true);
+        }
+      }
+    };
+
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.code === 'Space') {
+        isSpacePressedRef.current = false;
+        setIsSpaceActive(false);
+      }
+    };
+
+    const handleBlur = () => {
+      isSpacePressedRef.current = false;
+      setIsSpaceActive(false);
+      setIsSpaceDragging(false);
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+    window.addEventListener('blur', handleBlur);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+      window.removeEventListener('blur', handleBlur);
+    };
+  }, []);
 
   const getPointerWorld = useCallback((e: MouseEvent | React.PointerEvent): Point => {
     const svg = svgRef.current;
@@ -30,8 +82,9 @@ export function useCanvasPointer(svgRef: React.RefObject<SVGSVGElement | null>) 
 
   const onCanvasPointerDown = (e: React.PointerEvent<SVGSVGElement>) => {
     const ptWorld = getPointerWorld(e);
-    if (e.button === 1 || store.activeTool === 'hand' || e.spaceKey) {
+    if (e.button === 1 || store.activeTool === 'hand' || isSpacePressedRef.current) {
       dragRef.current = { mode: 'pan', startScreen: { x: e.clientX, y: e.clientY }, startWorld: ptWorld, lastWorld: ptWorld };
+      setIsSpaceDragging(true);
       return;
     }
     if (['sticky', 'shape', 'text', 'frame', 'pen'].includes(store.activeTool)) {
@@ -53,6 +106,11 @@ export function useCanvasPointer(svgRef: React.RefObject<SVGSVGElement | null>) 
   const onAnchorPointerDown = (e: React.PointerEvent, node: CanvasNode, side: CanvasSide, pt: Point) => {
     e.stopPropagation();
     const ptWorld = getPointerWorld(e);
+    if (e.button === 1 || store.activeTool === 'hand' || isSpacePressedRef.current) {
+      dragRef.current = { mode: 'pan', startScreen: { x: e.clientX, y: e.clientY }, startWorld: ptWorld, lastWorld: ptWorld };
+      setIsSpaceDragging(true);
+      return;
+    }
     const anchorPt = pt || getNodeSidePoint(node, side);
     dragRef.current = {
       mode: 'connector',
@@ -75,6 +133,11 @@ export function useCanvasPointer(svgRef: React.RefObject<SVGSVGElement | null>) 
   const onNodePointerDown = (e: React.PointerEvent, node: CanvasNode) => {
     e.stopPropagation();
     const ptWorld = getPointerWorld(e);
+    if (e.button === 1 || store.activeTool === 'hand' || isSpacePressedRef.current) {
+      dragRef.current = { mode: 'pan', startScreen: { x: e.clientX, y: e.clientY }, startWorld: ptWorld, lastWorld: ptWorld };
+      setIsSpaceDragging(true);
+      return;
+    }
     if (store.activeTool === 'connector') {
       const sides: CanvasSide[] = ['top', 'right', 'bottom', 'left'];
       let bestSide: CanvasSide = 'right';
@@ -117,6 +180,11 @@ export function useCanvasPointer(svgRef: React.RefObject<SVGSVGElement | null>) 
   const onHandlePointerDown = (e: React.PointerEvent, handle: HandleType, node: CanvasNode) => {
     e.stopPropagation();
     const ptWorld = getPointerWorld(e);
+    if (e.button === 1 || store.activeTool === 'hand' || isSpacePressedRef.current) {
+      dragRef.current = { mode: 'pan', startScreen: { x: e.clientX, y: e.clientY }, startWorld: ptWorld, lastWorld: ptWorld };
+      setIsSpaceDragging(true);
+      return;
+    }
     dragRef.current = {
       mode: 'resize', startScreen: { x: e.clientX, y: e.clientY }, startWorld: ptWorld, lastWorld: ptWorld,
       resizeNode: node, resizeInitialRect: { x: node.x, y: node.y, width: node.width, height: node.height }, resizeHandle: handle,
@@ -126,6 +194,11 @@ export function useCanvasPointer(svgRef: React.RefObject<SVGSVGElement | null>) 
   const onRotateHandlePointerDown = (e: React.PointerEvent, node: CanvasNode) => {
     e.stopPropagation();
     const ptWorld = getPointerWorld(e);
+    if (e.button === 1 || store.activeTool === 'hand' || isSpacePressedRef.current) {
+      dragRef.current = { mode: 'pan', startScreen: { x: e.clientX, y: e.clientY }, startWorld: ptWorld, lastWorld: ptWorld };
+      setIsSpaceDragging(true);
+      return;
+    }
     dragRef.current = {
       mode: 'rotate', startScreen: { x: e.clientX, y: e.clientY }, startWorld: ptWorld, lastWorld: ptWorld,
       rotateNode: node, rotateInitialAngle: node.orbitron?.rotation || 0,
@@ -147,6 +220,9 @@ export function useCanvasPointer(svgRef: React.RefObject<SVGSVGElement | null>) 
   }, [getPointerWorld, selectionBox, store]);
 
   const handlePointerUpInternal = useCallback((e: MouseEvent | React.PointerEvent) => {
+    if (dragRef.current.mode === 'pan') {
+      setIsSpaceDragging(false);
+    }
     processPointerUp({
       drag: dragRef.current,
       ptWorld: getPointerWorld(e),
@@ -171,10 +247,23 @@ export function useCanvasPointer(svgRef: React.RefObject<SVGSVGElement | null>) 
   }, [handlePointerMoveInternal, handlePointerUpInternal]);
 
   return {
-    selectionBox, ephemeral, onCanvasPointerDown, onNodePointerDown, onAnchorPointerDown,
-    onHandlePointerDown, onRotateHandlePointerDown,
+    selectionBox,
+    ephemeral,
+    isSpaceActive,
+    isSpaceDragging,
+    onCanvasPointerDown,
+    onNodePointerDown,
+    onAnchorPointerDown,
+    onHandlePointerDown,
+    onRotateHandlePointerDown,
     onEdgePointerDown: (e: React.PointerEvent, edge: any) => {
       e.stopPropagation();
+      if (e.button === 1 || store.activeTool === 'hand' || isSpacePressedRef.current) {
+        const ptWorld = getPointerWorld(e);
+        dragRef.current = { mode: 'pan', startScreen: { x: e.clientX, y: e.clientY }, startWorld: ptWorld, lastWorld: ptWorld };
+        setIsSpaceDragging(true);
+        return;
+      }
       if (e.shiftKey) canvasStore.toggleSelection(edge.id);
       else canvasStore.setSelection([edge.id]);
     },

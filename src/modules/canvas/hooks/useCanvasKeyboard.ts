@@ -123,6 +123,13 @@ export function useCanvasKeyboard() {
         if (k === 'p') { canvasStore.setActiveTool('pen'); return; }
       }
 
+      // Toggle Dark / White theme (Shift + D)
+      if (e.shiftKey && !e.ctrlKey && !e.metaKey && e.key.toLowerCase() === 'd') {
+        e.preventDefault();
+        canvasStore.toggleTheme();
+        return;
+      }
+
       // Escape
       if (e.key === 'Escape') {
         e.preventDefault();

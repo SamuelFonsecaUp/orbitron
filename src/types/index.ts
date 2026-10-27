@@ -98,6 +98,8 @@ export interface Transaction {
   status: TransactionStatus;
   notes?: string;
   tags?: string;
+  vaultNotePath?: string | null;
+  attachmentPath?: string | null;
   statementId?: string;
   statementOriginalName?: string;
   statementFileName?: string;
@@ -971,6 +973,8 @@ export interface ElectronAPI {
   vaultGetWorkspace: () => Promise<WorkspaceConfig>;
   vaultSaveWorkspace: (cfg: WorkspaceConfig) => Promise<boolean>;
   vaultExportPDF: (title: string, htmlBody: string) => Promise<{ success: boolean; filePath?: string; canceled?: boolean }>;
+  vaultSearch?: (query: string, limit?: number) => Promise<any[]>;
+  onQuickAction?: (callback: (action: string) => void) => () => void;
   canvas: OrbitronCanvasApi;
 }
 

@@ -3,12 +3,14 @@ import { CanvasNode, CanvasSide } from '../../io/jsonCanvas.types';
 import { getCanvasColor } from '../colors';
 import { Point, Rect } from '../../scene/types';
 import { NodeHotspots } from './NodeHotspots';
+import { CanvasTheme } from '../../store/canvasStore.types';
 
 interface StickyNodeProps {
   node: CanvasNode;
   effectiveRect: Rect;
   effectiveRotation: number;
   isSelected: boolean;
+  theme?: CanvasTheme;
   isTargetCandidate?: boolean;
   targetSide?: CanvasSide;
   isConnecting?: boolean;
@@ -22,6 +24,7 @@ export const StickyNode: React.FC<StickyNodeProps> = ({
   effectiveRect,
   effectiveRotation,
   isSelected,
+  theme = 'dark',
   isTargetCandidate,
   targetSide,
   isConnecting,
@@ -30,11 +33,12 @@ export const StickyNode: React.FC<StickyNodeProps> = ({
   onAnchorPointerDown,
 }) => {
   const [isHovered, setIsHovered] = useState(false);
-  const color = getCanvasColor(node.color || '3'); // Lucid Yellow default
+  const color = getCanvasColor(node.color || '3', theme); // Lucid Yellow default
   const { x, y, width, height } = effectiveRect;
   const cx = x + width / 2;
   const cy = y + height / 2;
   const fontSize = node.orbitron?.fontSize || 15;
+  const isLight = theme === 'light';
 
   const fold = 18;
   const foldPath = `M ${width - fold} 0 L ${width} ${fold} L ${width - fold} ${fold} Z`;

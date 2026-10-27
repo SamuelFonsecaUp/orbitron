@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import Database from 'better-sqlite3';
+import AdmZip from 'adm-zip';
 
 describe('Orbit Unified 100% Local-First Backup Engine', () => {
   let db: any;
@@ -82,9 +83,10 @@ describe('Orbit Unified 100% Local-First Backup Engine', () => {
     db.prepare(`INSERT INTO notes (id, title, content) VALUES (?, ?, ?)`).run('note_1', 'Missão Marte', 'Anotações da expedição');
 
     const backupData = {
+      orbitronFormat: true,
       orbitFormat: true,
       version: '1.2.0',
-      appName: 'Orbit',
+      appName: 'Orbitron',
       exportedAt: new Date().toISOString(),
       tables: {
         accounts: db.prepare(`SELECT * FROM accounts`).all(),
@@ -103,7 +105,8 @@ describe('Orbit Unified 100% Local-First Backup Engine', () => {
 
     const parsed = JSON.parse(json);
     expect(parsed.orbitFormat).toBe(true);
-    expect(parsed.appName).toBe('Orbit');
+    expect(parsed.orbitronFormat).toBe(true);
+    expect(parsed.appName).toBe('Orbitron');
     expect(parsed.tables.accounts).toHaveLength(1);
     expect(parsed.tables.accounts[0].name).toBe('Conta Espacial');
     expect(parsed.tables.habits).toHaveLength(1);
@@ -118,8 +121,9 @@ describe('Orbit Unified 100% Local-First Backup Engine', () => {
 
     const packageJson = JSON.stringify({
       orbitFormat: true,
+      orbitronFormat: true,
       version: '1.2.0',
-      appName: 'Orbit',
+      appName: 'Orbitron',
       tables: {
         accounts: [
           { id: 'acc_orbit_1', name: 'Banco Intergaláctico', initial_balance: 12500, active: 1, created_at: '2026-10-24' },
@@ -174,5 +178,38 @@ describe('Orbit Unified 100% Local-First Backup Engine', () => {
     const restoredNotes = db.prepare(`SELECT * FROM notes`).all();
     expect(restoredNotes).toHaveLength(1);
     expect(restoredNotes[0].title).toBe('Ideia Cósmica');
+  });
+
+  it('packs and unpacks complete .orbitron zip archive with database and vault storage', () => {
+    const rawData = {
+      orbitronFormat: true,
+      appName: 'Orbitron',
+      tables: {
+        accounts: [{ id: 'acc_zip_1', name: 'Poupança Galáctica', initial_balance: 7000 }],
+        habits: [{ id: 'hab_zip_1', name: 'Hidratação Espacial', period_of_day: 'anytime' }],
+      },
+    };
+
+    const zip = new AdmZip();
+    zip.addFile('orbitron.json', Buffer.from(JSON.stringify({ version: '1.2.0' }), 'utf8'));
+    zip.addFile('data.json', Buffer.from(JSON.stringify(rawData), 'utf8'));
+    zip.addFile('vault_storage/Notas/Diario.md', Buffer.from('# Diário de Bordo', 'utf8'));
+
+    const zipBuffer = zip.toBuffer();
+    expect(zipBuffer).toBeDefined();
+    expect(zipBuffer.length).toBeGreaterThan(100);
+
+    // Unpack and verify
+    const unzipped = new AdmZip(zipBuffer);
+    const dataEntry = unzipped.getEntry('data.json');
+    expect(dataEntry).toBeDefined();
+
+    const extracted = JSON.parse(unzipped.readAsText(dataEntry!));
+    expect(extracted.orbitronFormat).toBe(true);
+    expect(extracted.tables.accounts[0].name).toBe('Poupança Galáctica');
+
+    const noteEntry = unzipped.getEntry('vault_storage/Notas/Diario.md');
+    expect(noteEntry).toBeDefined();
+    expect(unzipped.readAsText(noteEntry!)).toContain('Diário de Bordo');
   });
 });

@@ -12,6 +12,7 @@ import { VaultHistoryModal } from './VaultHistoryModal';
 import { VaultSettingsModal } from './VaultSettingsModal';
 import { VaultHelpModal } from './VaultHelpModal';
 import { VaultBacklinksPanel } from './VaultBacklinksPanel';
+import { VaultCitedBoards } from './VaultCitedBoards';
 import { CanvasPage } from '../../canvas/CanvasPage';
 
 export const VaultShell: React.FC = () => {
@@ -143,7 +144,11 @@ export const VaultShell: React.FC = () => {
                 <CanvasPage filePath={activePage.relativePath} />
               </div>
             ) : (
-              <div className="flex-1 min-h-0 flex flex-col overflow-y-auto custom-scrollbar">
+              <div className="flex-1 min-h-0 flex flex-col overflow-y-auto custom-scrollbar px-6 py-2">
+                <VaultCitedBoards
+                  content={editorContent}
+                  onOpenCanvas={openPage}
+                />
                 <VaultBlockEditor
                   content={editorContent}
                   onChange={handleContentChange}

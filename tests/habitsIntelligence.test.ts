@@ -25,6 +25,7 @@ describe('Habits Intelligence Engine (Offline & Local)', () => {
         frequency_days TEXT,
         frequency_times INTEGER DEFAULT 7,
         period_of_day TEXT DEFAULT 'anytime',
+        target_time TEXT,
         archived INTEGER DEFAULT 0,
         position INTEGER DEFAULT 0,
         created_at TEXT,
@@ -97,7 +98,7 @@ describe('Habits Intelligence Engine (Offline & Local)', () => {
     const now = new Date();
     const yesterday = new Date(now);
     yesterday.setDate(now.getDate() - 1);
-    const yesterdayStr = yesterday.toISOString().slice(0, 10);
+    const y = yesterday.getFullYear(); const m = String(yesterday.getMonth() + 1).padStart(2, "0"); const d = String(yesterday.getDate()).padStart(2, "0"); const yesterdayStr = `${y}-${m}-${d}`;
 
     // Concluído ontem, mas ainda não hoje
     habitsEngine.toggleHabitDay(habit.id, yesterdayStr, 1);

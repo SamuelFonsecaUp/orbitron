@@ -205,11 +205,11 @@ class HabitsEngine {
       INSERT INTO habits (
         id, name, description, category, color, icon, type, target_value,
         target_unit, frequency_type, frequency_days, frequency_times,
-        period_of_day, archived, position, created_at, updated_at
+        period_of_day, target_time, archived, position, created_at, updated_at
       ) VALUES (
         ?, ?, ?, ?, ?, ?, ?, ?,
         ?, ?, ?, ?,
-        ?, 0, 0, ?, ?
+        ?, ?, 0, 0, ?, ?
       )
     `);
 
@@ -227,6 +227,7 @@ class HabitsEngine {
       frequencyDaysJson,
       data.frequencyTimes ?? data.frequency_times ?? 7,
       data.periodOfDay || data.period_of_day || 'anytime',
+      data.targetTime ?? data.target_time ?? null,
       now,
       now
     );
@@ -284,6 +285,10 @@ class HabitsEngine {
       fields.push('frequency_times = ?');
       values.push(data.frequencyTimes);
     }
+    if (data.targetTime !== undefined || data.target_time !== undefined) {
+      fields.push('target_time = ?');
+      values.push(data.targetTime ?? data.target_time ?? null);
+    }
     if (data.periodOfDay !== undefined) {
       fields.push('period_of_day = ?');
       values.push(data.periodOfDay);
@@ -316,30 +321,54 @@ class HabitsEngine {
     return res.changes > 0;
   }
 
-  // Alterna o status de conclusão de um dia (com 1 clique)
+  // Alterna o status de conclusão de um dia (com 1 clique ou registro quantitativo)
   toggleHabitDay(habitId, date, value = null, notes = null) {
     const now = new Date().toISOString();
+    let habit = null;
+    try {
+      habit = this.db.prepare('SELECT * FROM habits WHERE id = ?').get(habitId);
+    } catch (_) {}
+    const isMeasurable = habit?.type === 'measurable';
+    const targetVal = habit ? (Number(habit.target_value) || 1) : 1;
+
     const existing = this.db.prepare('SELECT * FROM habit_logs WHERE habit_id = ? AND date = ?').get(habitId, date);
 
     if (existing) {
+      if (value !== null && isMeasurable) {
+        const numVal = Math.max(0, Number(value));
+        if (numVal === 0) {
+          this.db.prepare('DELETE FROM habit_logs WHERE id = ?').run(existing.id);
+          return { completed: false, value: 0 };
+        }
+        const isDone = numVal >= targetVal ? 1 : 0;
+        this.db.prepare('UPDATE habit_logs SET completed = ?, value = ?, notes = ?, updated_at = ? WHERE id = ?')
+          .run(isDone, numVal, notes ?? existing.notes, now, existing.id);
+        return { completed: Boolean(isDone), value: numVal };
+      }
+
       if (existing.completed) {
-        // Se já estava concluído, desmarca (remove ou marca completed = 0)
         this.db.prepare('DELETE FROM habit_logs WHERE id = ?').run(existing.id);
-        return { completed: false, value: null };
+        return { completed: false, value: 0 };
       } else {
-        // Marca como concluído
+        const newVal = isMeasurable ? targetVal : (value ?? 1);
         this.db.prepare('UPDATE habit_logs SET completed = 1, value = ?, notes = ?, updated_at = ? WHERE id = ?')
-          .run(value ?? 1, notes, now, existing.id);
-        return { completed: true, value: value ?? 1 };
+          .run(newVal, notes, now, existing.id);
+        return { completed: true, value: newVal };
       }
     } else {
-      // Cria novo log de conclusão
+      let numVal = value;
+      if (numVal === null) {
+        numVal = isMeasurable ? targetVal : 1;
+      }
+      const isDone = isMeasurable ? (numVal >= targetVal ? 1 : 0) : 1;
+      if (numVal === 0 && isMeasurable) return { completed: false, value: 0 };
+
       const id = uuidv4();
       this.db.prepare(`
         INSERT INTO habit_logs (id, habit_id, date, completed, value, notes, created_at, updated_at)
-        VALUES (?, ?, ?, 1, ?, ?, ?, ?)
-      `).run(id, habitId, date, value ?? 1, notes, now, now);
-      return { completed: true, value: value ?? 1 };
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(id, habitId, date, isDone, numVal, notes, now, now);
+      return { completed: Boolean(isDone), value: numVal };
     }
   }
 

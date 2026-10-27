@@ -3,12 +3,14 @@ import { CanvasNode, CanvasSide } from '../../io/jsonCanvas.types';
 import { getCanvasColor } from '../colors';
 import { Point, Rect } from '../../scene/types';
 import { NodeHotspots } from './NodeHotspots';
+import { CanvasTheme } from '../../store/canvasStore.types';
 
 interface ShapeNodeProps {
   node: CanvasNode;
   effectiveRect: Rect;
   effectiveRotation: number;
   isSelected: boolean;
+  theme?: CanvasTheme;
   isTargetCandidate?: boolean;
   targetSide?: CanvasSide;
   isConnecting?: boolean;
@@ -22,6 +24,7 @@ export const ShapeNode: React.FC<ShapeNodeProps> = ({
   effectiveRect,
   effectiveRotation,
   isSelected,
+  theme = 'dark',
   isTargetCandidate,
   targetSide,
   isConnecting,
@@ -31,11 +34,12 @@ export const ShapeNode: React.FC<ShapeNodeProps> = ({
 }) => {
   const [isHovered, setIsHovered] = useState(false);
   const shape = node.orbitron?.shape || 'rectangle';
-  const color = getCanvasColor(node.color);
+  const color = getCanvasColor(node.color, theme);
   const { x, y, width: w, height: h } = effectiveRect;
   const cx = x + w / 2;
   const cy = y + h / 2;
   const fontSize = node.orbitron?.fontSize || 14;
+  const shadowFilter = theme === 'light' ? 'drop-shadow(0 4px 10px rgba(0,0,0,0.08))' : 'drop-shadow(0 6px 14px rgba(0,0,0,0.3))';
 
   const strokeColor = isTargetCandidate ? '#38bdf8' : isSelected ? '#a855f7' : color.border;
   const strokeWidth = isTargetCandidate ? 3 : isSelected ? 2.5 : 2;
@@ -52,7 +56,7 @@ export const ShapeNode: React.FC<ShapeNodeProps> = ({
             fill={color.bg}
             stroke={strokeColor}
             strokeWidth={strokeWidth}
-            filter="drop-shadow(0 6px 14px rgba(0,0,0,0.3))"
+            filter={shadowFilter}
           />
         );
 
@@ -64,7 +68,7 @@ export const ShapeNode: React.FC<ShapeNodeProps> = ({
             fill={color.bg}
             stroke={strokeColor}
             strokeWidth={strokeWidth}
-            filter="drop-shadow(0 6px 14px rgba(0,0,0,0.3))"
+            filter={shadowFilter}
           />
         );
       }
@@ -77,7 +81,7 @@ export const ShapeNode: React.FC<ShapeNodeProps> = ({
             fill={color.bg}
             stroke={strokeColor}
             strokeWidth={strokeWidth}
-            filter="drop-shadow(0 6px 14px rgba(0,0,0,0.3))"
+            filter={shadowFilter}
           />
         );
       }
@@ -92,7 +96,7 @@ export const ShapeNode: React.FC<ShapeNodeProps> = ({
             fill={color.bg}
             stroke={strokeColor}
             strokeWidth={strokeWidth}
-            filter="drop-shadow(0 6px 14px rgba(0,0,0,0.3))"
+            filter={shadowFilter}
           />
         );
     }

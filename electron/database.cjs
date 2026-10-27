@@ -244,6 +244,7 @@ function initDatabase(customPath = null) {
       frequency_days TEXT,
       frequency_times INTEGER DEFAULT 7,
       period_of_day TEXT DEFAULT 'anytime',
+      target_time TEXT,
       archived INTEGER DEFAULT 0,
       position INTEGER DEFAULT 0,
       created_at TEXT,
@@ -374,6 +375,22 @@ function initDatabase(customPath = null) {
     // Quartos isométricos (mobis posicionados, parede e piso)
     `ALTER TABLE settings ADD COLUMN room_layouts TEXT`,
     `ALTER TABLE settings ADD COLUMN avatar_look TEXT`,
+
+    // Cofre de Senhas - Salt unico e criptografia protegida
+    `ALTER TABLE settings ADD COLUMN vault_salt TEXT`,
+
+    // Vinculo entre transacoes e Segundo Cerebro
+    `ALTER TABLE transactions ADD COLUMN vault_note_path TEXT`,
+    `ALTER TABLE transactions ADD COLUMN attachment_path TEXT`,
+
+    // Habitos quantitativos e metas flexiveis
+    `ALTER TABLE habits ADD COLUMN type TEXT DEFAULT 'boolean'`,
+    `ALTER TABLE habits ADD COLUMN target_value REAL DEFAULT 1`,
+    `ALTER TABLE habits ADD COLUMN target_unit TEXT`,
+    `ALTER TABLE habits ADD COLUMN frequency_type TEXT DEFAULT 'daily'`,
+    `ALTER TABLE habits ADD COLUMN frequency_days TEXT`,
+    `ALTER TABLE habits ADD COLUMN frequency_times INTEGER DEFAULT 7`,
+    `ALTER TABLE habits ADD COLUMN target_time TEXT`,
   ];
   for (const m of migrations) {
     try { db.exec(m); } catch (e) {}

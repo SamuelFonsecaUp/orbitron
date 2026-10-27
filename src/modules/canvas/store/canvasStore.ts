@@ -4,7 +4,7 @@ import { Camera, Point, SnapGuide } from '../scene/types';
 import { Command, CanvasState } from '../scene/commands';
 import { zoomAtPoint } from '../scene/camera';
 import { HistoryManager } from './history';
-import { CanvasStoreSnapshot, CanvasTool, CanvasShapeType } from './canvasStore.types';
+import { CanvasStoreSnapshot, CanvasTool, CanvasShapeType, CanvasTheme, CanvasGridPattern } from './canvasStore.types';
 
 export class CanvasStore {
   private nodes: CanvasNode[] = [];
@@ -14,6 +14,20 @@ export class CanvasStore {
   private activeTool: CanvasTool = 'select';
   private toolShape: CanvasShapeType = 'rectangle';
   private toolColor: string = '1';
+  private theme: CanvasTheme = (() => {
+    try {
+      return (localStorage.getItem('orbitron_canvas_theme') as CanvasTheme) || 'dark';
+    } catch {
+      return 'dark';
+    }
+  })();
+  private gridPattern: CanvasGridPattern = (() => {
+    try {
+      return (localStorage.getItem('orbitron_canvas_grid') as CanvasGridPattern) || 'dots';
+    } catch {
+      return 'dots';
+    }
+  })();
   private snapGuides: SnapGuide[] = [];
   private history = new HistoryManager(100);
   private isDirty = false;
@@ -43,6 +57,8 @@ export class CanvasStore {
         activeTool: this.activeTool,
         toolShape: this.toolShape,
         toolColor: this.toolColor,
+        theme: this.theme,
+        gridPattern: this.gridPattern,
         snapGuides: this.snapGuides,
         canUndo: this.history.canUndo(),
         canRedo: this.history.canRedo(),
@@ -154,6 +170,26 @@ export class CanvasStore {
 
   public setToolColor(color: string) {
     this.toolColor = color;
+    this.emit();
+  }
+
+  public setTheme(theme: CanvasTheme) {
+    this.theme = theme;
+    try {
+      localStorage.setItem('orbitron_canvas_theme', theme);
+    } catch {}
+    this.emit();
+  }
+
+  public toggleTheme() {
+    this.setTheme(this.theme === 'dark' ? 'light' : 'dark');
+  }
+
+  public setGridPattern(pattern: CanvasGridPattern) {
+    this.gridPattern = pattern;
+    try {
+      localStorage.setItem('orbitron_canvas_grid', pattern);
+    } catch {}
     this.emit();
   }
 

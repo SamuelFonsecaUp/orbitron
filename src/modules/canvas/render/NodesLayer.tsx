@@ -6,26 +6,33 @@ import { TextNode } from './nodes/TextNode';
 import { FrameNode } from './nodes/FrameNode';
 import { FileNode } from './nodes/FileNode';
 import { ImageNode } from './nodes/ImageNode';
+import { LinkNode } from './nodes/LinkNode';
 import { PenNode } from './nodes/PenNode';
 import { EphemeralTransform, getEffectiveNodeRect, getEffectiveNodeRotation } from '../scene/ephemeral.types';
 import { Point } from '../scene/types';
+import { CanvasTheme } from '../store/canvasStore.types';
+import { isImageSource } from '../scene/nodeUtils';
 
 interface NodesLayerProps {
   nodes: CanvasNode[];
   selection: string[];
   ephemeral: EphemeralTransform;
+  theme?: CanvasTheme;
   onNodePointerDown?: (e: React.PointerEvent, node: CanvasNode) => void;
   onNodeDoubleClick?: (e: React.MouseEvent, node: CanvasNode) => void;
   onAnchorPointerDown?: (e: React.PointerEvent, node: CanvasNode, side: CanvasSide, pt: Point) => void;
+  onPreviewImage?: (src: string, label?: string) => void;
 }
 
 export const NodesLayer: React.FC<NodesLayerProps> = ({
   nodes,
   selection,
   ephemeral,
+  theme = 'dark',
   onNodePointerDown,
   onNodeDoubleClick,
   onAnchorPointerDown,
+  onPreviewImage,
 }) => {
   const selectionSet = new Set(selection);
   const isConnecting = ephemeral?.type === 'connector';
@@ -49,6 +56,7 @@ export const NodesLayer: React.FC<NodesLayerProps> = ({
       effectiveRect: effRect,
       effectiveRotation: effRot,
       isSelected,
+      theme,
       isTargetCandidate,
       targetSide,
       isConnecting,
@@ -77,13 +85,27 @@ export const NodesLayer: React.FC<NodesLayerProps> = ({
       return <ShapeNode {...commonProps} />;
     }
 
+    if (node.orbitron?.shape === 'link') {
+      return <LinkNode {...commonProps} />;
+    }
+
+    if (node.orbitron?.shape === 'image') {
+      return <ImageNode {...commonProps} onPreviewImage={onPreviewImage} />;
+    }
+
     switch (node.type) {
       case 'group':
         return <FrameNode {...commonProps} />;
       case 'file':
+        if (isImageSource(node.file)) {
+          return <ImageNode {...commonProps} onPreviewImage={onPreviewImage} />;
+        }
         return <FileNode {...commonProps} />;
       case 'link':
-        return <ImageNode {...commonProps} />;
+        if (isImageSource(node.url)) {
+          return <ImageNode {...commonProps} onPreviewImage={onPreviewImage} />;
+        }
+        return <LinkNode {...commonProps} />;
       case 'text':
       default:
         return <TextNode {...commonProps} />;

@@ -24,6 +24,7 @@ describe('Habits Engine (Atomic Habits / Loop Tracker)', () => {
         frequency_days TEXT,
         frequency_times INTEGER DEFAULT 7,
         period_of_day TEXT DEFAULT 'anytime',
+        target_time TEXT,
         archived INTEGER DEFAULT 0,
         position INTEGER DEFAULT 0,
         created_at TEXT,
@@ -100,7 +101,7 @@ describe('Habits Engine (Atomic Habits / Loop Tracker)', () => {
     for (let i = 0; i < 5; i++) {
       const dt = new Date(now);
       dt.setDate(now.getDate() - i);
-      const dateStr = dt.toISOString().slice(0, 10);
+      const y = dt.getFullYear(); const m = String(dt.getMonth() + 1).padStart(2, "0"); const d = String(dt.getDate()).padStart(2, "0"); const dateStr = `${y}-${m}-${d}`;
       engine.toggleHabitDay(habit.id, dateStr);
     }
 
@@ -137,5 +138,41 @@ describe('Habits Engine (Atomic Habits / Loop Tracker)', () => {
     expect(overview.percentToday).toBe(50);
     expect(overview.bestStreak).toBe(1);
     expect(overview.bestHabitName).toBe('H1');
+  });
+
+  it('handles measurable quantitative habits with incremental logging', () => {
+    const habit = engine.createHabit({
+      name: 'Beber Água',
+      type: 'measurable',
+      targetValue: 2000,
+      targetUnit: 'ml',
+      targetTime: '09:00',
+    });
+    const today = engine.getTodayDateString();
+
+    // Partial progress: 1000 ml
+    const step1 = engine.toggleHabitDay(habit.id, today, 1000);
+    expect(step1.completed).toBe(false);
+    expect(step1.value).toBe(1000);
+
+    let habitData = engine.getHabits().find((h: any) => h.id === habit.id);
+    expect(habitData.todayValue).toBe(1000);
+    expect(habitData.completedToday).toBe(false);
+
+    // Meets target: 2000 ml
+    const step2 = engine.toggleHabitDay(habit.id, today, 2000);
+    expect(step2.completed).toBe(true);
+    expect(step2.value).toBe(2000);
+
+    habitData = engine.getHabits().find((h: any) => h.id === habit.id);
+    expect(habitData.todayValue).toBe(2000);
+    expect(habitData.completedToday).toBe(true);
+    expect(habitData.target_time).toBe('09:00');
+
+    // Reset with 0 removes log
+    const step3 = engine.toggleHabitDay(habit.id, today, 0);
+    expect(step3.completed).toBe(false);
+    habitData = engine.getHabits().find((h: any) => h.id === habit.id);
+    expect(habitData.completedToday).toBe(false);
   });
 });

@@ -32,6 +32,8 @@ import {
   BarChart3,
   Network,
   KeyRound,
+  Columns,
+  Timer,
 } from 'lucide-react';
 import { useFinancial, AppView, AppModule } from '../context/FinancialContext';
 import { useHabits } from '../context/HabitsContext';
@@ -263,7 +265,7 @@ export const Sidebar: React.FC = () => {
 
   const toolsSections: NavSection[] = [
     {
-      title: 'Segundo Cérebro',
+      title: 'Segundo Cérebro & Foco',
       items: [
         {
           id: 'tools_notes',
@@ -272,8 +274,18 @@ export const Sidebar: React.FC = () => {
         },
         {
           id: 'tools_mindmap',
-          label: 'Mapas Mentais',
+          label: 'Quadro Branco',
           icon: Network,
+        },
+        {
+          id: 'tools_kanban',
+          label: 'Quadro Kanban',
+          icon: Columns,
+        },
+        {
+          id: 'tools_pomodoro',
+          label: 'Relógio Pomodoro',
+          icon: Timer,
         },
       ],
     },

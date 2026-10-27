@@ -30,6 +30,7 @@ export const TransactionModal: React.FC = () => {
   const [isInstallment, setIsInstallment] = useState(false);
   const [totalInstallments, setTotalInstallments] = useState(2);
   const [notes, setNotes] = useState('');
+  const [vaultNotePath, setVaultNotePath] = useState('');
   const [tags, setTags] = useState('');
   const [status, setStatus] = useState<'completed' | 'pending'>('completed');
   const [errorMsg, setErrorMsg] = useState('');
@@ -72,6 +73,7 @@ export const TransactionModal: React.FC = () => {
         setIsInstallment(Boolean(editingTransaction.totalInstallments && editingTransaction.totalInstallments > 1));
         setTotalInstallments(editingTransaction.totalInstallments || 2);
         setNotes(editingTransaction.notes || '');
+        setVaultNotePath(editingTransaction.vaultNotePath || (editingTransaction as any).vault_note_path || '');
         setTags(editingTransaction.tags || '');
         setStatus(editingTransaction.status === 'pending' ? 'pending' : 'completed');
       } else {
@@ -161,6 +163,7 @@ export const TransactionModal: React.FC = () => {
         transactionDate,
         categoryId: type === 'transfer' ? null : categoryId || null,
         notes: notes.trim() || null,
+        vaultNotePath: vaultNotePath.trim() || null,
         tags: tags.trim() || null,
         status,
       };
@@ -617,6 +620,20 @@ export const TransactionModal: React.FC = () => {
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 className="w-full bg-slate-950/80 border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-brand-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-slate-400 mb-1.5 flex items-center gap-1.5">
+                <FileText className="w-3.5 h-3.5 text-fuchsia-400" />
+                <span>Vínculo com Segundo Cérebro (Nota ou Recibo no Vault)</span>
+              </label>
+              <input
+                type="text"
+                placeholder="Ex: [[Contrato de Aluguel]] ou Recibos/NotaFiscal.pdf"
+                value={vaultNotePath}
+                onChange={(e) => setVaultNotePath(e.target.value)}
+                className="w-full bg-slate-950/80 border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-fuchsia-300 placeholder-slate-600 focus:outline-none focus:border-fuchsia-500 font-mono"
               />
             </div>
           </div>

@@ -3,6 +3,47 @@
   backdrop-filter: blur(16px);
   border: 1px solid rgba(255, 255, 255, 0.1);
   box-shadow: 0 14px 35px -5px rgba(0, 0, 0, 0.6), 0 10px 14px -6px rgba(0, 0, 0, 0.5);
+  color: #f8fafc;
+}
+
+.canvas-theme-light .canvas-glass-panel {
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  box-shadow: 0 14px 35px -5px rgba(0, 0, 0, 0.08), 0 6px 12px -4px rgba(0, 0, 0, 0.04);
+  color: #0f172a;
+}
+
+.canvas-theme-blueprint .canvas-glass-panel {
+  background: rgba(7, 21, 39, 0.92);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(56, 189, 248, 0.25);
+  box-shadow: 0 14px 35px -5px rgba(2, 6, 23, 0.8), 0 0 20px rgba(56, 189, 248, 0.1);
+  color: #e0f2fe;
+}
+
+.canvas-theme-cyberpunk .canvas-glass-panel {
+  background: rgba(14, 4, 29, 0.92);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(236, 72, 153, 0.3);
+  box-shadow: 0 14px 35px -5px rgba(10, 0, 20, 0.8), 0 0 24px rgba(236, 72, 153, 0.15);
+  color: #fae8ff;
+}
+
+.canvas-theme-golden .canvas-glass-panel {
+  background: rgba(19, 15, 6, 0.92);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(234, 179, 8, 0.3);
+  box-shadow: 0 14px 35px -5px rgba(10, 8, 2, 0.8), 0 0 24px rgba(234, 179, 8, 0.12);
+  color: #fef08a;
+}
+
+.canvas-theme-cosmic .canvas-glass-panel {
+  background: rgba(6, 4, 16, 0.94);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(244, 63, 94, 0.35);
+  box-shadow: 0 14px 35px -5px rgba(2, 1, 8, 0.85), 0 0 30px rgba(244, 63, 94, 0.18);
+  color: #ffe4e6;
 }
 
 .canvas-tool-btn {
@@ -23,10 +64,77 @@
   transform: translateY(-1px);
 }
 
+.canvas-theme-light .canvas-tool-btn {
+  color: #64748b;
+}
+
+.canvas-theme-light .canvas-tool-btn:hover {
+  background: rgba(0, 0, 0, 0.06);
+  color: #0f172a;
+  transform: translateY(-1px);
+}
+
 .canvas-tool-btn.active {
   background: #a855f7;
-  color: #ffffff;
+  color: #ffffff !important;
   box-shadow: 0 0 16px rgba(168, 85, 247, 0.45);
+}
+
+.canvas-theme-light .canvas-tool-btn.active {
+  background: #9333ea;
+  color: #ffffff !important;
+  box-shadow: 0 0 16px rgba(147, 51, 234, 0.3);
+}
+
+.canvas-theme-blueprint .canvas-tool-btn.active {
+  background: #0284c7;
+  color: #ffffff !important;
+  box-shadow: 0 0 16px rgba(2, 132, 199, 0.45);
+}
+
+.canvas-theme-cyberpunk .canvas-tool-btn.active {
+  background: #ec4899;
+  color: #ffffff !important;
+  box-shadow: 0 0 16px rgba(236, 72, 153, 0.45);
+}
+
+.canvas-theme-golden .canvas-tool-btn.active {
+  background: #eab308;
+  color: #1a1200 !important;
+  box-shadow: 0 0 16px rgba(234, 179, 8, 0.45);
+}
+
+.canvas-theme-cosmic .canvas-tool-btn.active {
+  background: #f43f5e;
+  color: #ffffff !important;
+  box-shadow: 0 0 20px rgba(244, 63, 94, 0.5);
+}
+
+.canvas-divider {
+  width: 1px;
+  height: 20px;
+  background: rgba(255, 255, 255, 0.12);
+  margin: auto 2px;
+}
+
+.canvas-theme-light .canvas-divider {
+  background: rgba(0, 0, 0, 0.1);
+}
+
+.canvas-theme-blueprint .canvas-divider {
+  background: rgba(56, 189, 248, 0.2);
+}
+
+.canvas-theme-cyberpunk .canvas-divider {
+  background: rgba(236, 72, 153, 0.2);
+}
+
+.canvas-theme-golden .canvas-divider {
+  background: rgba(234, 179, 8, 0.2);
+}
+
+.canvas-theme-cosmic .canvas-divider {
+  background: rgba(244, 63, 94, 0.2);
 }
 
 .node-hotspots circle {
@@ -35,4 +143,15 @@
 
 .node-hotspots:hover circle {
   transform-origin: center;
+}
+
+/* Spacebar Drag & Pan Cursor */
+.canvas-space-active,
+.canvas-space-active * {
+  cursor: grab !important;
+}
+
+.canvas-space-dragging,
+.canvas-space-dragging * {
+  cursor: grabbing !important;
 }

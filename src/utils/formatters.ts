@@ -1,8 +1,13 @@
-const PRIVACY_MODE_STORAGE_KEY = 'pigo_privacy_mode';
+const PRIVACY_MODE_STORAGE_KEY = 'orbitron_privacy_mode';
+const LEGACY_PRIVACY_KEY = 'pigo_privacy_mode';
 
 let privacyModeEnabled = (() => {
   try {
-    return typeof localStorage !== 'undefined' && localStorage.getItem(PRIVACY_MODE_STORAGE_KEY) === '1';
+    if (typeof localStorage === 'undefined') return false;
+    return (
+      localStorage.getItem(PRIVACY_MODE_STORAGE_KEY) === '1' ||
+      localStorage.getItem(LEGACY_PRIVACY_KEY) === '1'
+    );
   } catch {
     return false;
   }

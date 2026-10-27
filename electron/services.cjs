@@ -897,6 +897,8 @@ class FinancialService {
       status: r.status,
       notes: r.notes,
       tags: r.tags,
+      vaultNotePath: r.vault_note_path || null,
+      attachmentPath: r.attachment_path || null,
       recurringId: r.recurring_id,
       installmentId: r.installment_id,
       installmentNumber: r.installment_number,
@@ -1084,9 +1086,9 @@ class FinancialService {
         id, account_id, destination_account_id, category_id, credit_card_id,
         type, description, amount, transaction_date, invoice_month,
         status, notes, tags, recurring_id, installment_id, installment_number, total_installments,
-        is_demo, created_at, updated_at
+        is_demo, vault_note_path, created_at, updated_at
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       id,
       data.accountId || null,
@@ -1106,6 +1108,7 @@ class FinancialService {
       null,
       null,
       data.isDemo ? 1 : 0,
+      data.vaultNotePath || data.vault_note_path || null,
       now,
       now
     );
@@ -1128,6 +1131,7 @@ class FinancialService {
     const status = data.status !== undefined ? data.status : existing.status;
     const notes = data.notes !== undefined ? data.notes : existing.notes;
     const tags = data.tags !== undefined ? data.tags : existing.tags;
+    const vaultNotePath = data.vaultNotePath !== undefined ? data.vaultNotePath : (data.vault_note_path !== undefined ? data.vault_note_path : existing.vaultNotePath);
     const now = new Date().toISOString();
 
     let invoiceMonth = existing.invoiceMonth;
@@ -1144,7 +1148,7 @@ class FinancialService {
       UPDATE transactions
       SET description = ?, amount = ?, transaction_date = ?, type = ?,
           account_id = ?, destination_account_id = ?, category_id = ?,
-          credit_card_id = ?, invoice_month = ?, status = ?, notes = ?, tags = ?, updated_at = ?
+          credit_card_id = ?, invoice_month = ?, status = ?, notes = ?, tags = ?, vault_note_path = ?, updated_at = ?
       WHERE id = ?
     `).run(
       description,
@@ -1159,6 +1163,7 @@ class FinancialService {
       status,
       notes || null,
       tags || null,
+      vaultNotePath || null,
       now,
       id
     );
@@ -2961,9 +2966,11 @@ class FinancialService {
     }
 
     const backupData = {
+      orbitronFormat: true,
       orbitFormat: true,
       version: '1.2.0',
       appName: 'Orbit',
+      productName: 'Orbitron',
       exportedAt: new Date().toISOString(),
       tables: {
         settings: getAll('settings'),
@@ -2989,16 +2996,82 @@ class FinancialService {
     return JSON.stringify(backupData, null, 2);
   }
 
-  restoreOrbitBackup(jsonString) {
-    let data;
+  exportOrbitronUniversalPackage() {
+    const AdmZip = require('adm-zip');
+    const zip = new AdmZip();
+
+    const backupJson = this.exportOrbitBackup();
+    const manifest = {
+      orbitronFormat: true,
+      orbitFormat: true,
+      appName: 'Orbitron',
+      version: '1.2.0',
+      exportedAt: new Date().toISOString(),
+      generator: 'Orbitron Universal Backup Core',
+    };
+
+    zip.addFile('orbitron.json', Buffer.from(JSON.stringify(manifest, null, 2), 'utf8'));
+    zip.addFile('data.json', Buffer.from(backupJson, 'utf8'));
+
     try {
-      data = typeof jsonString === 'string' ? JSON.parse(jsonString) : jsonString;
-    } catch (e) {
-      throw new Error('Arquivo de backup Orbit corrompido ou formato JSON inválido.');
+      const vaultService = getVaultService();
+      const vaultRoot = vaultService.getVaultRoot();
+      if (fs.existsSync(vaultRoot)) {
+        zip.addLocalFolder(vaultRoot, 'vault_storage');
+      }
+    } catch (err) {
+      console.warn('[OrbitronPackage] Aviso ao anexar pasta física do vault:', err);
+    }
+
+    return zip.toBuffer();
+  }
+
+  restoreOrbitBackup(input) {
+    let data;
+
+    // Detect ZIP format (buffer starting with PK magic bytes or AdmZip extractable)
+    if (Buffer.isBuffer(input) || (typeof input === 'string' && input.slice(0, 4).includes('PK'))) {
+      try {
+        const AdmZip = require('adm-zip');
+        const buf = Buffer.isBuffer(input) ? input : Buffer.from(input, 'binary');
+        const zip = new AdmZip(buf);
+        const dataEntry = zip.getEntry('data.json') || zip.getEntry('orbitron.json');
+        if (dataEntry) {
+          const content = zip.readAsText(dataEntry);
+          data = JSON.parse(content);
+
+          // Extract physical storage if present
+          try {
+            const vaultService = getVaultService();
+            const vaultRoot = vaultService.getVaultRoot();
+            zip.getEntries().forEach((entry) => {
+              if (entry.entryName.startsWith('vault_storage/') && !entry.isDirectory) {
+                const rel = entry.entryName.replace(/^vault_storage\//, '');
+                const target = path.join(vaultRoot, rel);
+                const targetDir = path.dirname(target);
+                if (!fs.existsSync(targetDir)) fs.mkdirSync(targetDir, { recursive: true });
+                fs.writeFileSync(target, entry.getData());
+              }
+            });
+          } catch (storageErr) {
+            console.warn('[OrbitronRestore] Aviso ao restaurar pasta física:', storageErr);
+          }
+        }
+      } catch (zipErr) {
+        // Fallback to text parsing
+      }
+    }
+
+    if (!data) {
+      try {
+        data = typeof input === 'string' ? JSON.parse(input) : input;
+      } catch (e) {
+        throw new Error('Arquivo de backup Orbitron corrompido ou formato JSON inválido.');
+      }
     }
 
     if (!data.tables) {
-      throw new Error('Formato de backup inválido: tabela de dados do Orbit não encontrada.');
+      throw new Error('Formato de backup inválido: tabela de dados do Orbitron não encontrada.');
     }
 
     const { tables, vault } = data;

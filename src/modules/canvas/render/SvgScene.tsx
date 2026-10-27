@@ -6,6 +6,7 @@ import { EdgesLayer } from './EdgesLayer';
 import { NodesLayer } from './NodesLayer';
 import { SelectionLayer } from './SelectionLayer';
 import { EphemeralTransform } from '../scene/ephemeral.types';
+import { CanvasTheme, CanvasGridPattern } from '../store/canvasStore.types';
 
 interface SvgSceneProps {
   nodes: CanvasNode[];
@@ -15,9 +16,12 @@ interface SvgSceneProps {
   snapGuides: SnapGuide[];
   viewportWidth: number;
   viewportHeight: number;
+  theme?: CanvasTheme;
+  gridPattern?: CanvasGridPattern;
   selectionBox?: Rect | null;
   ephemeral: EphemeralTransform;
   svgRef?: React.RefObject<SVGSVGElement | null>;
+  onPreviewImage?: (src: string, label?: string) => void;
   onPointerDown?: (e: React.PointerEvent<SVGSVGElement>) => void;
   onPointerMove?: (e: React.PointerEvent<SVGSVGElement>) => void;
   onPointerUp?: (e: React.PointerEvent<SVGSVGElement>) => void;
@@ -39,9 +43,12 @@ export const SvgScene: React.FC<SvgSceneProps> = ({
   snapGuides,
   viewportWidth,
   viewportHeight,
+  theme = 'dark',
+  gridPattern = 'dots',
   selectionBox,
   ephemeral,
   svgRef,
+  onPreviewImage,
   onPointerDown,
   onPointerMove,
   onPointerUp,
@@ -60,6 +67,18 @@ export const SvgScene: React.FC<SvgSceneProps> = ({
     [nodes, selection]
   );
 
+  const getSceneBg = () => {
+    switch (theme) {
+      case 'light': return 'bg-[#f8fafc]';
+      case 'blueprint': return 'bg-[#071527]';
+      case 'cyberpunk': return 'bg-[#0e041d]';
+      case 'golden': return 'bg-[#130f06]';
+      case 'cosmic': return 'bg-[#060410]';
+      case 'dark':
+      default: return 'bg-[#090d16]';
+    }
+  };
+
   return (
     <svg
       ref={svgRef}
@@ -69,13 +88,15 @@ export const SvgScene: React.FC<SvgSceneProps> = ({
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
       onDoubleClick={onCanvasDoubleClick}
-      className="w-full h-full block bg-[#090d16] select-none touch-none overflow-hidden"
+      className={`w-full h-full block select-none touch-none overflow-hidden transition-colors duration-200 ${getSceneBg()}`}
     >
       {/* Background Infinite Grid */}
       <GridLayer
         camera={camera}
         viewportWidth={viewportWidth}
         viewportHeight={viewportHeight}
+        theme={theme}
+        gridPattern={gridPattern}
       />
 
       {/* World transform layer */}
@@ -95,9 +116,11 @@ export const SvgScene: React.FC<SvgSceneProps> = ({
           nodes={nodes}
           selection={selection}
           ephemeral={ephemeral}
+          theme={theme}
           onNodePointerDown={onNodePointerDown}
           onNodeDoubleClick={onNodeDoubleClick}
           onAnchorPointerDown={onAnchorPointerDown}
+          onPreviewImage={onPreviewImage}
         />
 
         {/* Handles, guides and selection rectangle */}

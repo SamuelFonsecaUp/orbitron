@@ -58,3 +58,8 @@ export interface JsonCanvas {
   nodes?: JsonCanvasNode[];
   edges?: JsonCanvasEdge[];
 }
+
+export type CanvasNode = JsonCanvasNode;
+export type CanvasEdge = JsonCanvasEdge;
+export type CanvasDoc = JsonCanvas;
+

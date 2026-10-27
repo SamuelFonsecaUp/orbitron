@@ -13,12 +13,19 @@ import {
   XCircle,
   Zap,
   ArrowRight,
+  Download,
+  Check,
+  Sparkles,
+  Layers,
 } from 'lucide-react';
 import { useFinancial } from '../context/FinancialContext';
 import { AchievementIcon, RARITY_STYLE } from '../components/GameWidgets';
+import { AchievementBadgeSvg, downloadAchievementSvgFile } from '../components/AchievementBadgeSvg';
 import { formatDate } from '../utils/formatters';
 import { GameAchievement, GameEvent, GameMission } from '../types';
 import { SolarSystemBackground } from '../components/SolarSystemBackground';
+import { useCanvasStore, canvasStore } from '../modules/canvas/store/canvasStore';
+import { CANVAS_THEMES } from '../modules/canvas/store/canvasThemes';
 
 const KIND_LABEL: Record<GameEvent['kind'], string> = {
   import: 'Extratos',
@@ -69,7 +76,7 @@ const CATEGORIES_LIST = [
 type AchievementFilter = 'all' | 'unlocked' | 'locked';
 
 export const JourneyView: React.FC = () => {
-  const { game, refreshGame, currentView, setCurrentView } = useFinancial();
+  const { game, refreshGame, currentView, setCurrentView, showToast } = useFinancial();
   const [filter, setFilter] = useState<AchievementFilter>('all');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -268,6 +275,13 @@ export const JourneyView: React.FC = () => {
                 ))}
               </div>
             </div>
+
+            {/* Trilha de Recompensas Cósmicas: Temas do Quadro Branco */}
+            <CosmicThemeRewardsSection
+              currentLevel={game.level}
+              onNavigateToCanvas={() => setCurrentView('tools_mindmap')}
+              showToast={showToast}
+            />
 
             {/* Next Achievements Close to Unlock + XP Breakdown */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -542,6 +556,167 @@ export const JourneyView: React.FC = () => {
   );
 };
 
+const CosmicThemeRewardsSection: React.FC<{
+  currentLevel: number;
+  onNavigateToCanvas: () => void;
+  showToast: (msg: string, type?: any) => void;
+}> = ({ currentLevel, onNavigateToCanvas, showToast }) => {
+  const currentTheme = useCanvasStore((s) => s.theme);
+  const specialThemes = CANVAS_THEMES.filter((t) => t.minLevel > 1);
+
+  const handleActivateTheme = (themeId: any, minLevel: number, themeName: string) => {
+    if (currentLevel < minLevel) {
+      showToast(`Tema bloqueado! Alcance o Nível ${minLevel} na Jornada para desbloquear.`, 'info');
+      return;
+    }
+    canvasStore.setTheme(themeId);
+    showToast(`Tema "${themeName}" ativado no seu Quadro Branco!`, 'success');
+  };
+
+  return (
+    <div className="p-6 rounded-3xl bg-gradient-to-br from-indigo-950/40 via-slate-900/80 to-purple-950/40 border border-purple-500/20 shadow-2xl relative overflow-hidden backdrop-blur-md">
+      {/* Background radial glows */}
+      <div className="pointer-events-none absolute -top-24 -right-24 w-80 h-80 bg-purple-500/10 rounded-full blur-3xl" />
+      <div className="pointer-events-none absolute -bottom-24 -left-24 w-80 h-80 bg-amber-500/10 rounded-full blur-3xl" />
+
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5 relative z-10">
+        <div>
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-xl bg-fuchsia-500/20 border border-fuchsia-500/30 flex items-center justify-center text-fuchsia-300 shadow-sm">
+              <Sparkles className="w-4 h-4 text-fuchsia-400" />
+            </div>
+            <h2 className="text-base font-black text-white tracking-tight flex items-center gap-2">
+              Trilha de Recompensas Cósmicas • Temas do Quadro Branco
+            </h2>
+          </div>
+          <p className="text-xs text-slate-400 mt-1">
+            Evolua seu nível na jornada e libere atmosferas visuais exclusivas para seus mapas mentais e notas infinitas.
+          </p>
+        </div>
+
+        <button
+          onClick={onNavigateToCanvas}
+          className="self-start sm:self-auto flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 hover:text-white border border-purple-500/30 text-xs font-bold transition shadow-sm"
+        >
+          <Layers className="w-3.5 h-3.5" />
+          <span>Abrir Quadro Branco</span>
+          <ArrowRight className="w-3.5 h-3.5" />
+        </button>
+      </div>
+
+      {/* Grid of the 4 milestone themes */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 relative z-10">
+        {specialThemes.map((t) => {
+          const isUnlocked = currentLevel >= t.minLevel;
+          const isActive = currentTheme === t.id;
+          const progressToUnlock = Math.min(100, Math.round((currentLevel / t.minLevel) * 100));
+          const levelsNeeded = Math.max(0, t.minLevel - currentLevel);
+          const isCosmicFinal = t.id === 'cosmic';
+
+          return (
+            <div
+              key={t.id}
+              style={{
+                backgroundColor: t.previewBg,
+                borderColor: isActive ? t.accentColor : isCosmicFinal ? '#e11d4860' : t.previewBorder + '60',
+              }}
+              className={`rounded-2xl border p-4 flex flex-col justify-between transition-all duration-300 relative overflow-hidden group shadow-lg ${
+                isActive
+                  ? 'ring-2 ring-offset-2 ring-offset-slate-950'
+                  : 'hover:scale-[1.02]'
+              } ${!isUnlocked ? 'opacity-75' : ''}`}
+            >
+              {/* Cosmic Final Star Pulsing Glow */}
+              {isCosmicFinal && (
+                <div className="pointer-events-none absolute inset-0 bg-gradient-to-tr from-rose-500/10 via-transparent to-purple-500/15 animate-pulse" />
+              )}
+
+              <div>
+                {/* Milestone Level Tag */}
+                <div className="flex items-center justify-between gap-1 mb-2">
+                  <span
+                    className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full border shadow-sm"
+                    style={{
+                      backgroundColor: `${t.accentColor}18`,
+                      borderColor: `${t.accentColor}40`,
+                      color: t.accentColor,
+                    }}
+                  >
+                    {t.badge || `Nível ${t.minLevel}`}
+                  </span>
+                  {isUnlocked ? (
+                    <span className="flex items-center gap-1 text-[10px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full">
+                      <Check className="w-3 h-3" /> Desbloqueado
+                    </span>
+                  ) : (
+                    <span className="flex items-center gap-1 text-[10px] font-semibold text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-full">
+                      <Lock className="w-3 h-3" /> Faltam {levelsNeeded} {levelsNeeded === 1 ? 'nível' : 'níveis'}
+                    </span>
+                  )}
+                </div>
+
+                {/* Theme Name & Subtitle */}
+                <h3 className="font-black text-sm text-white group-hover:text-amber-200 transition">
+                  {t.name}
+                </h3>
+                <p className="text-[11px] text-slate-400 mt-1 leading-snug line-clamp-2">
+                  {t.description}
+                </p>
+              </div>
+
+              {/* Unlock Progress or Action Button */}
+              <div className="mt-4 pt-3 border-t border-white/10">
+                {!isUnlocked ? (
+                  <div>
+                    <div className="flex justify-between text-[10px] text-slate-400 mb-1">
+                      <span>Progresso</span>
+                      <span className="font-mono text-amber-400 font-bold">
+                        {currentLevel}/{t.minLevel}
+                      </span>
+                    </div>
+                    <div className="h-1.5 w-full bg-black/40 rounded-full overflow-hidden border border-white/5">
+                      <div
+                        className="h-full rounded-full transition-all duration-500"
+                        style={{
+                          width: `${progressToUnlock}%`,
+                          backgroundColor: t.accentColor,
+                        }}
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => handleActivateTheme(t.id, t.minLevel, t.name)}
+                    style={{
+                      backgroundColor: isActive ? `${t.accentColor}30` : `${t.accentColor}15`,
+                      borderColor: `${t.accentColor}50`,
+                      color: isActive ? '#ffffff' : t.accentColor,
+                    }}
+                    className="w-full py-1.5 px-3 rounded-xl border text-xs font-bold transition flex items-center justify-center gap-1.5 hover:brightness-125"
+                  >
+                    {isActive ? (
+                      <>
+                        <Check className="w-3.5 h-3.5" />
+                        <span>Tema em Uso</span>
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="w-3.5 h-3.5" />
+                        <span>Ativar no Quadro</span>
+                      </>
+                    )}
+                  </button>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
 const MissionCard: React.FC<{ mission: GameMission }> = ({ mission: m }) => {
   const st = MISSION_STATUS[m.status];
   return (
@@ -595,32 +770,51 @@ const AchievementCard: React.FC<{ achievement: GameAchievement }> = ({ achieveme
   const rarity = RARITY_STYLE[a.rarity];
   return (
     <div
-      className={`p-3.5 rounded-xl border flex gap-3 transition-all ${
-        a.unlocked ? 'bg-slate-950/60' : 'bg-slate-950/30 opacity-70'
+      className={`p-3.5 rounded-xl border flex gap-3 transition-all relative group ${
+        a.unlocked ? 'bg-slate-950/70 hover:bg-slate-900/60' : 'bg-slate-950/30 opacity-70'
       }`}
       style={{ borderColor: a.unlocked ? `${rarity.color}55` : undefined }}
     >
-      <div
-        className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0"
-        style={{ backgroundColor: a.unlocked ? `${rarity.color}1f` : 'rgba(100,116,139,0.12)' }}
-      >
-        {a.unlocked ? (
-          <AchievementIcon name={a.icon} className="w-5 h-5" color={rarity.color} />
-        ) : (
-          <Lock className="w-4 h-4 text-slate-500" />
-        )}
+      <div className="shrink-0 flex items-center justify-center">
+        <AchievementBadgeSvg
+          rarity={a.rarity}
+          iconName={a.icon}
+          unlocked={a.unlocked}
+          progress={a.progress}
+          size={52}
+        />
       </div>
       <div className="min-w-0 flex-1">
         <div className="flex items-center justify-between gap-2">
           <span className="text-xs font-bold text-white truncate">{a.name}</span>
-          <span
-            className="text-[9px] font-bold uppercase shrink-0"
-            style={{ color: rarity.color }}
-          >
-            {rarity.label}
-          </span>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <span
+              className="text-[9px] font-bold uppercase px-1.5 py-0.2 rounded border bg-slate-900/80"
+              style={{ color: rarity.color, borderColor: `${rarity.color}44` }}
+            >
+              {rarity.label}
+            </span>
+            {a.unlocked && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  downloadAchievementSvgFile({
+                    rarity: a.rarity,
+                    iconName: a.icon,
+                    unlocked: true,
+                    title: a.name,
+                    size: 512,
+                  });
+                }}
+                title="Baixar Insígnia em formato SVG (512x512)"
+                className="p-1 rounded text-slate-500 hover:text-cyan-300 hover:bg-slate-800 transition-colors opacity-0 group-hover:opacity-100"
+              >
+                <Download className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
         </div>
-        <span className="text-[11px] text-slate-400 block">{a.description}</span>
+        <span className="text-[11px] text-slate-400 block mt-0.5">{a.description}</span>
         {a.unlocked ? (
           <span className="text-[10px] text-slate-500 mt-1 block">
             Desbloqueada em {a.unlockedAt ? formatDate(a.unlockedAt) : '—'} • +{a.xp} XP
@@ -642,3 +836,4 @@ const AchievementCard: React.FC<{ achievement: GameAchievement }> = ({ achieveme
     </div>
   );
 };
+

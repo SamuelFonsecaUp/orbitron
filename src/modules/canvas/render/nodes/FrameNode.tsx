@@ -3,11 +3,13 @@ import { CanvasNode, CanvasSide } from '../../io/jsonCanvas.types';
 import { getCanvasColor } from '../colors';
 import { Point, Rect } from '../../scene/types';
 import { NodeHotspots } from './NodeHotspots';
+import { CanvasTheme } from '../../store/canvasStore.types';
 
 interface FrameNodeProps {
   node: CanvasNode;
   effectiveRect: Rect;
   isSelected: boolean;
+  theme?: CanvasTheme;
   isTargetCandidate?: boolean;
   targetSide?: CanvasSide;
   isConnecting?: boolean;
@@ -20,6 +22,7 @@ export const FrameNode: React.FC<FrameNodeProps> = ({
   node,
   effectiveRect,
   isSelected,
+  theme = 'dark',
   isTargetCandidate,
   targetSide,
   isConnecting,
@@ -28,10 +31,11 @@ export const FrameNode: React.FC<FrameNodeProps> = ({
   onAnchorPointerDown,
 }) => {
   const [isHovered, setIsHovered] = useState(false);
-  const color = getCanvasColor(node.color);
+  const color = getCanvasColor(node.color, theme);
   const isFilled = node.orbitron?.filled ?? false;
   const label = node.label || 'Grupo';
   const { x, y, width: w, height: h } = effectiveRect;
+  const isLight = theme === 'light';
 
   return (
     <g
@@ -46,7 +50,7 @@ export const FrameNode: React.FC<FrameNodeProps> = ({
         width={w}
         height={h}
         rx={12}
-        fill={isFilled ? color.bg : 'rgba(255, 255, 255, 0.02)'}
+        fill={isFilled ? color.bg : isLight ? 'rgba(0, 0, 0, 0.015)' : 'rgba(255, 255, 255, 0.02)'}
         stroke={isTargetCandidate ? '#38bdf8' : isSelected ? '#a855f7' : color.border}
         strokeWidth={isTargetCandidate ? 2.5 : isSelected ? 2 : 1.5}
         strokeDasharray={isSelected || isTargetCandidate ? undefined : '6 4'}
@@ -57,14 +61,14 @@ export const FrameNode: React.FC<FrameNodeProps> = ({
           width={Math.min(w - 24, Math.max(60, label.length * 9 + 20))}
           height={26}
           rx={6}
-          fill="#1e1b4b"
+          fill={isLight ? '#f5f3ff' : '#1e1b4b'}
           stroke={isSelected ? '#a855f7' : color.border}
           strokeWidth={1.5}
         />
         <text
           x={10}
           y={17}
-          fill="#e9d5ff"
+          fill={isLight ? '#6b21a8' : '#e9d5ff'}
           fontSize={12}
           fontWeight="bold"
           className="font-sans pointer-events-none select-none"

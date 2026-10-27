@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useHabits } from '../context/HabitsContext';
 import { HabitCategory, HabitPeriod, HabitType, HabitFrequencyType } from '../types';
-import { X, Check, Sparkles, Plus, Trash2 } from 'lucide-react';
+import { X, Check, Sparkles, Plus, Trash2, Bell } from 'lucide-react';
 
 const CATEGORIES: { id: HabitCategory; label: string; icon: string }[] = [
   { id: 'saude', label: 'Saúde & Corpo', icon: '🍏' },
@@ -59,11 +59,13 @@ export const HabitModal: React.FC = () => {
   const [category, setCategory] = useState<HabitCategory>('geral');
   const [color, setColor] = useState('#38bdf8');
   const [periodOfDay, setPeriodOfDay] = useState<HabitPeriod>('anytime');
+  const [targetTime, setTargetTime] = useState<string>('');
   const [type, setType] = useState<HabitType>('boolean');
   const [targetValue, setTargetValue] = useState<number>(1);
   const [targetUnit, setTargetUnit] = useState<string>('');
   const [frequencyType, setFrequencyType] = useState<HabitFrequencyType>('daily');
   const [frequencyDays, setFrequencyDays] = useState<number[]>([1, 2, 3, 4, 5, 6, 0]);
+  const [frequencyTimes, setFrequencyTimes] = useState<number>(3);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -73,22 +75,26 @@ export const HabitModal: React.FC = () => {
       setCategory(editingHabit.category || 'geral');
       setColor(editingHabit.color || '#38bdf8');
       setPeriodOfDay(editingHabit.period_of_day || 'anytime');
+      setTargetTime((editingHabit as any).target_time || '');
       setType(editingHabit.type || 'boolean');
       setTargetValue(editingHabit.target_value || 1);
       setTargetUnit(editingHabit.target_unit || '');
       setFrequencyType(editingHabit.frequency_type || 'daily');
       setFrequencyDays(editingHabit.frequency_days || [1, 2, 3, 4, 5, 6, 0]);
+      setFrequencyTimes((editingHabit as any).frequency_times || 3);
     } else {
       setName('');
       setDescription('');
       setCategory('geral');
       setColor('#38bdf8');
       setPeriodOfDay('anytime');
+      setTargetTime('');
       setType('boolean');
       setTargetValue(1);
       setTargetUnit('');
       setFrequencyType('daily');
       setFrequencyDays([1, 2, 3, 4, 5, 6, 0]);
+      setFrequencyTimes(3);
     }
   }, [editingHabit, isModalOpen]);
 
@@ -122,12 +128,13 @@ export const HabitModal: React.FC = () => {
         category,
         color,
         periodOfDay,
+        targetTime: targetTime ? targetTime : null,
         type,
         targetValue: type === 'measurable' ? Number(targetValue) || 1 : 1,
         targetUnit: type === 'measurable' ? targetUnit.trim() : null,
         frequencyType,
         frequencyDays,
-        frequencyTimes: frequencyDays.length,
+        frequencyTimes: frequencyType === 'times_per_week' ? Number(frequencyTimes) || 3 : frequencyDays.length,
       };
 
       if (editingHabit?.id) {
@@ -145,48 +152,51 @@ export const HabitModal: React.FC = () => {
 
   const handleDelete = async () => {
     if (!editingHabit?.id) return;
-    if (confirm('Tem certeza que deseja excluir este hábito e todo o seu histórico?')) {
+    if (confirm('Tem certeza que deseja excluir este hábito e seu histórico?')) {
       await deleteHabit(editingHabit.id);
       closeModal();
     }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in duration-150">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fade-in">
       <div className="w-full max-w-lg bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
         {/* Header */}
         <div className="px-6 py-4 border-b border-slate-800/80 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ backgroundColor: `${color}20`, color }}>
-              <Sparkles className="w-5 h-5" />
+            <div className="w-8 h-8 rounded-xl bg-cyan-500/15 border border-cyan-500/30 flex items-center justify-center text-cyan-400">
+              <Sparkles className="w-4 h-4" />
             </div>
             <div>
-              <h2 className="text-base font-bold text-white leading-tight">
-                {editingHabit?.id ? 'Editar Hábito' : 'Novo Hábito'}
-              </h2>
-              <p className="text-xs text-slate-400">Padrão Atomic Habits focado em consistência</p>
+              <h3 className="text-sm font-bold text-white">
+                {editingHabit?.id ? 'Editar Hábito' : 'Novo Hábito Atômico'}
+              </h3>
+              <p className="text-[11px] text-slate-400">Pequenas vitórias diárias geram transformações cósmicas.</p>
             </div>
           </div>
-          <button onClick={closeModal} className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition">
-            <X className="w-5 h-5" />
+          <button
+            onClick={closeModal}
+            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition"
+          >
+            <X className="w-4 h-4" />
           </button>
         </div>
 
-        {/* Content */}
-        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto px-6 py-4 space-y-5">
-          {/* Presets rápidos (apenas em criação) */}
+        {/* Body */}
+        <form onSubmit={handleSubmit} className="p-6 space-y-5 overflow-y-auto custom-scrollbar flex-1">
+          {/* Sugestões rápidas (apenas se for novo) */}
           {!editingHabit?.id && (
             <div>
-              <label className="text-xs font-semibold text-slate-400 block mb-2">Sugestões rápidas:</label>
+              <span className="text-[11px] font-semibold text-slate-400 block mb-2">Sugestões Populares:</span>
               <div className="flex flex-wrap gap-1.5">
-                {PRESETS.map((p, i) => (
+                {PRESETS.map((p) => (
                   <button
-                    key={i}
+                    key={p.name}
                     type="button"
                     onClick={() => handlePresetPick(p)}
-                    className="px-2.5 py-1 rounded-lg text-xs bg-slate-800/80 hover:bg-slate-750 text-slate-300 hover:text-white border border-slate-700/60 transition"
+                    className="px-2.5 py-1 rounded-lg text-xs bg-slate-950/60 border border-slate-800 text-slate-300 hover:border-cyan-500/40 hover:text-cyan-300 transition"
                   >
-                    {p.name}
+                    + {p.name}
                   </button>
                 ))}
               </div>
@@ -196,32 +206,34 @@ export const HabitModal: React.FC = () => {
           {/* Nome e Descrição */}
           <div className="space-y-3">
             <div>
-              <label className="text-xs font-semibold text-slate-300 block mb-1">Nome do hábito *</label>
+              <label className="text-xs font-semibold text-slate-300 block mb-1">Nome do Hábito *</label>
               <input
                 type="text"
                 required
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="Ex: Beber 2L de água, Ler 15 páginas..."
+                placeholder="Ex: Treino na academia, Leitura diária, Beber 2L de água..."
                 className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950/80 border border-slate-800 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 transition"
               />
             </div>
 
             <div>
-              <label className="text-xs font-semibold text-slate-300 block mb-1">Motivação / Gatilho (opcional)</label>
+              <label className="text-xs font-semibold text-slate-300 block mb-1">
+                Motivação / Gatilho (Opcional)
+              </label>
               <input
                 type="text"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                placeholder="Ex: Logo após acordar; para ter mais energia..."
-                className="w-full px-3.5 py-2 rounded-xl bg-slate-950/80 border border-slate-800 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 transition"
+                placeholder="Ex: 'Logo após o café da manhã' ou 'Para ter mais energia'"
+                className="w-full px-3.5 py-2 rounded-xl bg-slate-950/60 border border-slate-800 text-xs text-slate-300 placeholder-slate-500 focus:outline-none focus:border-cyan-500 transition"
               />
             </div>
           </div>
 
           {/* Categoria */}
           <div>
-            <label className="text-xs font-semibold text-slate-300 block mb-2">Área da Vida / Categoria</label>
+            <label className="text-xs font-semibold text-slate-300 block mb-1.5">Categoria</label>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
               {CATEGORIES.map((cat) => (
                 <button
@@ -282,17 +294,40 @@ export const HabitModal: React.FC = () => {
             </div>
           </div>
 
+          {/* Notificação Nativa do Windows (Lembrete com horário) */}
+          <div className="p-3.5 rounded-2xl bg-slate-950/60 border border-slate-800/80 space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Bell className="w-4 h-4 text-cyan-400" />
+                <label className="text-xs font-semibold text-slate-200">
+                  Lembrete no Windows (Notificação Nativa)
+                </label>
+              </div>
+              <input
+                type="time"
+                value={targetTime}
+                onChange={(e) => setTargetTime(e.target.value)}
+                className="bg-slate-900 border border-slate-700 rounded-lg px-2 py-1 text-xs text-white focus:outline-none focus:border-cyan-400"
+              />
+            </div>
+            <p className="text-[11px] text-slate-500">
+              {targetTime
+                ? `O Orbitron enviará um alerta na área de trabalho às ${targetTime} para você não esquecer.`
+                : 'Defina um horário acima se desejar ser notificado no seu computador.'}
+            </p>
+          </div>
+
           {/* Frequência */}
           <div className="space-y-2">
             <label className="text-xs font-semibold text-slate-300 block">Frequência de repetição</label>
-            <div className="flex gap-2">
+            <div className="grid grid-cols-3 gap-2">
               <button
                 type="button"
                 onClick={() => {
                   setFrequencyType('daily');
                   setFrequencyDays([1, 2, 3, 4, 5, 6, 0]);
                 }}
-                className={`flex-1 py-2 rounded-xl text-xs font-semibold border transition ${
+                className={`py-2 rounded-xl text-xs font-semibold border transition text-center ${
                   frequencyType === 'daily'
                     ? 'bg-cyan-500/15 border-cyan-500/50 text-cyan-300'
                     : 'bg-slate-950/50 border-slate-800 text-slate-400 hover:border-slate-700'
@@ -303,13 +338,24 @@ export const HabitModal: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setFrequencyType('days_of_week')}
-                className={`flex-1 py-2 rounded-xl text-xs font-semibold border transition ${
+                className={`py-2 rounded-xl text-xs font-semibold border transition text-center ${
                   frequencyType === 'days_of_week'
                     ? 'bg-cyan-500/15 border-cyan-500/50 text-cyan-300'
                     : 'bg-slate-950/50 border-slate-800 text-slate-400 hover:border-slate-700'
                 }`}
               >
-                Dias específicos
+                Dias fixos
+              </button>
+              <button
+                type="button"
+                onClick={() => setFrequencyType('times_per_week')}
+                className={`py-2 rounded-xl text-xs font-semibold border transition text-center ${
+                  frequencyType === 'times_per_week'
+                    ? 'bg-cyan-500/15 border-cyan-500/50 text-cyan-300'
+                    : 'bg-slate-950/50 border-slate-800 text-slate-400 hover:border-slate-700'
+                }`}
+              >
+                Meta semanal
               </button>
             </div>
 
@@ -332,6 +378,26 @@ export const HabitModal: React.FC = () => {
                     </button>
                   );
                 })}
+              </div>
+            )}
+
+            {frequencyType === 'times_per_week' && (
+              <div className="p-3 rounded-xl bg-slate-950/60 border border-slate-800/80 flex items-center justify-between gap-3">
+                <span className="text-xs text-slate-300">Cumprir ao menos:</span>
+                <div className="flex items-center gap-2">
+                  <select
+                    value={frequencyTimes}
+                    onChange={(e) => setFrequencyTimes(Number(e.target.value))}
+                    className="bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1 text-xs text-white font-bold"
+                  >
+                    {[1, 2, 3, 4, 5, 6].map((num) => (
+                      <option key={num} value={num}>
+                        {num}x por semana
+                      </option>
+                    ))}
+                  </select>
+                  <span className="text-xs text-slate-400">em dias flexíveis</span>
+                </div>
               </div>
             )}
           </div>

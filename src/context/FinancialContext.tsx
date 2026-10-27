@@ -45,6 +45,8 @@ export type AppView =
   | 'intelligence'
   | 'tools_notes'
   | 'tools_mindmap'
+  | 'tools_kanban'
+  | 'tools_pomodoro'
   | 'tools_vault';
 
 export type AppModule = 'finance' | 'habits' | 'tools' | 'journey';
@@ -227,7 +229,7 @@ export const FinancialProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   // Pending import session draft state with localStorage caching
   const [pendingImportSession, setPendingImportSession] = useState<PendingImportSession | null>(() => {
     try {
-      const saved = localStorage.getItem('meu_financeiro_import_draft');
+      const saved = localStorage.getItem('orbitron_import_draft') || localStorage.getItem('meu_financeiro_import_draft');
       return saved ? JSON.parse(saved) : null;
     } catch {
       return null;
@@ -237,13 +239,14 @@ export const FinancialProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const saveImportSession = useCallback((session: PendingImportSession) => {
     setPendingImportSession(session);
     try {
-      localStorage.setItem('meu_financeiro_import_draft', JSON.stringify(session));
+      localStorage.setItem('orbitron_import_draft', JSON.stringify(session));
     } catch {}
   }, []);
 
   const clearImportSession = useCallback(() => {
     setPendingImportSession(null);
     try {
+      localStorage.removeItem('orbitron_import_draft');
       localStorage.removeItem('meu_financeiro_import_draft');
     } catch {}
   }, []);

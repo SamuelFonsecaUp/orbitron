@@ -32,9 +32,51 @@ import pigoIcon from '../assets/pigo-icon.png';
 
 export const MANDATORY_ONBOARDING_KEY = 'pigo_mandatory_onboarding_v2';
 
+export function markOnboardingCompletedLocallyAndRemotely(): void {
+  try {
+    localStorage.setItem(MANDATORY_ONBOARDING_KEY, '1');
+    localStorage.setItem('pigo_platform_tour_v1_3_seen', '1');
+    localStorage.setItem('orbit_onboarding_completed', '1');
+    localStorage.setItem('pigo_onboarding_completed', '1');
+    localStorage.setItem(
+      'orbitron_tour_progress_v2',
+      JSON.stringify({
+        main_tour: { completed: true, skipped: true, completedAt: new Date().toISOString() },
+      })
+    );
+  } catch {}
+  if (typeof window !== 'undefined' && window.electronAPI?.updateSettings) {
+    window.electronAPI.updateSettings({ onboardingCompleted: true }).catch(() => {});
+  }
+}
+
 export function hasCompletedMandatoryOnboarding(onboardingCompleted?: boolean): boolean {
   try {
-    return Boolean(onboardingCompleted) && localStorage.getItem(MANDATORY_ONBOARDING_KEY) === '1';
+    // 1. If database flag is true, onboarding is definitively complete
+    if (Boolean(onboardingCompleted)) {
+      try {
+        localStorage.setItem(MANDATORY_ONBOARDING_KEY, '1');
+        localStorage.setItem('pigo_platform_tour_v1_3_seen', '1');
+      } catch {}
+      return true;
+    }
+
+    // 2. If any localStorage completion key is present, onboarding is complete
+    const isDoneLocally =
+      localStorage.getItem(MANDATORY_ONBOARDING_KEY) === '1' ||
+      localStorage.getItem('orbit_onboarding_completed') === '1' ||
+      localStorage.getItem('pigo_onboarding_completed') === '1' ||
+      localStorage.getItem('pigo_mandatory_onboarding') === '1' ||
+      localStorage.getItem('orbitron_mandatory_onboarding_done') === '1';
+
+    if (isDoneLocally) {
+      if (typeof window !== 'undefined' && window.electronAPI?.updateSettings) {
+        window.electronAPI.updateSettings({ onboardingCompleted: true }).catch(() => {});
+      }
+      return true;
+    }
+
+    return false;
   } catch {
     return Boolean(onboardingCompleted);
   }
@@ -333,10 +375,7 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({ onComplete }) =>
           onboardingCompleted: true,
         });
 
-        try {
-          localStorage.setItem(MANDATORY_ONBOARDING_KEY, '1');
-          localStorage.setItem('pigo_platform_tour_v1_3_seen', '1');
-        } catch {}
+        markOnboardingCompletedLocallyAndRemotely();
 
         if (restoredCount !== null) {
           showToast(
@@ -416,6 +455,22 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({ onComplete }) =>
     if (wizardStep > 1) {
       setWizardStep((s) => Math.max(1, s - 1) as 1 | 2 | 3 | 4 | 5);
     }
+  };
+
+  const handleSkipTutorial = async () => {
+    setIsSubmitting(true);
+    try {
+      if (window.electronAPI) {
+        await window.electronAPI.updateSettings({
+          onboardingCompleted: true,
+        });
+      }
+    } catch {}
+    markOnboardingCompletedLocallyAndRemotely();
+    showToast('Tutorial pulado com sucesso! Plataforma liberada.', 'info');
+    await refreshAll();
+    onComplete?.();
+    setIsSubmitting(false);
   };
 
   // --- Finish Mandatory Wizard & Unlock Platform ---
@@ -633,10 +688,7 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({ onComplete }) =>
         reserveAutoDetect: true,
       });
 
-      try {
-        localStorage.setItem(MANDATORY_ONBOARDING_KEY, '1');
-        localStorage.setItem('pigo_platform_tour_v1_3_seen', '1');
-      } catch {}
+      markOnboardingCompletedLocallyAndRemotely();
 
       showToast('Tutorial e configuração concluídos! Plataforma liberada!', 'success');
       await refreshAll();
@@ -721,28 +773,42 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({ onComplete }) =>
             </div>
           </div>
 
-          {mode === 'wizard' && wizardStep === 1 && (
-            <button
-              type="button"
-              onClick={async () => {
-                try {
-                  const res = await window.electronAPI.restoreBackupDialog();
-                  if (res && res.success) {
-                    showToast('Backup restaurado com sucesso! Sistema pronto.', 'success');
-                    await refreshAll();
-                    localStorage.setItem(MANDATORY_ONBOARDING_KEY, '1');
-                    onFinish();
+          <div className="flex items-center gap-2">
+            {mode === 'wizard' && (
+              <button
+                type="button"
+                onClick={handleSkipTutorial}
+                className="px-3 py-1.5 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 border border-white/10 text-[11px] font-semibold text-slate-300 hover:text-white flex items-center gap-1.5 shrink-0 transition"
+                title="Pular configuração e entrar diretamente no aplicativo"
+              >
+                <span>Pular Tutorial</span>
+                <ArrowRight className="w-3.5 h-3.5 text-slate-400" />
+              </button>
+            )}
+
+            {mode === 'wizard' && wizardStep === 1 && (
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    const res = await window.electronAPI?.restoreBackupDialog?.();
+                    if (res && res.success) {
+                      showToast('Backup restaurado com sucesso! Sistema pronto.', 'success');
+                      await refreshAll();
+                      markOnboardingCompletedLocallyAndRemotely();
+                      onComplete?.();
+                    }
+                  } catch (e: any) {
+                    setErrorMsg(e.message || 'Erro ao restaurar backup.');
                   }
-                } catch (e: any) {
-                  setErrorMsg(e.message || 'Erro ao restaurar backup.');
-                }
-              }}
-              className="px-3 py-1.5 rounded-xl bg-slate-950/80 hover:bg-slate-800 border border-slate-800 text-[11px] font-bold text-cyan-300 flex items-center gap-1.5 shrink-0 transition"
-            >
-              <Upload className="w-3.5 h-3.5" />
-              <span>Restaurar Backup (.orbit)</span>
-            </button>
-          )}
+                }}
+                className="px-3 py-1.5 rounded-xl bg-slate-950/80 hover:bg-slate-800 border border-slate-800 text-[11px] font-bold text-cyan-300 flex items-center gap-1.5 shrink-0 transition"
+              >
+                <Upload className="w-3.5 h-3.5" />
+                <span>Restaurar Backup (.orbit)</span>
+              </button>
+            )}
+          </div>
         </div>
 
         {errorMsg && (
@@ -1562,9 +1628,14 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({ onComplete }) =>
                   <span>Etapa Anterior</span>
                 </button>
               ) : (
-                <span className="text-[11px] text-slate-500">
-                  🔒 Conclua as 5 etapas para liberar o app
-                </span>
+                <button
+                  type="button"
+                  onClick={handleSkipTutorial}
+                  className="text-[11px] text-slate-400 hover:text-slate-200 transition font-medium flex items-center gap-1 hover:underline"
+                >
+                  <span>Já conheço o sistema, pular tutorial</span>
+                  <ArrowRight className="w-3 h-3" />
+                </button>
               )}
 
               {wizardStep < 5 ? (

@@ -1,45 +1,107 @@
 const crypto = require('crypto');
 
-const VAULT_SECRET = crypto
+// Legacy static secret strictly used to read and migrate older v1 backups/records
+const LEGACY_VAULT_SECRET = crypto
   .createHash('sha256')
   .update('pigo-local-vault-key-v1-aes256')
   .digest();
 
-function encryptSecret(plainText) {
-  if (!plainText) return '';
-  try {
-    const iv = crypto.randomBytes(12);
-    const cipher = crypto.createCipheriv('aes-256-gcm', VAULT_SECRET, iv);
-    const encrypted = Buffer.concat([cipher.update(String(plainText), 'utf8'), cipher.final()]);
-    const authTag = cipher.getAuthTag();
-    return `v1:${iv.toString('base64')}:${authTag.toString('base64')}:${encrypted.toString('base64')}`;
-  } catch {
-    return Buffer.from(String(plainText), 'utf8').toString('base64');
-  }
-}
-
-function decryptSecret(payload) {
-  if (!payload) return '';
-  try {
-    if (String(payload).startsWith('v1:')) {
-      const [, ivB64, tagB64, dataB64] = String(payload).split(':');
-      const iv = Buffer.from(ivB64, 'base64');
-      const authTag = Buffer.from(tagB64, 'base64');
-      const encrypted = Buffer.from(dataB64, 'base64');
-      const decipher = crypto.createDecipheriv('aes-256-gcm', VAULT_SECRET, iv);
-      decipher.setAuthTag(authTag);
-      const decrypted = Buffer.concat([decipher.update(encrypted), decipher.final()]);
-      return decrypted.toString('utf8');
+let electronSafeStorage = null;
+try {
+  const electron = require('electron');
+  if (electron && electron.safeStorage && typeof electron.safeStorage.isEncryptionAvailable === 'function') {
+    if (electron.safeStorage.isEncryptionAvailable()) {
+      electronSafeStorage = electron.safeStorage;
     }
-    return Buffer.from(String(payload), 'base64').toString('utf8');
-  } catch {
-    return String(payload);
   }
-}
+} catch (_) {}
 
 class ToolsEngine {
   constructor(db) {
     this.db = db;
+    this._vaultKey = null;
+  }
+
+  getVaultKey() {
+    if (this._vaultKey) return this._vaultKey;
+
+    let salt = null;
+    try {
+      const row = this.db.prepare(`SELECT vault_salt FROM settings WHERE id = 'app_config'`).get();
+      if (row && row.vault_salt) {
+        salt = row.vault_salt;
+      }
+    } catch (_) {}
+
+    if (!salt) {
+      salt = crypto.randomBytes(32).toString('hex');
+      try {
+        this.db.prepare(`UPDATE settings SET vault_salt = ? WHERE id = 'app_config'`).run(salt);
+      } catch (_) {}
+    }
+
+    this._vaultKey = crypto.pbkdf2Sync(salt, 'orbitron-vault-key-v2-master', 100000, 32, 'sha256');
+    return this._vaultKey;
+  }
+
+  encryptSecret(plainText) {
+    if (!plainText) return '';
+    try {
+      if (electronSafeStorage) {
+        const encrypted = electronSafeStorage.encryptString(String(plainText));
+        return `v2:safe:${encrypted.toString('base64')}`;
+      }
+      const key = this.getVaultKey();
+      const iv = crypto.randomBytes(12);
+      const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
+      const encrypted = Buffer.concat([cipher.update(String(plainText), 'utf8'), cipher.final()]);
+      const authTag = cipher.getAuthTag();
+      return `v2:aes:${iv.toString('base64')}:${authTag.toString('base64')}:${encrypted.toString('base64')}`;
+    } catch (e) {
+      console.warn('[ToolsEngine] Erro ao criptografar segredo:', e);
+      return Buffer.from(String(plainText), 'utf8').toString('base64');
+    }
+  }
+
+  decryptSecret(payload) {
+    if (!payload) return '';
+    const str = String(payload);
+    try {
+      // 1. Electron Native safeStorage (DPAPI Windows / OS Keychain)
+      if (str.startsWith('v2:safe:') && electronSafeStorage) {
+        const buf = Buffer.from(str.slice(8), 'base64');
+        return electronSafeStorage.decryptString(buf);
+      }
+
+      // 2. High-security AES-256-GCM com chave derivada por PBKDF2 (100.000 rounds)
+      if (str.startsWith('v2:aes:')) {
+        const parts = str.split(':');
+        const iv = Buffer.from(parts[2], 'base64');
+        const authTag = Buffer.from(parts[3], 'base64');
+        const encrypted = Buffer.from(parts[4], 'base64');
+        const decipher = crypto.createDecipheriv('aes-256-gcm', this.getVaultKey(), iv);
+        decipher.setAuthTag(authTag);
+        const decrypted = Buffer.concat([decipher.update(encrypted), decipher.final()]);
+        return decrypted.toString('utf8');
+      }
+
+      // 3. Fallback retroativo v1 (migração suave de registros legados)
+      if (str.startsWith('v1:')) {
+        const parts = str.split(':');
+        const iv = Buffer.from(parts[1], 'base64');
+        const authTag = Buffer.from(parts[2], 'base64');
+        const encrypted = Buffer.from(parts[3], 'base64');
+        const decipher = crypto.createDecipheriv('aes-256-gcm', LEGACY_VAULT_SECRET, iv);
+        decipher.setAuthTag(authTag);
+        const decrypted = Buffer.concat([decipher.update(encrypted), decipher.final()]);
+        return decrypted.toString('utf8');
+      }
+
+      // 4. Fallback simples base64
+      return Buffer.from(str, 'base64').toString('utf8');
+    } catch (e) {
+      return str;
+    }
   }
 
   // =========================================================
@@ -127,7 +189,7 @@ class ToolsEngine {
   }
 
   // =========================================================
-  // 2. MAPAS MENTAIS INTERATIVOS (mindmaps)
+  // 2. MAPAS MENTAIS & IDEIAS VISUAIS (mindmaps)
   // =========================================================
   getMindmaps() {
     const rows = this.db
@@ -154,55 +216,27 @@ class ToolsEngine {
   createMindmap(data) {
     const id = crypto.randomUUID();
     const now = new Date().toISOString();
-    const title = (data.title || 'Novo Mapa Mental').trim();
-    const defaultNodes =
+    const nodesJson = JSON.stringify(
       Array.isArray(data.nodes) && data.nodes.length > 0
         ? data.nodes
         : [
             {
               id: 'root',
-              label: title,
-              parentId: null,
-              x: 420,
-              y: 240,
-              color: '#a855f7',
-              notes: 'Ideia Central',
+              text: (data.title || 'Ideia Central').trim(),
+              x: 0,
+              y: 0,
+              color: '#6366f1',
             },
-            {
-              id: 'branch_1',
-              label: 'Objetivo 1',
-              parentId: 'root',
-              x: 160,
-              y: 120,
-              color: '#10b981',
-              notes: '',
-            },
-            {
-              id: 'branch_2',
-              label: 'Objetivo 2',
-              parentId: 'root',
-              x: 680,
-              y: 120,
-              color: '#38bdf8',
-              notes: '',
-            },
-            {
-              id: 'branch_3',
-              label: 'Próximos Passos',
-              parentId: 'root',
-              x: 420,
-              y: 400,
-              color: '#f59e0b',
-              notes: '',
-            },
-          ];
+          ]
+    );
 
     this.db
       .prepare(
         `INSERT INTO mindmaps (id, title, description, nodes_json, created_at, updated_at)
          VALUES (?, ?, ?, ?, ?, ?)`
       )
-      .run(id, title, data.description || '', JSON.stringify(defaultNodes), now, now);
+      .run(id, (data.title || 'Novo Mapa Mental').trim(), data.description || '', nodesJson, now, now);
+
     return this.getMindmaps().find((m) => m.id === id);
   }
 
@@ -211,7 +245,9 @@ class ToolsEngine {
     if (!existing) throw new Error('Mapa mental não encontrado.');
     const now = new Date().toISOString();
     const nodesJson =
-      data.nodes !== undefined ? JSON.stringify(data.nodes) : existing.nodes_json;
+      data.nodes !== undefined
+        ? JSON.stringify(Array.isArray(data.nodes) ? data.nodes : [])
+        : existing.nodes_json;
 
     this.db
       .prepare(
@@ -246,7 +282,7 @@ class ToolsEngine {
       title: r.title,
       category: r.category || 'outros',
       username: r.username || '',
-      password: decryptSecret(r.password_encrypted),
+      password: this.decryptSecret(r.password_encrypted),
       url: r.url || '',
       notes: r.notes || '',
       favorite: Boolean(r.favorite),
@@ -261,7 +297,7 @@ class ToolsEngine {
     }
     const id = crypto.randomUUID();
     const now = new Date().toISOString();
-    const encryptedPass = encryptSecret(data.password || '');
+    const encryptedPass = this.encryptSecret(data.password || '');
 
     this.db
       .prepare(
@@ -289,7 +325,7 @@ class ToolsEngine {
     const now = new Date().toISOString();
     const encryptedPass =
       data.password !== undefined
-        ? encryptSecret(data.password)
+        ? this.encryptSecret(data.password)
         : existing.password_encrypted;
 
     this.db

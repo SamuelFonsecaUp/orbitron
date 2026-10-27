@@ -1,3 +1,5 @@
+import { CanvasTheme } from '../store/canvasStore.types';
+
 export interface CanvasColorDef {
   id: string;
   name: string;
@@ -74,19 +76,80 @@ export const CANVAS_COLORS: Record<string, CanvasColorDef> = {
   },
 };
 
-export function getCanvasColor(colorId?: string): CanvasColorDef {
-  if (!colorId) return CANVAS_COLORS.default;
-  if (CANVAS_COLORS[colorId]) return CANVAS_COLORS[colorId];
-  if (colorId.startsWith('#')) {
+export const CANVAS_COLORS_LIGHT: Record<string, CanvasColorDef> = {
+  ...CANVAS_COLORS,
+  default: {
+    id: 'default',
+    name: 'Ardósia',
+    bg: '#ffffff',
+    border: '#cbd5e1',
+    text: '#0f172a',
+    accent: '#64748b',
+    shadow: 'rgba(0, 0, 0, 0.08)',
+  },
+};
+
+export function getCanvasColor(colorId?: string, theme: CanvasTheme = 'dark'): CanvasColorDef {
+  if (colorId && CANVAS_COLORS[colorId]) return CANVAS_COLORS[colorId];
+
+  if (colorId && colorId.startsWith('#')) {
     return {
       id: colorId,
       name: 'Custom',
       bg: colorId,
       border: colorId,
-      text: '#ffffff',
+      text: theme === 'light' ? '#0f172a' : '#ffffff',
       accent: colorId,
       shadow: `${colorId}33`,
     };
   }
-  return CANVAS_COLORS.default;
+
+  // Theme-specific default colors
+  switch (theme) {
+    case 'light':
+      return CANVAS_COLORS_LIGHT.default;
+    case 'blueprint':
+      return {
+        id: 'default',
+        name: 'Blueprint',
+        bg: '#0d2442',
+        border: '#0284c7',
+        text: '#e0f2fe',
+        accent: '#38bdf8',
+        shadow: 'rgba(2, 132, 199, 0.25)',
+      };
+    case 'cyberpunk':
+      return {
+        id: 'default',
+        name: 'Cyberpunk',
+        bg: '#1e0938',
+        border: '#9333ea',
+        text: '#fae8ff',
+        accent: '#ec4899',
+        shadow: 'rgba(236, 72, 153, 0.25)',
+      };
+    case 'golden':
+      return {
+        id: 'default',
+        name: 'Matriz Dourada',
+        bg: '#251b0a',
+        border: '#ca8a04',
+        text: '#fef08a',
+        accent: '#eab308',
+        shadow: 'rgba(234, 179, 8, 0.25)',
+      };
+    case 'cosmic':
+      return {
+        id: 'default',
+        name: 'Cosmo Estelar',
+        bg: '#170932',
+        border: '#e11d48',
+        text: '#ffe4e6',
+        accent: '#f43f5e',
+        shadow: 'rgba(244, 63, 94, 0.25)',
+      };
+    case 'dark':
+    default:
+      return CANVAS_COLORS.default;
+  }
 }

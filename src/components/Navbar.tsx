@@ -14,10 +14,12 @@ import {
   CheckSquare,
   Eye,
   EyeOff,
+  Search,
 } from 'lucide-react';
 import { useFinancial, AppModule } from '../context/FinancialContext';
 import { useHabits } from '../context/HabitsContext';
 import { XpPill } from './GameWidgets';
+import { NavbarPomodoroWidget } from './NavbarPomodoroWidget';
 
 const MODULE_BADGE: Record<AppModule, { label: string; className: string }> = {
   finance: {
@@ -104,7 +106,9 @@ export const Navbar: React.FC = () => {
     journey_achievements: 'Sala de Troféus & Conquistas',
     journey_history: 'Histórico de XP',
     tools_notes: 'Anotações & Segundo Cérebro',
-    tools_mindmap: 'Mapas Mentais Interativos',
+    tools_mindmap: 'Quadro Branco Interativo',
+    tools_kanban: 'Quadro Kanban de Tarefas',
+    tools_pomodoro: 'Relógio Pomodoro',
     tools_vault: 'Cofre de Senhas Criptografado',
     settings: 'Configurações do Sistema',
   };
@@ -153,7 +157,23 @@ export const Navbar: React.FC = () => {
           </button>
         )}
 
+        {/* Pinned Pomodoro Timer Widget */}
+        <NavbarPomodoroWidget />
+
         <div data-tour="xp-pill" className="inline-flex"><XpPill /></div>
+
+        {/* Global Omnibox Palette Trigger */}
+        <button
+          onClick={() => window.dispatchEvent(new CustomEvent('orbitron:open-palette'))}
+          title="Paleta de Comandos Global (Ctrl + K)"
+          className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-900/70 hover:bg-slate-800/90 border border-slate-800/80 hover:border-slate-700/80 text-[11px] font-medium text-slate-400 hover:text-slate-200 transition-all shadow-sm group"
+        >
+          <Search className="w-3.5 h-3.5 text-slate-400 group-hover:text-cyan-400 transition-colors" />
+          <span className="text-slate-300">Buscar</span>
+          <kbd className="ml-0.5 text-[9px] px-1.5 py-0.2 bg-slate-800/90 border border-slate-700 text-slate-400 rounded font-mono font-bold">
+            Ctrl K
+          </kbd>
+        </button>
 
         {/* Privacy Mode (Olho Mágico) Toggle */}
         <button

@@ -10,6 +10,8 @@ import {
   Flame,
   Check,
   Plus,
+  Minus,
+  Bell,
   Sparkles,
   Calendar,
   Grid,
@@ -434,6 +436,13 @@ export const HabitsView: React.FC = () => {
                       ? Boolean(historyItem.completed)
                       : (isSelectedToday ? Boolean(habit.completedToday) : false);
 
+                    const targetVal = Number(habit.target_value) || 1;
+                    const currentVal = historyItem !== undefined
+                      ? Number(historyItem.value ?? (done ? targetVal : 0))
+                      : (isSelectedToday ? Number(habit.todayValue ?? (done ? targetVal : 0)) : (done ? targetVal : 0));
+                    const progressPct = Math.min(100, Math.round((currentVal / targetVal) * 100));
+                    const step = Math.max(1, Math.round(targetVal / 4));
+
                     return (
                       <div
                         key={habit.id}
@@ -472,7 +481,7 @@ export const HabitsView: React.FC = () => {
                           </button>
 
                           <div className="min-w-0 flex-1">
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 flex-wrap">
                               <span
                                 className={`text-sm font-bold truncate transition ${
                                   done ? 'text-white' : 'text-slate-200'
@@ -489,6 +498,17 @@ export const HabitsView: React.FC = () => {
                                   {habit.currentStreak}d
                                 </span>
                               )}
+                              {(habit as any).target_time && (
+                                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-cyan-300 bg-cyan-950/60 px-1.5 py-0.5 rounded-md border border-cyan-800/60 shrink-0">
+                                  <Bell className="w-2.5 h-2.5" />
+                                  {(habit as any).target_time}
+                                </span>
+                              )}
+                              {habit.frequency_type === 'times_per_week' && (
+                                <span className="text-[10px] font-bold text-amber-300 bg-amber-950/60 px-1.5 py-0.5 rounded-md border border-amber-800/60 shrink-0">
+                                  {(habit as any).frequency_times || 3}x/sem
+                                </span>
+                              )}
                             </div>
 
                             <div className="flex items-center gap-2 text-[11px] text-slate-400 mt-1">
@@ -498,7 +518,7 @@ export const HabitsView: React.FC = () => {
                               {habit.type === 'measurable' && (
                                 <>
                                   <span>•</span>
-                                  <span className="text-cyan-400 font-semibold">
+                                  <span className="text-cyan-400 font-semibold font-mono">
                                     Meta: {habit.target_value} {habit.target_unit}
                                   </span>
                                 </>
@@ -506,6 +526,61 @@ export const HabitsView: React.FC = () => {
                               <span>•</span>
                               <span>Força: {habit.strength}%</span>
                             </div>
+
+                            {/* Barra de Progresso e Ações para Metas Quantitativas */}
+                            {habit.type === 'measurable' && (
+                              <div className="mt-2.5 space-y-1.5" onClick={(e) => e.stopPropagation()}>
+                                <div className="flex items-center justify-between text-[11px]">
+                                  <span className="text-slate-400">
+                                    Progresso: <strong className="text-white font-mono">{currentVal}</strong> / {targetVal} {habit.target_unit || ''}
+                                  </span>
+                                  <span className="font-bold text-cyan-400 font-mono">{progressPct}%</span>
+                                </div>
+                                <div className="w-full bg-slate-950/80 h-2 rounded-full overflow-hidden border border-white/5">
+                                  <div
+                                    className="h-full rounded-full transition-all duration-300"
+                                    style={{
+                                      width: `${progressPct}%`,
+                                      backgroundColor: habitColor,
+                                      boxShadow: progressPct > 0 ? `0 0 10px ${habitColor}66` : undefined,
+                                    }}
+                                  />
+                                </div>
+                                <div className="flex items-center gap-1.5 pt-1">
+                                  <button
+                                    type="button"
+                                    onClick={() => toggleDay(habit.id, selectedDate, Math.max(0, currentVal - step))}
+                                    className="px-2 py-0.5 rounded-md bg-slate-800 hover:bg-slate-700 text-[10px] font-bold text-slate-300 flex items-center gap-0.5 transition"
+                                    title={`Diminuir ${step} ${habit.target_unit || ''}`}
+                                  >
+                                    <Minus className="w-2.5 h-2.5" />
+                                    <span>{step}</span>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => toggleDay(habit.id, selectedDate, currentVal + step)}
+                                    className="px-2 py-0.5 rounded-md bg-cyan-500/20 hover:bg-cyan-500/30 text-[10px] font-bold text-cyan-300 flex items-center gap-0.5 transition border border-cyan-500/30"
+                                    title={`Adicionar ${step} ${habit.target_unit || ''}`}
+                                  >
+                                    <Plus className="w-2.5 h-2.5" />
+                                    <span>{step}</span>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const custom = prompt(`Informe a quantidade em ${habit.target_unit || 'unidades'}:`, String(currentVal));
+                                      if (custom !== null) {
+                                        const num = parseFloat(custom.replace(',', '.'));
+                                        if (!isNaN(num)) toggleDay(habit.id, selectedDate, Math.max(0, num));
+                                      }
+                                    }}
+                                    className="text-[10px] text-slate-400 hover:text-white px-1.5 py-0.5 hover:underline"
+                                  >
+                                    Digitar valor...
+                                  </button>
+                                </div>
+                              </div>
+                            )}
                           </div>
                         </div>
 

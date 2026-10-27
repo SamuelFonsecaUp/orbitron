@@ -3,12 +3,14 @@ import { CanvasNode, CanvasSide } from '../../io/jsonCanvas.types';
 import { getCanvasColor } from '../colors';
 import { Point, Rect } from '../../scene/types';
 import { NodeHotspots } from './NodeHotspots';
+import { CanvasTheme } from '../../store/canvasStore.types';
 
 interface TextNodeProps {
   node: CanvasNode;
   effectiveRect: Rect;
   effectiveRotation: number;
   isSelected: boolean;
+  theme?: CanvasTheme;
   isTargetCandidate?: boolean;
   targetSide?: CanvasSide;
   isConnecting?: boolean;
@@ -22,6 +24,7 @@ export const TextNode: React.FC<TextNodeProps> = ({
   effectiveRect,
   effectiveRotation,
   isSelected,
+  theme = 'dark',
   isTargetCandidate,
   targetSide,
   isConnecting,
@@ -30,7 +33,7 @@ export const TextNode: React.FC<TextNodeProps> = ({
   onAnchorPointerDown,
 }) => {
   const [isHovered, setIsHovered] = useState(false);
-  const color = getCanvasColor(node.color);
+  const color = getCanvasColor(node.color, theme);
   const { x, y, width: w, height: h } = effectiveRect;
   const cx = x + w / 2;
   const cy = y + h / 2;

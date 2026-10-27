@@ -205,6 +205,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
   vaultExportVaultZip: () => ipcRenderer.invoke('vault:exportVaultZip'),
   vaultExportPDF: (title, htmlBody) => ipcRenderer.invoke('vault:exportPDF', title, htmlBody),
 
+  // Quick actions from tray or global triggers
+  onQuickAction: (callback) => {
+    const handler = (event, action) => callback(action);
+    ipcRenderer.on('orbitron:quick-action', handler);
+    return () => ipcRenderer.removeListener('orbitron:quick-action', handler);
+  },
+
   // Canvas Module API (Infinite Whiteboard in Vault)
   canvas: {
     list: (dir) => ipcRenderer.invoke('canvas:list', dir),

@@ -1,4 +1,5 @@
 import { Camera, Point, Viewport, Rect } from './types';
+import { getNodeAABB } from './geometry';
 
 export const MIN_ZOOM = 0.1;
 export const MAX_ZOOM = 4.0;
@@ -75,4 +76,33 @@ export function getWorldViewportBounds(camera: Camera, viewport: Viewport): Rect
     width: bottomRight.x - topLeft.x,
     height: bottomRight.y - topLeft.y,
   };
+}
+
+export function calculateFitCamera(
+  nodes: { x: number; y: number; width: number; height: number; orbitron?: { rotation?: number } }[],
+  viewportWidth: number,
+  viewportHeight: number,
+  padding = 80
+): Camera {
+  if (!nodes || nodes.length === 0) {
+    return { x: 0, y: 0, zoom: 1 };
+  }
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  for (const n of nodes) {
+    const box = getNodeAABB(n);
+    minX = Math.min(minX, box.x);
+    minY = Math.min(minY, box.y);
+    maxX = Math.max(maxX, box.x + box.width);
+    maxY = Math.max(maxY, box.y + box.height);
+  }
+  const sceneW = Math.max(10, maxX - minX + padding * 2);
+  const sceneH = Math.max(10, maxY - minY + padding * 2);
+  const scaleX = (viewportWidth || 1000) / sceneW;
+  const scaleY = (viewportHeight || 800) / sceneH;
+  const fitZoom = Math.max(0.1, Math.min(2.0, Math.min(scaleX, scaleY)));
+  const centerX = (minX + maxX) / 2;
+  const centerY = (minY + maxY) / 2;
+  const newCamX = (viewportWidth || 1000) / 2 - centerX * fitZoom;
+  const newCamY = (viewportHeight || 800) / 2 - centerY * fitZoom;
+  return { x: newCamX, y: newCamY, zoom: fitZoom };
 }

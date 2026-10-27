@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Menu, ipcMain, dialog, shell, safeStorage } = require('electron');
+const { app, BrowserWindow, Menu, ipcMain, dialog, shell, safeStorage, Tray, nativeImage } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { initDatabase, closeDatabase } = require('./database.cjs');
@@ -11,6 +11,8 @@ const UPDATE_CHECK_INTERVAL_MS = 4 * 60 * 60 * 1000;
 
 let mainWindow = null;
 let service = null;
+let appTray = null;
+let isQuitting = false;
 const QUIT_SYNC_TIMEOUT_MS = 8000;
 let quitSyncDone = false;
 
@@ -43,6 +45,118 @@ function handleIpc(channel, handler) {
   });
 }
 
+
+// Agendador de Notificações Nativas do Windows para Lembretes de Hábitos
+let habitNotificationTimer = null;
+function startHabitNotificationScheduler(serviceInstance) {
+  if (habitNotificationTimer) clearInterval(habitNotificationTimer);
+  const { Notification } = require('electron');
+  const remindedSet = new Set(); // habitId_YYYY-MM-DD_HH:MM
+
+  habitNotificationTimer = setInterval(() => {
+    try {
+      if (!Notification.isSupported()) return;
+      const now = new Date();
+      const currentHHMM = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+      const todayStr = now.toISOString().slice(0, 10);
+
+      const habits = serviceInstance.habits.getHabits(false);
+      for (const h of habits) {
+        if (!h.target_time || h.target_time !== currentHHMM) continue;
+        if (h.completedToday) continue;
+
+        const notifKey = `${h.id}_${todayStr}_${currentHHMM}`;
+        if (remindedSet.has(notifKey)) continue;
+        remindedSet.add(notifKey);
+
+        const notif = new Notification({
+          title: '🪐 Orbitron: Lembrete de Hábito',
+          body: `Hora de cumprir: ${h.name}${h.type === 'measurable' ? ` (${h.target_value} ${h.target_unit || ''})` : ''}! Mantenha sua constância estelar.`,
+          silent: false,
+        });
+        notif.show();
+      }
+    } catch (_) {}
+  }, 60000);
+}
+
+function setupSystemTray(iconPath) {
+  if (appTray) return;
+  try {
+    let trayImage = null;
+    if (fs.existsSync(iconPath)) {
+      trayImage = nativeImage.createFromPath(iconPath).resize({ width: 16, height: 16 });
+    }
+    appTray = new Tray(trayImage || iconPath);
+    appTray.setToolTip('Orbitron - Sistema Operacional Pessoal');
+
+    const contextMenu = Menu.buildFromTemplate([
+      {
+        label: '🪐 Abrir Orbitron',
+        click: () => {
+          if (mainWindow) {
+            if (mainWindow.isMinimized()) mainWindow.restore();
+            mainWindow.show();
+            mainWindow.focus();
+          }
+        },
+      },
+      {
+        label: '➕ Novo Lançamento',
+        click: () => {
+          if (mainWindow) {
+            if (mainWindow.isMinimized()) mainWindow.restore();
+            mainWindow.show();
+            mainWindow.focus();
+            mainWindow.webContents.send('orbitron:quick-action', 'new-transaction');
+          }
+        },
+      },
+      {
+        label: '📝 Nova Nota',
+        click: () => {
+          if (mainWindow) {
+            if (mainWindow.isMinimized()) mainWindow.restore();
+            mainWindow.show();
+            mainWindow.focus();
+            mainWindow.webContents.send('orbitron:quick-action', 'new-note');
+          }
+        },
+      },
+      {
+        label: '🔍 Buscar (Ctrl+K)',
+        click: () => {
+          if (mainWindow) {
+            if (mainWindow.isMinimized()) mainWindow.restore();
+            mainWindow.show();
+            mainWindow.focus();
+            mainWindow.webContents.send('orbitron:quick-action', 'open-palette');
+          }
+        },
+      },
+      { type: 'separator' },
+      {
+        label: 'Encerrar Orbitron',
+        click: () => {
+          isQuitting = true;
+          app.quit();
+        },
+      },
+    ]);
+
+    appTray.setContextMenu(contextMenu);
+    appTray.on('double-click', () => {
+      if (mainWindow) {
+        if (mainWindow.isMinimized()) mainWindow.restore();
+        mainWindow.show();
+        mainWindow.focus();
+      }
+    });
+  } catch (trayErr) {
+    console.warn('[OrbitronTray] Não foi possível inicializar bandeja do sistema:', trayErr);
+  }
+}
+
 function createWindow() {
   const iconPath = fs.existsSync(path.join(__dirname, '../public/assets/pigo-icon.png'))
     ? path.join(__dirname, '../public/assets/pigo-icon.png')
@@ -56,7 +170,7 @@ function createWindow() {
     frame: false,
     autoHideMenuBar: true,
     backgroundColor: '#0c0c0e',
-    title: 'Pigo - Finanças Pessoais',
+    title: 'Orbitron - Sistema Operacional Pessoal',
     icon: fs.existsSync(iconPath) ? iconPath : undefined,
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
@@ -73,6 +187,16 @@ function createWindow() {
   mainWindow.once('ready-to-show', () => {
     mainWindow.show();
   });
+
+  mainWindow.on('close', (event) => {
+    if (!isQuitting) {
+      event.preventDefault();
+      mainWindow.hide();
+      return false;
+    }
+  });
+
+  setupSystemTray(iconPath);
 
   // Fallback para garantir visibilidade da janela caso ready-to-show atrase
   setTimeout(() => {
@@ -138,6 +262,7 @@ app.whenReady().then(() => {
   try {
     initDatabase();
     service = getFinancialService();
+    startHabitNotificationScheduler(service);
   } catch (err) {
     logError(err, 'Database Initialization - Attempt 1');
     try {
@@ -421,30 +546,36 @@ app.whenReady().then(() => {
     return service.cloudFullPull();
   });
 
-  // Backup & Restore Dialogs (Orbit 100% Local-First)
+  // Backup & Restore Dialogs (Orbitron 100% Local-First Universal Package)
   handleIpc('backup:export', async () => {
     const today = new Date().toISOString().slice(0, 10);
     const { canceled, filePath } = await dialog.showSaveDialog(mainWindow, {
-      title: 'Exportar Backup Final - Orbit (100% Local-First)',
-      defaultPath: `orbit_backup_${today}.orbit`,
+      title: 'Exportar Pacote Universal Orbitron (100% Local-First)',
+      defaultPath: `orbitron_universo_${today}.orbitron`,
       filters: [
-        { name: 'Arquivo Orbit (*.orbit, *.json)', extensions: ['orbit', 'json'] },
+        { name: 'Pacote Universal Orbitron (*.orbitron)', extensions: ['orbitron'] },
+        { name: 'Arquivo Orbit Legado (*.orbit, *.json)', extensions: ['orbit', 'json'] },
         { name: 'Todos os Arquivos (*.*)', extensions: ['*'] },
       ],
     });
 
     if (canceled || !filePath) return { success: false, canceled: true };
 
-    const backupJson = service.exportOrbitBackup();
-    fs.writeFileSync(filePath, backupJson, 'utf8');
+    if (filePath.endsWith('.orbitron')) {
+      const buffer = service.exportOrbitronUniversalPackage();
+      fs.writeFileSync(filePath, buffer);
+    } else {
+      const backupJson = service.exportOrbitBackup();
+      fs.writeFileSync(filePath, backupJson, 'utf8');
+    }
     return { success: true, filePath };
   });
 
   handleIpc('backup:restore', async () => {
     const { canceled, filePaths } = await dialog.showOpenDialog(mainWindow, {
-      title: 'Restaurar Backup Final - Orbit (100% Local-First)',
+      title: 'Restaurar Pacote Orbitron (100% Local-First)',
       filters: [
-        { name: 'Arquivo Orbit (*.orbit, *.json)', extensions: ['orbit', 'json'] },
+        { name: 'Pacote Universal Orbitron (*.orbitron, *.orbit, *.json)', extensions: ['orbitron', 'orbit', 'json'] },
         { name: 'Todos os Arquivos (*.*)', extensions: ['*'] },
       ],
       properties: ['openFile'],
@@ -452,9 +583,9 @@ app.whenReady().then(() => {
 
     if (canceled || filePaths.length === 0) return { success: false, canceled: true };
 
-    const content = fs.readFileSync(filePaths[0], 'utf8');
+    const rawBuffer = fs.readFileSync(filePaths[0]);
     await service.createLocalBackup('pre-restore');
-    service.restoreOrbitBackup(content);
+    service.restoreOrbitBackup(rawBuffer);
     return { success: true };
   });
 
@@ -636,6 +767,7 @@ app.whenReady().then(() => {
 
 // Push pending local changes before quitting so the next computer sees them
 app.on('before-quit', (event) => {
+  isQuitting = true;
   if (quitSyncDone || !service) return;
   quitSyncDone = true;
   try {
@@ -654,5 +786,5 @@ app.on('before-quit', (event) => {
 });
 
 app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') app.quit();
+  if (process.platform !== 'darwin' && isQuitting) app.quit();
 });

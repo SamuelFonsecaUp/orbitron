@@ -1,7 +1,7 @@
 import React from 'react';
 import { Plus, Minus, Maximize2 } from 'lucide-react';
 import { useCanvasStore, canvasStore } from '../store/canvasStore';
-import { getNodeAABB } from '../scene/geometry';
+import { calculateFitCamera } from '../scene/camera';
 
 interface ZoomControlsProps {
   viewportWidth: number;
@@ -30,35 +30,8 @@ export const ZoomControls: React.FC<ZoomControlsProps> = ({
   };
 
   const handleFit = () => {
-    if (nodes.length === 0) {
-      canvasStore.setCamera({ x: 0, y: 0, zoom: 1 });
-      return;
-    }
-
-    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-    for (const n of nodes) {
-      const box = getNodeAABB(n);
-      minX = Math.min(minX, box.x);
-      minY = Math.min(minY, box.y);
-      maxX = Math.max(maxX, box.x + box.width);
-      maxY = Math.max(maxY, box.y + box.height);
-    }
-
-    const padding = 80;
-    const sceneW = maxX - minX + padding * 2;
-    const sceneH = maxY - minY + padding * 2;
-
-    const scaleX = viewportWidth / sceneW;
-    const scaleY = viewportHeight / sceneH;
-    const fitZoom = Math.max(0.1, Math.min(2.0, Math.min(scaleX, scaleY)));
-
-    const centerX = (minX + maxX) / 2;
-    const centerY = (minY + maxY) / 2;
-
-    const newCamX = viewportWidth / 2 - centerX * fitZoom;
-    const newCamY = viewportHeight / 2 - centerY * fitZoom;
-
-    canvasStore.setCamera({ x: newCamX, y: newCamY, zoom: fitZoom });
+    const nextCam = calculateFitCamera(nodes, viewportWidth, viewportHeight);
+    canvasStore.setCamera(nextCam);
   };
 
   return (
