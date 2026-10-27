@@ -87,6 +87,43 @@ describe('Time Tracker Store (Drift-Free Delta & Idle Time)', () => {
 
     vi.restoreAllMocks();
   });
+
+  it('manages dynamic categories with add and delete', () => {
+    const initialCategories = timeTrackerStore.getCategories();
+    expect(initialCategories.length).toBeGreaterThanOrEqual(4);
+    expect(initialCategories.some((c) => c.name === 'Desenvolvimento')).toBe(true);
+
+    // Add new category
+    const added = timeTrackerStore.addCategory('Design UI/UX', '#ec4899');
+    expect(added.name).toBe('Design UI/UX');
+    expect(added.color).toBe('#ec4899');
+    expect(timeTrackerStore.getCategories().some((c) => c.id === added.id)).toBe(true);
+
+    // Delete category
+    const deleted = timeTrackerStore.deleteCategory(added.id);
+    expect(deleted).toBe(true);
+    expect(timeTrackerStore.getCategories().some((c) => c.id === added.id)).toBe(false);
+  });
+
+  it('produces reactive snapshots for useSyncExternalStore on ticks', () => {
+    let mockTime = 5000000;
+    vi.spyOn(Date, 'now').mockImplementation(() => mockTime);
+
+    timeTrackerStore.startTracking('Teste Reatividade');
+    const snap1 = timeTrackerStore.getSnapshot();
+    expect(snap1.isRunning).toBe(true);
+    expect(snap1.elapsedSeconds).toBe(0);
+
+    // Advance 5 seconds and trigger tick
+    mockTime += 5000;
+    (timeTrackerStore as any).tick();
+    const snap2 = timeTrackerStore.getSnapshot();
+    expect(snap2.elapsedSeconds).toBe(5);
+    expect(snap2.formattedTime).toBe('00:05');
+    expect(snap2.version).toBeGreaterThan(snap1.version);
+
+    vi.restoreAllMocks();
+  });
 });
 
 describe('ToolsEngine SQLite Time Tracker Backend', () => {

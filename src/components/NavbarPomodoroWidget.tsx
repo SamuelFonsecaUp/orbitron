@@ -1,5 +1,15 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Play, Pause, RotateCcw, SkipForward, Timer, Sparkles, ExternalLink } from 'lucide-react';
+import {
+  Play,
+  Pause,
+  RotateCcw,
+  SkipForward,
+  Timer,
+  Flame,
+  Coffee,
+  Sparkles,
+  ExternalLink,
+} from 'lucide-react';
 import { pomodoroStore, usePomodoroStore, formatPomodoroTime } from '../modules/pomodoro/pomodoroStore';
 import { useFinancial } from '../context/FinancialContext';
 
@@ -39,24 +49,25 @@ export const NavbarPomodoroWidget: React.FC = () => {
       bg: 'bg-rose-500/10 hover:bg-rose-500/20',
       border: 'border-rose-500/30',
       label: 'Foco',
-      icon: '🍅',
+      Icon: Flame,
     },
     shortBreak: {
       color: 'text-emerald-400',
       bg: 'bg-emerald-500/10 hover:bg-emerald-500/20',
       border: 'border-emerald-500/30',
       label: 'Pausa Curta',
-      icon: '☕',
+      Icon: Coffee,
     },
     longBreak: {
       color: 'text-cyan-400',
       bg: 'bg-cyan-500/10 hover:bg-cyan-500/20',
       border: 'border-cyan-500/30',
       label: 'Pausa Longa',
-      icon: '🌴',
+      Icon: Sparkles,
     },
   }[mode];
 
+  const ModeIcon = modeTheme.Icon;
   const progressPercent = Math.max(0, Math.min(100, (1 - timeLeft / Math.max(1, duration)) * 100));
 
   return (
@@ -69,7 +80,7 @@ export const NavbarPomodoroWidget: React.FC = () => {
           isRunning ? 'ring-1 ring-offset-1 ring-offset-slate-950' : ''
         }`}
       >
-        <span className="text-xs leading-none">{modeTheme.icon}</span>
+        <ModeIcon className="w-3.5 h-3.5 shrink-0" />
 
         {/* Time Remaining */}
         <span className={`font-mono text-[11px] font-bold tracking-tight ${isRunning ? 'animate-pulse' : ''}`}>
@@ -99,7 +110,7 @@ export const NavbarPomodoroWidget: React.FC = () => {
               <span>Relógio Pomodoro</span>
             </div>
             <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-rose-500/15 text-rose-300 border border-rose-500/30">
-              🍅 {sessionsCompletedToday} hoje
+              {sessionsCompletedToday} sessões
             </span>
           </div>
 
@@ -126,24 +137,22 @@ export const NavbarPomodoroWidget: React.FC = () => {
 
           {/* Mode Selector Buttons */}
           <div className="grid grid-cols-3 gap-1 bg-slate-900/80 p-1 rounded-xl border border-white/5">
-            {(
-              [
-                ['focus', 'Foco', '🍅'],
-                ['shortBreak', 'Pausa', '☕'],
-                ['longBreak', 'Longa', '🌴'],
-              ] as const
-            ).map(([m, lbl, icn]) => (
+            {[
+              { id: 'focus' as const, label: 'Foco', Icon: Flame },
+              { id: 'shortBreak' as const, label: 'Pausa', Icon: Coffee },
+              { id: 'longBreak' as const, label: 'Longa', Icon: Sparkles },
+            ].map(({ id, label, Icon: TabIcon }) => (
               <button
-                key={m}
-                onClick={() => pomodoroStore.setMode(m)}
+                key={id}
+                onClick={() => pomodoroStore.setMode(id)}
                 className={`py-1 px-1 rounded-lg text-[10px] font-bold transition flex items-center justify-center gap-1 ${
-                  mode === m
+                  mode === id
                     ? 'bg-white/15 text-white shadow-sm'
                     : 'text-slate-400 hover:text-white'
                 }`}
               >
-                <span>{icn}</span>
-                <span>{lbl}</span>
+                <TabIcon className="w-3 h-3" />
+                <span>{label}</span>
               </button>
             ))}
           </div>

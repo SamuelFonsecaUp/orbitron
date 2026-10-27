@@ -775,6 +775,9 @@ export interface ElectronAPI {
   maximizeWindow: () => Promise<boolean>;
   closeWindow: () => Promise<void>;
   isMaximized: () => Promise<boolean>;
+  setAlwaysOnTop?: (flag: boolean) => Promise<boolean>;
+  isAlwaysOnTop?: () => Promise<boolean>;
+  toggleAlwaysOnTop?: () => Promise<boolean>;
 
   getSettings: () => Promise<Settings>;
   updateSettings: (data: Partial<Settings>) => Promise<Settings>;

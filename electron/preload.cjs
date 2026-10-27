@@ -7,6 +7,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   maximizeWindow: () => ipcRenderer.invoke('window:maximize'),
   closeWindow: () => ipcRenderer.invoke('window:close'),
   isMaximized: () => ipcRenderer.invoke('window:isMaximized'),
+  setAlwaysOnTop: (flag) => ipcRenderer.invoke('window:setAlwaysOnTop', flag),
+  isAlwaysOnTop: () => ipcRenderer.invoke('window:isAlwaysOnTop'),
+  toggleAlwaysOnTop: () => ipcRenderer.invoke('window:toggleAlwaysOnTop'),
 
   // Settings & Security
   getSettings: () => ipcRenderer.invoke('settings:get'),

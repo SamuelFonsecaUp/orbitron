@@ -6,22 +6,23 @@ import {
   Square,
   X,
   ChevronDown,
-  Plus,
   ExternalLink,
   Tag,
   CheckCircle2,
+  Pin,
 } from 'lucide-react';
 import { useTimeTracker } from '../modules/timeTracker/timeTrackerStore';
 import { useKanban } from '../modules/kanban/kanbanStore';
 import { useFinancial } from '../context/FinancialContext';
+import { useAlwaysOnTop } from '../hooks/useAlwaysOnTop';
 
 export const NavbarTimeTrackerWidget: React.FC = () => {
   const {
     isRunning,
     activeTaskTitle,
-    activeTaskId,
     category,
     formattedTime,
+    categories,
     startTracking,
     pauseTracking,
     resumeTracking,
@@ -31,6 +32,7 @@ export const NavbarTimeTrackerWidget: React.FC = () => {
 
   const { tasks } = useKanban();
   const { setCurrentView, setActiveModule, showToast } = useFinancial();
+  const { isAlwaysOnTop, toggleAlwaysOnTop } = useAlwaysOnTop();
 
   const [isOpen, setIsOpen] = useState(false);
   const [inputTitle, setInputTitle] = useState('');
@@ -170,27 +172,50 @@ export const NavbarTimeTrackerWidget: React.FC = () => {
 
       {/* Quick Launch & Controller Dropdown */}
       {isOpen && (
-        <div className="absolute right-0 top-full mt-2 w-80 bg-slate-900 border border-white/10 rounded-2xl shadow-2xl p-4 z-50 animate-scale-in">
+        <div className="absolute right-0 top-full mt-2 w-84 bg-slate-900 border border-white/10 rounded-2xl shadow-2xl p-4 z-50 animate-scale-in">
           <div className="flex items-center justify-between pb-3 border-b border-white/[0.08]">
             <div className="flex items-center gap-2">
               <Clock className="w-4 h-4 text-cyan-400" />
               <span className="text-xs font-bold text-white">Rastreador de Tempo</span>
             </div>
-            <button
-              type="button"
-              onClick={openTimeTrackerTab}
-              className="text-[11px] font-semibold text-cyan-400 hover:text-cyan-300 flex items-center gap-1 transition"
-            >
-              <span>Ver Histórico</span>
-              <ExternalLink className="w-3 h-3" />
-            </button>
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={toggleAlwaysOnTop}
+                className={`p-1 rounded-lg border text-xs transition flex items-center gap-1 ${
+                  isAlwaysOnTop
+                    ? 'bg-amber-500/20 border-amber-500/40 text-amber-300 shadow-sm'
+                    : 'hover:bg-white/5 border-transparent text-slate-400 hover:text-white'
+                }`}
+                title={
+                  isAlwaysOnTop
+                    ? 'Janela fixada no topo. Clique para desafixar.'
+                    : 'Fixar janela sempre à frente (Always on Top)'
+                }
+              >
+                <Pin className={`w-3.5 h-3.5 ${isAlwaysOnTop ? 'rotate-45 fill-current text-amber-400' : ''}`} />
+              </button>
+              <button
+                type="button"
+                onClick={openTimeTrackerTab}
+                className="text-[11px] font-semibold text-cyan-400 hover:text-cyan-300 flex items-center gap-1 transition ml-1"
+              >
+                <span>Histórico</span>
+                <ExternalLink className="w-3 h-3" />
+              </button>
+            </div>
           </div>
 
           {/* If currently running / paused */}
           {activeTaskTitle ? (
             <div className="py-3 border-b border-white/[0.08]">
-              <div className="text-[11px] text-slate-400 font-medium">Tarefa Ativa</div>
-              <div className="text-sm font-bold text-white truncate mt-0.5">{activeTaskTitle}</div>
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] text-slate-400 font-medium">Tarefa Ativa</span>
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-cyan-500/10 text-cyan-300 border border-cyan-500/20 font-bold">
+                  {category}
+                </span>
+              </div>
+              <div className="text-sm font-bold text-white truncate mt-1">{activeTaskTitle}</div>
               <div className="font-mono text-2xl font-black text-cyan-400 my-2">
                 {formattedTime}
               </div>
@@ -237,14 +262,14 @@ export const NavbarTimeTrackerWidget: React.FC = () => {
             </div>
           ) : (
             // Quick start form
-            <form onSubmit={handleStartCustom} className="py-3 border-b border-white/[0.08]">
-              <div className="text-[11px] text-slate-400 font-medium mb-1.5">
+            <form onSubmit={handleStartCustom} className="py-3 border-b border-white/[0.08] space-y-2">
+              <div className="text-[11px] text-slate-400 font-medium">
                 No que você vai focar agora?
               </div>
               <div className="flex gap-1.5">
                 <input
                   type="text"
-                  placeholder="Ex: Refatorar API, Escrever Notas..."
+                  placeholder="Ex: Refatorar API, Relatório..."
                   value={inputTitle}
                   onChange={(e) => setInputTitle(e.target.value)}
                   className="flex-1 bg-slate-950 border border-white/10 rounded-xl px-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 transition"
@@ -257,6 +282,23 @@ export const NavbarTimeTrackerWidget: React.FC = () => {
                   <Play className="w-3.5 h-3.5 fill-current" />
                   <span>Iniciar</span>
                 </button>
+              </div>
+
+              {/* Category picker */}
+              <div className="flex items-center gap-2 pt-1">
+                <Tag className="w-3 h-3 text-slate-500 shrink-0" />
+                <span className="text-[11px] text-slate-400">Categoria:</span>
+                <select
+                  value={selectedCategory}
+                  onChange={(e) => setSelectedCategory(e.target.value)}
+                  className="bg-slate-950 border border-white/10 text-slate-300 text-[11px] rounded-lg px-2 py-0.5 outline-none focus:border-cyan-500 transition flex-1"
+                >
+                  {categories.map((c) => (
+                    <option key={c.id} value={c.name}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
               </div>
             </form>
           )}

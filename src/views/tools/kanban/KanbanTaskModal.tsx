@@ -8,6 +8,7 @@ import {
   CheckSquare,
   ListTodo,
   Check,
+  Timer,
 } from 'lucide-react';
 import {
   KanbanTask,
@@ -236,8 +237,9 @@ export const KanbanTaskModal: React.FC<KanbanTaskModalProps> = ({
             </div>
 
             <div>
-              <label className="text-slate-300 font-semibold block mb-1 flex items-center gap-1">
-                <span>🍅 Estimativa de Pomodoros</span>
+              <label className="text-slate-300 font-semibold block mb-1 flex items-center gap-1.5">
+                <Timer className="w-3.5 h-3.5 text-rose-400" />
+                <span>Estimativa de Pomodoros (Foco)</span>
               </label>
               <input
                 type="number"

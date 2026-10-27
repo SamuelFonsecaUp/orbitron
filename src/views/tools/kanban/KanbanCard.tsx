@@ -286,7 +286,7 @@ export const KanbanCard: React.FC<KanbanCardProps> = ({ task, columns, onEdit })
             className="flex items-center gap-1 font-mono font-bold text-rose-300 bg-rose-500/10 px-1.5 py-0.5 rounded-md border border-rose-500/20"
             title={`Pomodoros: ${task.pomodorosCompleted} concluídos de ${task.pomodorosEstimated || 0} estimados`}
           >
-            <span>🍅</span>
+            <Timer className="w-3 h-3 text-rose-400" />
             <span>
               {task.pomodorosCompleted}/{task.pomodorosEstimated || '?'}
             </span>

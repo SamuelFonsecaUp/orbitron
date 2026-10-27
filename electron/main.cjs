@@ -367,6 +367,20 @@ app.whenReady().then(() => {
   });
   handleIpc('window:close', () => mainWindow?.close());
   handleIpc('window:isMaximized', () => mainWindow?.isMaximized());
+  handleIpc('window:setAlwaysOnTop', (flag) => {
+    if (!mainWindow) return false;
+    mainWindow.setAlwaysOnTop(Boolean(flag), 'floating');
+    return mainWindow.isAlwaysOnTop();
+  });
+  handleIpc('window:isAlwaysOnTop', () => {
+    return mainWindow ? mainWindow.isAlwaysOnTop() : false;
+  });
+  handleIpc('window:toggleAlwaysOnTop', () => {
+    if (!mainWindow) return false;
+    const nextState = !mainWindow.isAlwaysOnTop();
+    mainWindow.setAlwaysOnTop(nextState, 'floating');
+    return nextState;
+  });
 
   // Settings & Security
   handleIpc('settings:get', () => service.getSettings());

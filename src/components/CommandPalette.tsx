@@ -27,9 +27,13 @@ import {
   Columns,
   Timer,
   Clock,
+  Pin,
 } from 'lucide-react';
 import { useFinancial, AppView, AppModule } from '../context/FinancialContext';
 import { formatCurrency } from '../utils/formatters';
+import { pomodoroStore } from '../modules/pomodoro/pomodoroStore';
+import { timeTrackerStore } from '../modules/timeTracker/timeTrackerStore';
+import { useAlwaysOnTop } from '../hooks/useAlwaysOnTop';
 
 interface PaletteItem {
   id: string;
@@ -55,6 +59,8 @@ export const CommandPalette: React.FC = () => {
     togglePrivacyMode,
     isLocked,
   } = useFinancial();
+
+  const { isAlwaysOnTop, toggleAlwaysOnTop } = useAlwaysOnTop();
 
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -267,6 +273,59 @@ export const CommandPalette: React.FC = () => {
       badgeColor: 'bg-cyan-500/15 text-cyan-400 border-cyan-500/30',
       perform: () => {
         navigateTo('tools_timetracker', 'tools');
+      },
+    });
+
+    list.push({
+      id: 'action-toggle-always-on-top',
+      category: 'Ações Rápidas',
+      title: isAlwaysOnTop ? 'Desafixar Janela do Topo' : 'Fixar Janela no Topo (Always on Top)',
+      subtitle: isAlwaysOnTop
+        ? 'A janela volta a se comportar normalmente'
+        : 'Manter a janela sempre à frente de outros programas (Pomodoro/Rastreador)',
+      icon: <Pin className={`w-4 h-4 ${isAlwaysOnTop ? 'text-amber-400 rotate-45' : 'text-slate-400'}`} />,
+      badge: 'Janela',
+      badgeColor: isAlwaysOnTop
+        ? 'bg-amber-500/15 text-amber-400 border-amber-500/30'
+        : 'bg-slate-500/15 text-slate-300 border-slate-500/30',
+      perform: async () => {
+        await toggleAlwaysOnTop();
+        setIsOpen(false);
+      },
+    });
+
+    list.push({
+      id: 'action-toggle-pomodoro',
+      category: 'Ações Rápidas',
+      title: 'Pomodoro: Iniciar / Pausar Foco',
+      subtitle: 'Alternar o cronômetro de foco Pomodoro sem mudar de tela',
+      icon: <Timer className="w-4 h-4 text-rose-400" />,
+      badge: 'Pomodoro',
+      badgeColor: 'bg-rose-500/15 text-rose-400 border-rose-500/30',
+      perform: () => {
+        pomodoroStore.toggle();
+        setIsOpen(false);
+      },
+    });
+
+    list.push({
+      id: 'action-toggle-timetracker',
+      category: 'Ações Rápidas',
+      title: 'Rastreador: Pausar / Retomar Tarefa Ativa',
+      subtitle: 'Pausar ou despausar a contagem de tempo atual',
+      icon: <Clock className="w-4 h-4 text-cyan-400" />,
+      badge: 'Tempo',
+      badgeColor: 'bg-cyan-500/15 text-cyan-400 border-cyan-500/30',
+      perform: () => {
+        const state = timeTrackerStore.getState();
+        if (state.isRunning) {
+          timeTrackerStore.pauseTracking();
+        } else if (state.activeTaskTitle) {
+          timeTrackerStore.resumeTracking();
+        } else {
+          navigateTo('tools_timetracker', 'tools');
+        }
+        setIsOpen(false);
       },
     });
 

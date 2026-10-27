@@ -19,7 +19,6 @@ import {
 import { useFinancial, AppModule } from '../context/FinancialContext';
 import { useHabits } from '../context/HabitsContext';
 import { XpPill } from './GameWidgets';
-import { NavbarPomodoroWidget } from './NavbarPomodoroWidget';
 import { NavbarTimeTrackerWidget } from './NavbarTimeTrackerWidget';
 
 const MODULE_BADGE: Record<AppModule, { label: string; className: string }> = {
@@ -158,9 +157,6 @@ export const Navbar: React.FC = () => {
             </span>
           </button>
         )}
-
-        {/* Pinned Pomodoro Timer Widget */}
-        <NavbarPomodoroWidget />
 
         {/* Pinned Time Tracker Widget */}
         <NavbarTimeTrackerWidget />

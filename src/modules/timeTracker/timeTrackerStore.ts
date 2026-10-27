@@ -1,8 +1,18 @@
 import { useSyncExternalStore } from 'react';
-import { TimeEntry, TimeTrackerState, IdleDetectionNotice } from './types';
+import { TimeEntry, TimeTrackerState, IdleDetectionNotice, TimeCategory } from './types';
 
 const STORAGE_KEY = 'orbitron_time_tracker_state_v1';
+const CATEGORIES_KEY = 'orbitron_time_tracker_categories_v1';
 const IDLE_THRESHOLD_SECONDS = 300; // 5 minutes of inactivity
+
+export const DEFAULT_CATEGORIES: TimeCategory[] = [
+  { id: 'cat_dev', name: 'Desenvolvimento', color: '#06b6d4' },
+  { id: 'cat_estudos', name: 'Estudos', color: '#a855f7' },
+  { id: 'cat_financas', name: 'Finanças', color: '#10b981' },
+  { id: 'cat_design', name: 'Design', color: '#ec4899' },
+  { id: 'cat_reuniao', name: 'Reunião', color: '#f59e0b' },
+  { id: 'cat_geral', name: 'Geral', color: '#64748b' },
+];
 
 export function formatTimeHoursMinutesSeconds(totalSeconds: number): string {
   const s = Math.max(0, Math.floor(totalSeconds));
@@ -30,6 +40,15 @@ export function formatHumanDuration(totalSeconds: number): string {
   return `${s}s`;
 }
 
+export interface TimeTrackerSnapshot extends TimeTrackerState {
+  elapsedSeconds: number;
+  formattedTime: string;
+  humanDuration: string;
+  idleNotice: IdleDetectionNotice | null;
+  categories: TimeCategory[];
+  version: number;
+}
+
 class TimeTrackerStore {
   private state: TimeTrackerState = {
     isRunning: false,
@@ -41,13 +60,17 @@ class TimeTrackerStore {
     accumulatedSeconds: 0,
   };
 
+  private categories: TimeCategory[] = DEFAULT_CATEGORIES;
+  private version = 0;
   private listeners = new Set<() => void>();
   private tickerInterval: any = null;
   private idleCheckInterval: any = null;
   private idleNotice: IdleDetectionNotice | null = null;
+  private lastSnapshot: TimeTrackerSnapshot | null = null;
 
   constructor() {
     this.loadPersistedState();
+    this.loadPersistedCategories();
     if (typeof window !== 'undefined') {
       this.initTicker();
       this.initIdleDetection();
@@ -73,6 +96,19 @@ class TimeTrackerStore {
     } catch {}
   }
 
+  private loadPersistedCategories() {
+    if (typeof window === 'undefined' || typeof localStorage === 'undefined') return;
+    try {
+      const raw = localStorage.getItem(CATEGORIES_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          this.categories = parsed;
+        }
+      }
+    } catch {}
+  }
+
   private persistState() {
     if (typeof window === 'undefined' || typeof localStorage === 'undefined') return;
     try {
@@ -80,7 +116,15 @@ class TimeTrackerStore {
     } catch {}
   }
 
+  private persistCategories() {
+    if (typeof window === 'undefined' || typeof localStorage === 'undefined') return;
+    try {
+      localStorage.setItem(CATEGORIES_KEY, JSON.stringify(this.categories));
+    } catch {}
+  }
+
   private notify() {
+    this.version++;
     this.persistState();
     this.updateDesktopTitleAndTray();
     this.listeners.forEach((l) => l());
@@ -97,15 +141,20 @@ class TimeTrackerStore {
     }
   }
 
+  public tick() {
+    if (this.state.isRunning) {
+      this.version++;
+      this.updateDesktopTitleAndTray();
+      this.listeners.forEach((l) => l());
+    }
+  }
+
   private initTicker() {
     if (this.tickerInterval) clearInterval(this.tickerInterval);
-    // 1-second pulse for UI repaint and tray update
+    // 500ms ticker for ultra-smooth real-time responsiveness
     this.tickerInterval = setInterval(() => {
-      if (this.state.isRunning) {
-        this.updateDesktopTitleAndTray();
-        this.listeners.forEach((l) => l());
-      }
-    }, 1000);
+      this.tick();
+    }, 500);
   }
 
   private initIdleDetection() {
@@ -134,8 +183,64 @@ class TimeTrackerStore {
 
   // --- Core Public API ---
 
+  public getSnapshot = (): TimeTrackerSnapshot => {
+    const elapsedSeconds = this.getElapsedSeconds();
+    // Cache snapshot if not running and version unchanged
+    if (!this.state.isRunning && this.lastSnapshot && this.lastSnapshot.version === this.version) {
+      return this.lastSnapshot;
+    }
+    const snap: TimeTrackerSnapshot = {
+      ...this.state,
+      elapsedSeconds,
+      formattedTime: formatTimeHoursMinutesSeconds(elapsedSeconds),
+      humanDuration: formatHumanDuration(elapsedSeconds),
+      idleNotice: this.idleNotice,
+      categories: [...this.categories],
+      version: this.version,
+    };
+    this.lastSnapshot = snap;
+    return snap;
+  };
+
   public getState(): TimeTrackerState {
     return this.state;
+  }
+
+  public getCategories(): TimeCategory[] {
+    return [...this.categories];
+  }
+
+  public addCategory(name: string, color: string = '#06b6d4'): TimeCategory {
+    const trimmed = name.trim();
+    if (!trimmed) throw new Error('O nome da categoria não pode ser vazio.');
+    const existing = this.categories.find((c) => c.name.toLowerCase() === trimmed.toLowerCase());
+    if (existing) return existing;
+
+    const newCat: TimeCategory = {
+      id: `cat_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      name: trimmed,
+      color: color || '#06b6d4',
+    };
+    this.categories = [...this.categories, newCat];
+    this.persistCategories();
+    this.notify();
+    return newCat;
+  }
+
+  public deleteCategory(nameOrId: string): boolean {
+    const initialLen = this.categories.length;
+    this.categories = this.categories.filter(
+      (c) => c.id !== nameOrId && c.name.toLowerCase() !== nameOrId.toLowerCase()
+    );
+    if (this.categories.length === 0) {
+      this.categories = [...DEFAULT_CATEGORIES];
+    }
+    const removed = this.categories.length !== initialLen;
+    if (removed) {
+      this.persistCategories();
+      this.notify();
+    }
+    return removed;
   }
 
   public getIdleNotice(): IdleDetectionNotice | null {
@@ -304,21 +409,14 @@ class TimeTrackerStore {
 export const timeTrackerStore = new TimeTrackerStore();
 
 export function useTimeTracker() {
-  const state = useSyncExternalStore(
+  const snapshot = useSyncExternalStore(
     timeTrackerStore.subscribe,
-    () => timeTrackerStore.getState(),
-    () => timeTrackerStore.getState()
+    timeTrackerStore.getSnapshot,
+    timeTrackerStore.getSnapshot
   );
 
-  const elapsedSeconds = timeTrackerStore.getElapsedSeconds();
-  const idleNotice = timeTrackerStore.getIdleNotice();
-
   return {
-    ...state,
-    elapsedSeconds,
-    idleNotice,
-    formattedTime: formatTimeHoursMinutesSeconds(elapsedSeconds),
-    humanDuration: formatHumanDuration(elapsedSeconds),
+    ...snapshot,
     startTracking: (title: string, taskId?: string | null, cat?: string, proj?: string | null) =>
       timeTrackerStore.startTracking(title, taskId, cat, proj),
     pauseTracking: () => timeTrackerStore.pauseTracking(),
@@ -327,5 +425,7 @@ export function useTimeTracker() {
     discard: () => timeTrackerStore.discard(),
     clearIdleNotice: () => timeTrackerStore.clearIdleNotice(),
     discardIdleSeconds: (sec: number) => timeTrackerStore.discardIdleSeconds(sec),
+    addCategory: (name: string, color?: string) => timeTrackerStore.addCategory(name, color),
+    deleteCategory: (nameOrId: string) => timeTrackerStore.deleteCategory(nameOrId),
   };
 }

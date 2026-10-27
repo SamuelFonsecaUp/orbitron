@@ -13,6 +13,9 @@ import {
   ListTodo,
   ExternalLink,
   Flame,
+  Coffee,
+  Pin,
+  X,
 } from 'lucide-react';
 import {
   pomodoroStore,
@@ -22,6 +25,7 @@ import {
 import { PomodoroMode } from '../../modules/pomodoro/types';
 import { kanbanStore, useKanbanStore } from '../../modules/kanban/kanbanStore';
 import { useFinancial } from '../../context/FinancialContext';
+import { useAlwaysOnTop } from '../../hooks/useAlwaysOnTop';
 
 export const PomodoroTab: React.FC = () => {
   const { showToast, setCurrentView } = useFinancial();
@@ -56,6 +60,8 @@ export const PomodoroTab: React.FC = () => {
     return col ? !col.title.toLowerCase().includes('conclu') : true;
   });
 
+  const { isAlwaysOnTop, toggleAlwaysOnTop } = useAlwaysOnTop();
+
   const modeTheme = {
     focus: {
       color: 'text-rose-400',
@@ -64,7 +70,7 @@ export const PomodoroTab: React.FC = () => {
       ringColor: '#f43f5e',
       label: 'Sessão de Foco',
       subtitle: 'Mantenha total atenção na sua tarefa atual',
-      icon: '🍅',
+      IconComponent: Flame,
     },
     shortBreak: {
       color: 'text-emerald-400',
@@ -73,7 +79,7 @@ export const PomodoroTab: React.FC = () => {
       ringColor: '#10b981',
       label: 'Pausa Curta',
       subtitle: 'Beba água, estique as pernas e respire fundo',
-      icon: '☕',
+      IconComponent: Coffee,
     },
     longBreak: {
       color: 'text-cyan-400',
@@ -82,7 +88,7 @@ export const PomodoroTab: React.FC = () => {
       ringColor: '#06b6d4',
       label: 'Pausa Longa',
       subtitle: 'Excelente progresso! Descanse a mente antes do próximo ciclo',
-      icon: '🌴',
+      IconComponent: Sparkles,
     },
   }[mode];
 
@@ -123,8 +129,10 @@ export const PomodoroTab: React.FC = () => {
       <div className={`p-6 rounded-3xl bg-gradient-to-br ${modeTheme.bgGlow} border ${modeTheme.border} shadow-2xl relative overflow-hidden backdrop-blur-md`}>
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <div className="flex items-center gap-2">
-              <span className="text-2xl">{modeTheme.icon}</span>
+            <div className="flex items-center gap-2.5">
+              <div className={`w-8 h-8 rounded-xl bg-white/10 flex items-center justify-center ${modeTheme.color}`}>
+                <modeTheme.IconComponent className="w-5 h-5" />
+              </div>
               <h2 className="text-xl font-black text-white tracking-tight">
                 {modeTheme.label}
               </h2>
@@ -135,15 +143,35 @@ export const PomodoroTab: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-2">
+            {/* Always on top pin button */}
+            <button
+              onClick={toggleAlwaysOnTop}
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-semibold transition ${
+                isAlwaysOnTop
+                  ? 'bg-amber-500/20 border-amber-500/40 text-amber-300 shadow-md shadow-amber-500/20'
+                  : 'bg-slate-900/60 hover:bg-slate-800 border-slate-700/60 text-slate-300 hover:text-white'
+              }`}
+              title={
+                isAlwaysOnTop
+                  ? 'Janela fixada no topo (Always on Top ativo). Clique para desafixar.'
+                  : 'Fixar janela sempre à frente dos outros programas (Always on Top)'
+              }
+            >
+              <Pin className={`w-3.5 h-3.5 ${isAlwaysOnTop ? 'fill-current rotate-45 text-amber-400' : ''}`} />
+              <span className="hidden sm:inline">
+                {isAlwaysOnTop ? 'Janela no Topo' : 'Fixar no Topo'}
+              </span>
+            </button>
+
             {/* Mode Tabs */}
             <div className="liquid-glass-well p-1.5 rounded-2xl flex items-center gap-1">
               {(
                 [
-                  ['focus', 'Foco', '🍅'],
-                  ['shortBreak', 'Pausa Curta', '☕'],
-                  ['longBreak', 'Pausa Longa', '🌴'],
+                  ['focus', 'Foco', Flame],
+                  ['shortBreak', 'Pausa Curta', Coffee],
+                  ['longBreak', 'Pausa Longa', Sparkles],
                 ] as const
-              ).map(([m, lbl, icn]) => {
+              ).map(([m, lbl, TabIcon]) => {
                 const isActive = mode === m;
                 return (
                   <button
@@ -155,7 +183,7 @@ export const PomodoroTab: React.FC = () => {
                         : 'text-slate-400 hover:text-white'
                     }`}
                   >
-                    <span>{icn}</span>
+                    <TabIcon className="w-3.5 h-3.5" />
                     <span>{lbl}</span>
                   </button>
                 );
@@ -282,8 +310,9 @@ export const PomodoroTab: React.FC = () => {
                 <Flame className="w-4 h-4 text-orange-400" />
                 <h3 className="font-bold text-white text-sm">Produtividade de Hoje</h3>
               </div>
-              <span className="text-xs font-mono font-bold text-rose-400 bg-rose-500/10 px-2 py-0.5 rounded-lg border border-rose-500/20">
-                🍅 x {sessionsCompletedToday}
+              <span className="text-xs font-mono font-bold text-rose-400 bg-rose-500/10 px-2.5 py-1 rounded-lg border border-rose-500/20 flex items-center gap-1.5">
+                <Timer className="w-3.5 h-3.5 text-rose-400" />
+                <span>{sessionsCompletedToday} blocos</span>
               </span>
             </div>
 
@@ -361,7 +390,7 @@ export const PomodoroTab: React.FC = () => {
               <option value="">Nenhuma tarefa vinculada (Foco Geral)</option>
               {activeTasks.map((t) => (
                 <option key={t.id} value={t.id}>
-                  {t.title} {t.pomodorosCompleted ? `(${t.pomodorosCompleted}🍅)` : ''}
+                  {t.title} {t.pomodorosCompleted ? `(${t.pomodorosCompleted} foco)` : ''}
                 </option>
               ))}
             </select>

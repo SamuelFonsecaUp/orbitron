@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Clock,
   Play,
@@ -17,24 +17,47 @@ import {
   X,
   Edit2,
   FolderKanban,
+  Pin,
+  PieChart as PieChartIcon,
+  Timer,
+  ChevronDown,
+  Layers,
+  FileSpreadsheet,
 } from 'lucide-react';
+import {
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  Tooltip as RechartsTooltip,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+} from 'recharts';
 import {
   useTimeTracker,
   formatTimeHoursMinutesSeconds,
   formatHumanDuration,
 } from '../../modules/timeTracker/timeTrackerStore';
-import { TimeEntry, TimeTrackerStats } from '../../modules/timeTracker/types';
+import { TimeEntry, TimeTrackerStats, TimeCategory } from '../../modules/timeTracker/types';
 import { useKanban } from '../../modules/kanban/kanbanStore';
 import { useFinancial } from '../../context/FinancialContext';
+import { useAlwaysOnTop } from '../../hooks/useAlwaysOnTop';
 
-const CATEGORY_COLORS: Record<string, { bg: string; text: string; border: string }> = {
-  Geral: { bg: 'bg-slate-500/15', text: 'text-slate-300', border: 'border-slate-500/30' },
-  Desenvolvimento: { bg: 'bg-cyan-500/15', text: 'text-cyan-300', border: 'border-cyan-500/30' },
-  Estudos: { bg: 'bg-purple-500/15', text: 'text-purple-300', border: 'border-purple-500/30' },
-  Finanças: { bg: 'bg-emerald-500/15', text: 'text-emerald-300', border: 'border-emerald-500/30' },
-  Design: { bg: 'bg-pink-500/15', text: 'text-pink-300', border: 'border-pink-500/30' },
-  Reunião: { bg: 'bg-amber-500/15', text: 'text-amber-300', border: 'border-amber-500/30' },
-};
+type PeriodOption = 'today' | 'yesterday' | 'week' | 'month' | 'last30' | 'custom';
+
+const COLOR_SWATCHES = [
+  '#06b6d4', // cyan
+  '#10b981', // emerald
+  '#8b5cf6', // purple
+  '#f59e0b', // amber
+  '#ef4444', // red
+  '#ec4899', // pink
+  '#3b82f6', // blue
+  '#64748b', // slate
+];
 
 export const TimeTrackerTab: React.FC = () => {
   const {
@@ -44,15 +67,19 @@ export const TimeTrackerTab: React.FC = () => {
     category,
     formattedTime,
     elapsedSeconds,
+    categories,
     startTracking,
     pauseTracking,
     resumeTracking,
     stopAndSave,
     discard,
+    addCategory,
+    deleteCategory,
   } = useTimeTracker();
 
   const { tasks } = useKanban();
   const { showToast, setCurrentView } = useFinancial();
+  const { isAlwaysOnTop, toggleAlwaysOnTop } = useAlwaysOnTop();
 
   const [entries, setEntries] = useState<TimeEntry[]>([]);
   const [stats, setStats] = useState<TimeTrackerStats | null>(null);
@@ -63,6 +90,11 @@ export const TimeTrackerTab: React.FC = () => {
   const [quickCategory, setQuickCategory] = useState('Geral');
   const [activeSessionNotes, setActiveSessionNotes] = useState('');
 
+  // Category Manager Modal
+  const [categoryModalOpen, setCategoryModalOpen] = useState(false);
+  const [newCatName, setNewCatName] = useState('');
+  const [newCatColor, setNewCatColor] = useState('#06b6d4');
+
   // Manual modal state
   const [manualModalOpen, setManualModalOpen] = useState(false);
   const [manualTitle, setManualTitle] = useState('');
@@ -71,6 +103,15 @@ export const TimeTrackerTab: React.FC = () => {
   const [manualStart, setManualStart] = useState('09:00');
   const [manualEnd, setManualEnd] = useState('10:00');
   const [manualNotes, setManualNotes] = useState('');
+
+  // Period Filter & Custom Dates
+  const [period, setPeriod] = useState<PeriodOption>('week');
+  const [customStartDate, setCustomStartDate] = useState(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 7);
+    return d.toISOString().split('T')[0];
+  });
+  const [customEndDate, setCustomEndDate] = useState(() => new Date().toISOString().split('T')[0]);
 
   // Category filter
   const [selectedFilterCategory, setSelectedFilterCategory] = useState<string>('all');
@@ -164,17 +205,202 @@ export const TimeTrackerTab: React.FC = () => {
     }
   };
 
-  // Group entries by Date (YYYY-MM-DD)
-  const filteredEntries = entries.filter((e) =>
-    selectedFilterCategory === 'all' ? true : e.category === selectedFilterCategory
+  const handleCreateCategory = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newCatName.trim()) return;
+    try {
+      addCategory(newCatName.trim(), newCatColor);
+      setNewCatName('');
+      showToast(`Categoria "${newCatName.trim()}" criada!`, 'success');
+    } catch (err: any) {
+      showToast(err.message || 'Erro ao criar categoria.', 'error');
+    }
+  };
+
+  const handleDeleteCategory = (catId: string, catName: string) => {
+    if (confirm(`Excluir a categoria "${catName}"?`)) {
+      deleteCategory(catId);
+      showToast(`Categoria "${catName}" removida.`, 'info');
+    }
+  };
+
+  // Category Color Map Lookup
+  const getCategoryColor = useCallback(
+    (catName: string): string => {
+      const match = categories.find((c) => c.name.toLowerCase() === catName.toLowerCase());
+      return match ? match.color : '#64748b';
+    },
+    [categories]
   );
 
-  const groupedEntries: Record<string, TimeEntry[]> = {};
-  for (const entry of filteredEntries) {
-    const dateKey = new Date(entry.startedAt).toISOString().split('T')[0];
-    if (!groupedEntries[dateKey]) groupedEntries[dateKey] = [];
-    groupedEntries[dateKey].push(entry);
-  }
+  // Filter entries based on Selected Period
+  const periodFilteredEntries = useMemo(() => {
+    const now = new Date();
+
+    let startMs = 0;
+    let endMs = Infinity;
+
+    if (period === 'today') {
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      startMs = today.getTime();
+    } else if (period === 'yesterday') {
+      const yesterdayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
+      const yesterdayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      startMs = yesterdayStart.getTime();
+      endMs = yesterdayEnd.getTime();
+    } else if (period === 'week') {
+      startMs = now.getTime() - 7 * 24 * 60 * 60 * 1000;
+    } else if (period === 'month') {
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      startMs = startOfMonth.getTime();
+    } else if (period === 'last30') {
+      startMs = now.getTime() - 30 * 24 * 60 * 60 * 1000;
+    } else if (period === 'custom') {
+      startMs = new Date(`${customStartDate}T00:00:00`).getTime();
+      endMs = new Date(`${customEndDate}T23:59:59`).getTime();
+    }
+
+    return entries.filter((e) => {
+      const matchesPeriod = e.startedAt >= startMs && e.startedAt <= endMs;
+      const matchesCategory =
+        selectedFilterCategory === 'all' ? true : e.category === selectedFilterCategory;
+      return matchesPeriod && matchesCategory;
+    });
+  }, [entries, period, customStartDate, customEndDate, selectedFilterCategory]);
+
+  // Aggregate Stats for Selected Period
+  const periodTotalSeconds = useMemo(() => {
+    return periodFilteredEntries.reduce((acc, e) => acc + e.durationSeconds, 0);
+  }, [periodFilteredEntries]);
+
+  // Chart 1: Category Distribution (Pie/Donut Chart)
+  const categoryChartData = useMemo(() => {
+    const map: Record<string, number> = {};
+    for (const e of periodFilteredEntries) {
+      const c = e.category || 'Geral';
+      map[c] = (map[c] || 0) + e.durationSeconds;
+    }
+
+    return Object.entries(map).map(([name, seconds]) => {
+      const pct = periodTotalSeconds > 0 ? Math.round((seconds / periodTotalSeconds) * 100) : 0;
+      return {
+        name,
+        value: seconds,
+        hours: (seconds / 3600).toFixed(1),
+        percentage: pct,
+        color: getCategoryColor(name),
+      };
+    });
+  }, [periodFilteredEntries, periodTotalSeconds, getCategoryColor]);
+
+  // Chart 2: Daily Evolution (Bar Chart)
+  const dailyChartData = useMemo(() => {
+    const map: Record<string, number> = {};
+    for (const e of periodFilteredEntries) {
+      const dateKey = new Date(e.startedAt).toISOString().split('T')[0];
+      map[dateKey] = (map[dateKey] || 0) + e.durationSeconds;
+    }
+
+    // Sort ascending by date
+    return Object.keys(map)
+      .sort()
+      .map((dateKey) => {
+        const parts = dateKey.split('-');
+        const label = parts.length === 3 ? `${parts[2]}/${parts[1]}` : dateKey;
+        const totalSecs = map[dateKey];
+        return {
+          date: label,
+          fullDate: dateKey,
+          hours: Number((totalSecs / 3600).toFixed(2)),
+          durationLabel: formatHumanDuration(totalSecs),
+        };
+      });
+  }, [periodFilteredEntries]);
+
+  // Ranking of Top Tasks in the Period
+  const topTasksRank = useMemo(() => {
+    const map: Record<string, { seconds: number; count: number; category: string }> = {};
+    for (const e of periodFilteredEntries) {
+      const key = e.taskTitle || 'Tarefa Geral';
+      if (!map[key]) {
+        map[key] = { seconds: 0, count: 0, category: e.category || 'Geral' };
+      }
+      map[key].seconds += e.durationSeconds;
+      map[key].count++;
+    }
+
+    return Object.entries(map)
+      .map(([taskTitle, data]) => ({
+        taskTitle,
+        seconds: data.seconds,
+        count: data.count,
+        category: data.category,
+        percentage:
+          periodTotalSeconds > 0 ? Math.round((data.seconds / periodTotalSeconds) * 100) : 0,
+      }))
+      .sort((a, b) => b.seconds - a.seconds)
+      .slice(0, 8);
+  }, [periodFilteredEntries, periodTotalSeconds]);
+
+  // Group entries by Date (YYYY-MM-DD)
+  const groupedEntries: Record<string, TimeEntry[]> = useMemo(() => {
+    const res: Record<string, TimeEntry[]> = {};
+    for (const entry of periodFilteredEntries) {
+      const dateKey = new Date(entry.startedAt).toISOString().split('T')[0];
+      if (!res[dateKey]) res[dateKey] = [];
+      res[dateKey].push(entry);
+    }
+    return res;
+  }, [periodFilteredEntries]);
+
+  // Export CSV Report
+  const handleExportCSV = () => {
+    if (periodFilteredEntries.length === 0) {
+      showToast('Nenhum registro para exportar no período selecionado.', 'info');
+      return;
+    }
+
+    const headers = [
+      'Data',
+      'Horario Inicio',
+      'Horario Termino',
+      'Duracao (Segundos)',
+      'Duracao Formatada',
+      'Tarefa',
+      'Categoria',
+      'Pomodoro',
+      'Manual',
+      'Notas',
+    ];
+
+    const rows = periodFilteredEntries.map((e) => {
+      const dateStr = new Date(e.startedAt).toLocaleDateString('pt-BR');
+      const startStr = new Date(e.startedAt).toLocaleTimeString('pt-BR');
+      const endStr = new Date(e.endedAt).toLocaleTimeString('pt-BR');
+      return [
+        `"${dateStr}"`,
+        `"${startStr}"`,
+        `"${endStr}"`,
+        e.durationSeconds,
+        `"${formatHumanDuration(e.durationSeconds)}"`,
+        `"${e.taskTitle.replace(/"/g, '""')}"`,
+        `"${e.category || 'Geral'}"`,
+        e.isPomodoro ? 'Sim' : 'Nao',
+        e.isManual ? 'Sim' : 'Nao',
+        `"${(e.notes || '').replace(/"/g, '""')}"`,
+      ].join(';');
+    });
+
+    const csvContent = '\uFEFF' + [headers.join(';'), ...rows].join('\r\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `relatorio_tempo_${period}_${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast('Relatório CSV exportado com sucesso!', 'success');
+  };
 
   const formatDateHeader = (dateStr: string) => {
     const todayStr = new Date().toISOString().split('T')[0];
@@ -191,11 +417,11 @@ export const TimeTrackerTab: React.FC = () => {
   };
 
   return (
-    <div className="h-full flex flex-col bg-[#0c0c0e] text-slate-100 overflow-y-auto custom-scrollbar p-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+    <div className="h-full flex flex-col bg-[#0c0c0e] text-slate-100 overflow-y-auto custom-scrollbar p-6 space-y-6">
+      {/* Top Header & Always on Top */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-xl bg-cyan-500/15 border border-cyan-500/30 flex items-center justify-center text-cyan-400">
               <Clock className="w-4 h-4" />
             </div>
@@ -205,75 +431,68 @@ export const TimeTrackerTab: React.FC = () => {
             </span>
           </div>
           <p className="text-xs text-slate-400 mt-1">
-            Cronometre suas tarefas em segundo plano e acompanhe onde suas horas são investidas.
+            Registro de horas imune a drift e minimização, gráficos visuais e relatórios detalhados.
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        {/* Header Action Buttons */}
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Always on top toggle button */}
+          <button
+            onClick={toggleAlwaysOnTop}
+            className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-semibold transition ${
+              isAlwaysOnTop
+                ? 'bg-amber-500/20 border-amber-500/40 text-amber-300 shadow-md shadow-amber-500/20'
+                : 'bg-slate-900/80 hover:bg-slate-800 border-white/10 text-slate-300 hover:text-white'
+            }`}
+            title={
+              isAlwaysOnTop
+                ? 'Janela fixada no topo (Always on Top ativo). Clique para desafixar.'
+                : 'Fixar janela sempre à frente dos outros programas (Always on Top)'
+            }
+          >
+            <Pin className={`w-3.5 h-3.5 ${isAlwaysOnTop ? 'fill-current rotate-45 text-amber-400' : ''}`} />
+            <span className="hidden sm:inline">
+              {isAlwaysOnTop ? 'Janela Fixada' : 'Fixar no Topo'}
+            </span>
+          </button>
+
+          {/* Manage Categories Button */}
+          <button
+            type="button"
+            onClick={() => setCategoryModalOpen(true)}
+            className="px-3 py-2 rounded-xl bg-slate-900/80 hover:bg-slate-800 border border-white/10 text-xs font-semibold text-slate-300 hover:text-white flex items-center gap-1.5 transition"
+            title="Adicionar ou remover categorias de tarefas"
+          >
+            <Tag className="w-3.5 h-3.5 text-purple-400" />
+            <span>Categorias ({categories.length})</span>
+          </button>
+
+          {/* Manual Entry Button */}
           <button
             type="button"
             onClick={() => setManualModalOpen(true)}
-            className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-750 border border-white/10 text-xs font-semibold text-slate-200 hover:text-white flex items-center gap-1.5 transition"
+            className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-750 border border-white/10 text-xs font-semibold text-slate-200 hover:text-white flex items-center gap-1.5 transition"
           >
             <Plus className="w-3.5 h-3.5 text-cyan-400" />
             <span>Lançamento Manual</span>
           </button>
-        </div>
-      </div>
 
-      {/* Hero Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <div className="bg-slate-900/80 border border-white/10 rounded-2xl p-4 relative overflow-hidden">
-          <div className="flex items-center justify-between text-slate-400 text-xs font-semibold">
-            <span>Hoje</span>
-            <Clock className="w-4 h-4 text-cyan-400" />
-          </div>
-          <div className="text-2xl font-black text-white mt-2">
-            {formatHumanDuration(stats?.todaySeconds || 0)}
-          </div>
-          <div className="text-[11px] text-cyan-400/80 mt-1 font-medium">Horas de foco registradas</div>
-        </div>
-
-        <div className="bg-slate-900/80 border border-white/10 rounded-2xl p-4 relative overflow-hidden">
-          <div className="flex items-center justify-between text-slate-400 text-xs font-semibold">
-            <span>Últimos 7 Dias</span>
-            <TrendingUp className="w-4 h-4 text-emerald-400" />
-          </div>
-          <div className="text-2xl font-black text-white mt-2">
-            {formatHumanDuration(stats?.weekSeconds || 0)}
-          </div>
-          <div className="text-[11px] text-emerald-400/80 mt-1 font-medium">Produtividade semanal</div>
-        </div>
-
-        <div className="bg-slate-900/80 border border-white/10 rounded-2xl p-4 relative overflow-hidden">
-          <div className="flex items-center justify-between text-slate-400 text-xs font-semibold">
-            <span>Total Acumulado</span>
-            <BarChart3 className="w-4 h-4 text-purple-400" />
-          </div>
-          <div className="text-2xl font-black text-white mt-2">
-            {formatHumanDuration(stats?.totalSeconds || 0)}
-          </div>
-          <div className="text-[11px] text-purple-400/80 mt-1 font-medium">
-            {stats?.totalEntries || 0} sessões concluídas
-          </div>
-        </div>
-
-        <div className="bg-slate-900/80 border border-white/10 rounded-2xl p-4 relative overflow-hidden">
-          <div className="flex items-center justify-between text-slate-400 text-xs font-semibold">
-            <span>Principal Foco</span>
-            <Sparkles className="w-4 h-4 text-amber-400" />
-          </div>
-          <div className="text-sm font-bold text-white mt-2 truncate">
-            {stats?.topTasks?.[0]?.task_title || 'Nenhuma tarefa'}
-          </div>
-          <div className="text-[11px] text-amber-400/80 mt-1 font-medium">
-            {stats?.topTasks?.[0] ? formatHumanDuration(stats.topTasks[0].seconds) : 'Comece agora'}
-          </div>
+          {/* Export CSV Report Button */}
+          <button
+            type="button"
+            onClick={handleExportCSV}
+            className="px-3 py-2 rounded-xl bg-slate-900/80 hover:bg-slate-800 border border-white/10 text-xs font-semibold text-emerald-400 hover:text-emerald-300 flex items-center gap-1.5 transition"
+            title="Exportar dados do período em planilha CSV"
+          >
+            <FileSpreadsheet className="w-3.5 h-3.5" />
+            <span>Exportar CSV</span>
+          </button>
         </div>
       </div>
 
       {/* Main Active Tracker Controller Card */}
-      <div className="bg-gradient-to-r from-slate-900 via-slate-900 to-slate-950 border border-cyan-500/20 rounded-2xl p-6 shadow-xl mb-6 relative overflow-hidden">
+      <div className="bg-gradient-to-r from-slate-900 via-slate-900 to-slate-950 border border-cyan-500/20 rounded-2xl p-6 shadow-xl relative overflow-hidden">
         <div className="absolute top-0 right-0 w-80 h-80 bg-cyan-500/5 rounded-full blur-3xl pointer-events-none" />
 
         {activeTaskTitle ? (
@@ -287,9 +506,16 @@ export const TimeTrackerTab: React.FC = () => {
                   }`}
                 />
                 <span className="text-[11px] font-extrabold uppercase tracking-wider text-cyan-300">
-                  {isRunning ? 'Sessão em Andamento' : 'Sessão Pausada'}
+                  {isRunning ? 'Sessão em Andamento (Tempo Real)' : 'Sessão Pausada'}
                 </span>
-                <span className="text-xs px-2 py-0.5 rounded-full bg-white/5 border border-white/10 text-slate-300">
+                <span
+                  className="text-xs px-2.5 py-0.5 rounded-full border font-bold"
+                  style={{
+                    backgroundColor: `${getCategoryColor(category)}20`,
+                    borderColor: `${getCategoryColor(category)}40`,
+                    color: getCategoryColor(category),
+                  }}
+                >
                   {category}
                 </span>
               </div>
@@ -306,6 +532,7 @@ export const TimeTrackerTab: React.FC = () => {
             </div>
 
             <div className="flex flex-col sm:flex-row items-center gap-4 shrink-0">
+              {/* Giant real-time glowing timer */}
               <div className="font-mono text-4xl sm:text-5xl font-black text-cyan-400 tracking-wider">
                 {formattedTime}
               </div>
@@ -367,12 +594,11 @@ export const TimeTrackerTab: React.FC = () => {
               onChange={(e) => setQuickCategory(e.target.value)}
               className="bg-slate-950 border border-white/10 rounded-xl px-3 py-2 text-xs text-slate-300 focus:outline-none focus:border-cyan-500 transition"
             >
-              <option value="Geral">Geral</option>
-              <option value="Desenvolvimento">Desenvolvimento</option>
-              <option value="Estudos">Estudos</option>
-              <option value="Finanças">Finanças</option>
-              <option value="Design">Design</option>
-              <option value="Reunião">Reunião</option>
+              {categories.map((c) => (
+                <option key={c.id} value={c.name}>
+                  {c.name}
+                </option>
+              ))}
             </select>
 
             <button
@@ -386,30 +612,304 @@ export const TimeTrackerTab: React.FC = () => {
         )}
       </div>
 
-      {/* History and Timeline Section */}
+      {/* Period Selector & Report Filter Bar */}
+      <div className="bg-slate-900/60 border border-white/10 rounded-2xl p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <span className="text-xs font-bold text-slate-400 mr-1 flex items-center gap-1">
+            <Calendar className="w-3.5 h-3.5 text-cyan-400" />
+            <span>Período:</span>
+          </span>
+
+          {(
+            [
+              ['today', 'Hoje'],
+              ['yesterday', 'Ontem'],
+              ['week', 'Esta Semana'],
+              ['month', 'Este Mês'],
+              ['last30', 'Últimos 30 Dias'],
+              ['custom', 'Personalizado'],
+            ] as const
+          ).map(([key, label]) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => setPeriod(key)}
+              className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition ${
+                period === key
+                  ? 'bg-cyan-500 text-slate-950 font-bold shadow-md shadow-cyan-500/20'
+                  : 'bg-slate-800/80 text-slate-300 hover:text-white hover:bg-slate-750'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {/* Custom Date Pickers (if Custom period selected) */}
+        {period === 'custom' && (
+          <div className="flex items-center gap-2 animate-fade-in">
+            <input
+              type="date"
+              value={customStartDate}
+              onChange={(e) => setCustomStartDate(e.target.value)}
+              className="bg-slate-950 border border-white/10 rounded-xl px-2.5 py-1 text-xs text-white focus:outline-none focus:border-cyan-500"
+            />
+            <span className="text-xs text-slate-500">até</span>
+            <input
+              type="date"
+              value={customEndDate}
+              onChange={(e) => setCustomEndDate(e.target.value)}
+              className="bg-slate-950 border border-white/10 rounded-xl px-2.5 py-1 text-xs text-white focus:outline-none focus:border-cyan-500"
+            />
+          </div>
+        )}
+
+        {/* Category Filter */}
+        <div className="flex items-center gap-2">
+          <Filter className="w-3.5 h-3.5 text-slate-500" />
+          <select
+            value={selectedFilterCategory}
+            onChange={(e) => setSelectedFilterCategory(e.target.value)}
+            className="bg-slate-950 border border-white/10 rounded-xl px-2.5 py-1 text-xs text-slate-300 focus:outline-none focus:border-cyan-500 transition"
+          >
+            <option value="all">Todas as Categorias</option>
+            {categories.map((c) => (
+              <option key={c.id} value={c.name}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      {/* Summary Metrics for Selected Period */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="bg-slate-900/80 border border-white/10 rounded-2xl p-4">
+          <div className="flex items-center justify-between text-slate-400 text-xs font-semibold">
+            <span>Tempo no Período</span>
+            <Clock className="w-4 h-4 text-cyan-400" />
+          </div>
+          <div className="text-2xl font-black text-white mt-2">
+            {formatHumanDuration(periodTotalSeconds)}
+          </div>
+          <div className="text-[11px] text-cyan-400/80 mt-1 font-medium">
+            {periodFilteredEntries.length} sessões registradas
+          </div>
+        </div>
+
+        <div className="bg-slate-900/80 border border-white/10 rounded-2xl p-4">
+          <div className="flex items-center justify-between text-slate-400 text-xs font-semibold">
+            <span>Categoria Principal</span>
+            <PieChartIcon className="w-4 h-4 text-purple-400" />
+          </div>
+          <div className="text-lg font-bold text-white mt-2 truncate">
+            {categoryChartData[0]?.name || 'Nenhuma'}
+          </div>
+          <div className="text-[11px] text-purple-400/80 mt-1 font-medium">
+            {categoryChartData[0] ? `${categoryChartData[0].percentage}% do tempo` : 'Sem registros'}
+          </div>
+        </div>
+
+        <div className="bg-slate-900/80 border border-white/10 rounded-2xl p-4">
+          <div className="flex items-center justify-between text-slate-400 text-xs font-semibold">
+            <span>Tarefa de Maior Foco</span>
+            <Sparkles className="w-4 h-4 text-amber-400" />
+          </div>
+          <div className="text-sm font-bold text-white mt-2 truncate">
+            {topTasksRank[0]?.taskTitle || 'Nenhuma'}
+          </div>
+          <div className="text-[11px] text-amber-400/80 mt-1 font-medium">
+            {topTasksRank[0] ? formatHumanDuration(topTasksRank[0].seconds) : 'Comece agora'}
+          </div>
+        </div>
+
+        <div className="bg-slate-900/80 border border-white/10 rounded-2xl p-4">
+          <div className="flex items-center justify-between text-slate-400 text-xs font-semibold">
+            <span>Média por Sessão</span>
+            <TrendingUp className="w-4 h-4 text-emerald-400" />
+          </div>
+          <div className="text-2xl font-black text-white mt-2">
+            {periodFilteredEntries.length > 0
+              ? formatHumanDuration(Math.round(periodTotalSeconds / periodFilteredEntries.length))
+              : '0s'}
+          </div>
+          <div className="text-[11px] text-emerald-400/80 mt-1 font-medium">Duração média</div>
+        </div>
+      </div>
+
+      {/* Analytics Charts Section (Where Time Goes) */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Chart 1: Category Distribution */}
+        <div className="bg-slate-900/80 border border-white/10 rounded-2xl p-5 flex flex-col">
+          <div className="flex items-center justify-between pb-3 border-b border-white/[0.08] mb-4">
+            <div className="flex items-center gap-2">
+              <PieChartIcon className="w-4 h-4 text-cyan-400" />
+              <h3 className="text-sm font-bold text-white">Distribuição por Categoria</h3>
+            </div>
+            <span className="text-xs text-slate-400 font-mono">
+              {formatHumanDuration(periodTotalSeconds)}
+            </span>
+          </div>
+
+          {categoryChartData.length > 0 ? (
+            <div className="flex flex-col sm:flex-row items-center gap-4 flex-1">
+              <div className="w-48 h-48 shrink-0">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={categoryChartData}
+                      dataKey="value"
+                      nameKey="name"
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={45}
+                      outerRadius={75}
+                      paddingAngle={3}
+                    >
+                      {categoryChartData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <RechartsTooltip
+                      content={({ active, payload }) => {
+                        if (active && payload && payload.length) {
+                          const data = payload[0].payload;
+                          return (
+                            <div className="p-2.5 rounded-xl bg-slate-950 border border-white/15 shadow-xl text-xs">
+                              <span className="font-bold text-white">{data.name}</span>
+                              <div className="text-slate-300 font-mono mt-0.5">
+                                {formatHumanDuration(data.value)} ({data.percentage}%)
+                              </div>
+                            </div>
+                          );
+                        }
+                        return null;
+                      }}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+
+              {/* Legend List */}
+              <div className="flex-1 space-y-2 w-full">
+                {categoryChartData.map((c) => (
+                  <div key={c.name} className="flex items-center justify-between text-xs">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: c.color }} />
+                      <span className="text-slate-300 truncate">{c.name}</span>
+                    </div>
+                    <div className="flex items-center gap-2 font-mono shrink-0 ml-2">
+                      <span className="text-white font-bold">{formatHumanDuration(c.value)}</span>
+                      <span className="text-slate-500 text-[11px]">({c.percentage}%)</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className="flex-1 flex flex-col items-center justify-center py-12 text-slate-500 text-xs">
+              <PieChartIcon className="w-8 h-8 text-slate-600 mb-2" />
+              <span>Nenhum dado registrado para este período.</span>
+            </div>
+          )}
+        </div>
+
+        {/* Chart 2: Daily Evolution Bar Chart */}
+        <div className="bg-slate-900/80 border border-white/10 rounded-2xl p-5 flex flex-col">
+          <div className="flex items-center justify-between pb-3 border-b border-white/[0.08] mb-4">
+            <div className="flex items-center gap-2">
+              <BarChart3 className="w-4 h-4 text-emerald-400" />
+              <h3 className="text-sm font-bold text-white">Evolução de Horas por Dia</h3>
+            </div>
+            <span className="text-xs text-slate-400">Total: {formatHumanDuration(periodTotalSeconds)}</span>
+          </div>
+
+          {dailyChartData.length > 0 ? (
+            <div className="h-52 w-full flex-1">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={dailyChartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.3} />
+                  <XAxis dataKey="date" stroke="#94a3b8" fontSize={11} tickLine={false} />
+                  <YAxis stroke="#94a3b8" fontSize={11} tickLine={false} unit="h" />
+                  <RechartsTooltip
+                    content={({ active, payload }) => {
+                      if (active && payload && payload.length) {
+                        const data = payload[0].payload;
+                        return (
+                          <div className="p-2.5 rounded-xl bg-slate-950 border border-white/15 shadow-xl text-xs">
+                            <span className="font-bold text-white">{data.fullDate}</span>
+                            <div className="text-cyan-400 font-mono mt-0.5">{data.durationLabel}</div>
+                          </div>
+                        );
+                      }
+                      return null;
+                    }}
+                  />
+                  <Bar dataKey="hours" fill="#06b6d4" radius={[6, 6, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          ) : (
+            <div className="flex-1 flex flex-col items-center justify-center py-12 text-slate-500 text-xs">
+              <BarChart3 className="w-8 h-8 text-slate-600 mb-2" />
+              <span>Nenhum dado registrado para este período.</span>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Top Tasks Ranking in Period */}
+      {topTasksRank.length > 0 && (
+        <div className="bg-slate-900/80 border border-white/10 rounded-2xl p-5">
+          <div className="flex items-center justify-between pb-3 border-b border-white/[0.08] mb-4">
+            <div className="flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-amber-400" />
+              <h3 className="text-sm font-bold text-white">Onde Você Mais Focou no Período</h3>
+            </div>
+            <span className="text-xs text-slate-400">Top {topTasksRank.length} tarefas</span>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {topTasksRank.map((t, idx) => (
+              <div
+                key={t.taskTitle}
+                className="p-3 rounded-xl bg-slate-950/60 border border-white/5 flex flex-col gap-2"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="w-5 h-5 rounded-md bg-white/5 flex items-center justify-center text-[10px] font-mono font-bold text-slate-400 shrink-0">
+                      #{idx + 1}
+                    </span>
+                    <span className="text-xs font-bold text-white truncate">{t.taskTitle}</span>
+                  </div>
+                  <span className="text-xs font-mono font-bold text-cyan-400 shrink-0">
+                    {formatHumanDuration(t.seconds)}
+                  </span>
+                </div>
+
+                {/* Progress bar */}
+                <div className="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden">
+                  <div
+                    className="h-full rounded-full transition-all duration-500"
+                    style={{
+                      width: `${t.percentage}%`,
+                      backgroundColor: getCategoryColor(t.category),
+                    }}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Detailed History Table */}
       <div className="flex-1 flex flex-col">
         <div className="flex items-center justify-between pb-3 border-b border-white/[0.08] mb-4">
           <div className="flex items-center gap-2">
             <Calendar className="w-4 h-4 text-slate-400" />
-            <h3 className="text-sm font-bold text-white">Histórico de Lançamentos</h3>
-            <span className="text-xs text-slate-500">({filteredEntries.length} registros)</span>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <Filter className="w-3.5 h-3.5 text-slate-500" />
-            <select
-              value={selectedFilterCategory}
-              onChange={(e) => setSelectedFilterCategory(e.target.value)}
-              className="bg-slate-900 border border-white/10 rounded-lg px-2.5 py-1 text-xs text-slate-300 focus:outline-none focus:border-cyan-500 transition"
-            >
-              <option value="all">Todas as Categorias</option>
-              <option value="Geral">Geral</option>
-              <option value="Desenvolvimento">Desenvolvimento</option>
-              <option value="Estudos">Estudos</option>
-              <option value="Finanças">Finanças</option>
-              <option value="Design">Design</option>
-              <option value="Reunião">Reunião</option>
-            </select>
+            <h3 className="text-sm font-bold text-white">Linha do Tempo Detalhada</h3>
+            <span className="text-xs text-slate-500">({periodFilteredEntries.length} registros)</span>
           </div>
         </div>
 
@@ -429,8 +929,7 @@ export const TimeTrackerTab: React.FC = () => {
 
                 <div className="space-y-1.5">
                   {dayEntries.map((entry) => {
-                    const catStyle =
-                      CATEGORY_COLORS[entry.category || 'Geral'] || CATEGORY_COLORS.Geral;
+                    const catColor = getCategoryColor(entry.category || 'Geral');
                     const startTimeStr = new Date(entry.startedAt).toLocaleTimeString('pt-BR', {
                       hour: '2-digit',
                       minute: '2-digit',
@@ -451,18 +950,24 @@ export const TimeTrackerTab: React.FC = () => {
                           </div>
 
                           <div className="min-w-0">
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 flex-wrap">
                               <span className="text-sm font-semibold text-slate-100 truncate">
                                 {entry.taskTitle}
                               </span>
                               <span
-                                className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${catStyle.bg} ${catStyle.text} ${catStyle.border}`}
+                                className="text-[10px] font-bold px-2 py-0.5 rounded-full border"
+                                style={{
+                                  backgroundColor: `${catColor}18`,
+                                  borderColor: `${catColor}40`,
+                                  color: catColor,
+                                }}
                               >
                                 {entry.category}
                               </span>
                               {entry.isPomodoro && (
-                                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-rose-500/15 text-rose-300 border border-rose-500/30">
-                                  🍅 Pomodoro
+                                <span className="flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded bg-rose-500/15 text-rose-300 border border-rose-500/30">
+                                  <Timer className="w-2.5 h-2.5 text-rose-400" />
+                                  <span>Pomodoro</span>
                                 </span>
                               )}
                               {entry.isManual && (
@@ -507,17 +1012,103 @@ export const TimeTrackerTab: React.FC = () => {
             );
           })}
 
-          {filteredEntries.length === 0 && !isLoading && (
+          {periodFilteredEntries.length === 0 && !isLoading && (
             <div className="text-center py-16 border border-dashed border-white/10 rounded-2xl">
               <Clock className="w-8 h-8 text-slate-600 mx-auto mb-2" />
-              <div className="text-sm font-bold text-slate-400">Nenhum registro de tempo</div>
+              <div className="text-sm font-bold text-slate-400">Nenhum registro para este período</div>
               <p className="text-xs text-slate-500 mt-1">
-                Inicie um cronômetro acima ou faça um lançamento manual.
+                Selecione outro período acima ou inicie uma nova sessão.
               </p>
             </div>
           )}
         </div>
       </div>
+
+      {/* Category Manager Modal */}
+      {categoryModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 animate-fade-in">
+          <div className="w-full max-w-md bg-slate-900 border border-white/10 rounded-2xl p-6 shadow-2xl relative">
+            <div className="flex items-center justify-between pb-3 border-b border-white/[0.08] mb-4">
+              <div className="flex items-center gap-2">
+                <Tag className="w-4 h-4 text-purple-400" />
+                <h3 className="text-sm font-bold text-white">Gerenciar Categorias de Tempo</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setCategoryModalOpen(false)}
+                className="text-slate-400 hover:text-white"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Add Category Form */}
+            <form onSubmit={handleCreateCategory} className="space-y-3 pb-4 border-b border-white/[0.08]">
+              <label className="block text-xs font-semibold text-slate-300">Nova Categoria</label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  placeholder="Nome da categoria..."
+                  value={newCatName}
+                  onChange={(e) => setNewCatName(e.target.value)}
+                  className="flex-1 bg-slate-950 border border-white/10 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-purple-500"
+                />
+                <button
+                  type="submit"
+                  className="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold transition flex items-center gap-1"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Adicionar</span>
+                </button>
+              </div>
+
+              {/* Color Swatches */}
+              <div className="flex items-center gap-2 pt-1">
+                <span className="text-[11px] text-slate-400">Cor:</span>
+                {COLOR_SWATCHES.map((swatch) => (
+                  <button
+                    key={swatch}
+                    type="button"
+                    onClick={() => setNewCatColor(swatch)}
+                    className={`w-5 h-5 rounded-full transition-transform ${
+                      newCatColor === swatch ? 'scale-125 ring-2 ring-white' : 'hover:scale-110'
+                    }`}
+                    style={{ backgroundColor: swatch }}
+                  />
+                ))}
+              </div>
+            </form>
+
+            {/* Existing Categories List */}
+            <div className="mt-4 space-y-2 max-h-60 overflow-y-auto custom-scrollbar pr-1">
+              <label className="block text-xs font-semibold text-slate-400 mb-2">
+                Categorias Atuais ({categories.length})
+              </label>
+
+              {categories.map((c) => (
+                <div
+                  key={c.id}
+                  className="p-2.5 rounded-xl bg-slate-950/60 border border-white/5 flex items-center justify-between"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: c.color }} />
+                    <span className="text-xs font-bold text-white">{c.name}</span>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteCategory(c.id, c.name)}
+                    className="p-1 rounded text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition"
+                    title="Excluir categoria"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Manual Entry Modal */}
       {manualModalOpen && (
@@ -559,12 +1150,11 @@ export const TimeTrackerTab: React.FC = () => {
                   onChange={(e) => setManualCategory(e.target.value)}
                   className="w-full bg-slate-950 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-cyan-500"
                 >
-                  <option value="Geral">Geral</option>
-                  <option value="Desenvolvimento">Desenvolvimento</option>
-                  <option value="Estudos">Estudos</option>
-                  <option value="Finanças">Finanças</option>
-                  <option value="Design">Design</option>
-                  <option value="Reunião">Reunião</option>
+                  {categories.map((c) => (
+                    <option key={c.id} value={c.name}>
+                      {c.name}
+                    </option>
+                  ))}
                 </select>
               </div>
 

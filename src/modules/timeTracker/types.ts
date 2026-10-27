@@ -32,6 +32,12 @@ export interface TimeTrackerStats {
   topTasks: Array<{ task_title: string; task_id?: string | null; seconds: number; count: number }>;
 }
 
+export interface TimeCategory {
+  id: string;
+  name: string;
+  color: string;
+}
+
 export interface IdleDetectionNotice {
   detectedAt: number;
   idleSeconds: number;
