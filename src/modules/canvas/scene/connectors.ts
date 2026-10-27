@@ -44,6 +44,9 @@ export function getSideNormal(side?: CanvasSide, rotation = 0): Point {
 }
 
 export function getAutoSide(fromNode: CanvasNode, toNode: CanvasNode): { fromSide: CanvasSide; toSide: CanvasSide } {
+  if (fromNode.id === toNode.id) {
+    return { fromSide: 'top', toSide: 'right' };
+  }
   const dx = (toNode.x + toNode.width / 2) - (fromNode.x + fromNode.width / 2);
   const dy = (toNode.y + toNode.height / 2) - (fromNode.y + fromNode.height / 2);
   if (Math.abs(dx) >= Math.abs(dy)) {
@@ -61,12 +64,13 @@ export function findConnectorTarget(
   nodes: CanvasNode[],
   sourceNodeId: string,
   ptWorld: Point,
-  tolerance = 30
+  tolerance = 30,
+  allowSelf = true
 ): { target: CanvasNode; bestSide: CanvasSide; snapPt: Point } | null {
   const sides: CanvasSide[] = ['top', 'right', 'bottom', 'left'];
   for (let i = nodes.length - 1; i >= 0; i--) {
     const node = nodes[i];
-    if (node.id === sourceNodeId) continue;
+    if (node.id === sourceNodeId && !allowSelf) continue;
     if (isPointInNode(ptWorld, node, tolerance)) {
       let bestSide: CanvasSide = 'left';
       let bestDist = Infinity;
@@ -104,11 +108,78 @@ export function routeEdge(
     return { path: `M ${fromPt.x} ${fromPt.y} L ${toPt.x} ${toPt.y}`, midpoint: mid, fromPoint: fromPt, toPoint: toPt };
   }
 
-  if (routing === 'bezier') {
+  if (routing === 'curved' || routing === 'bezier') {
     return routeBezier(fromPt, toPt, fromSide, toSide, fromNode.orbitron?.rotation, toNode.orbitron?.rotation);
   }
 
+  if (routing === 'cyclic' || routing === 'cycle') {
+    return routeCycle(fromPt, toPt, fromSide, toSide, fromNode, toNode);
+  }
+
   return routeOrthogonal(fromPt, toPt, fromSide, toSide, fromNode, toNode);
+}
+
+function routeCycle(
+  p1: Point,
+  p2: Point,
+  s1?: CanvasSide,
+  s2?: CanvasSide,
+  fromNode?: CanvasNode,
+  toNode?: CanvasNode
+): RouteResult {
+  const isSelf = fromNode && toNode && fromNode.id === toNode.id;
+
+  if (isSelf) {
+    const w = fromNode.width;
+    const h = fromNode.height;
+    const loopSize = Math.max(60, Math.min(w, h) * 0.7);
+
+    const n1 = getSideNormal(s1 || 'top');
+    const n2 = getSideNormal(s2 || 'right');
+
+    const cp1 = {
+      x: p1.x + (n1.x || 0.4) * loopSize,
+      y: p1.y + (n1.y || -1) * loopSize,
+    };
+    const cp2 = {
+      x: p2.x + (n2.x || 1) * loopSize,
+      y: p2.y + (n2.y || -0.4) * loopSize,
+    };
+
+    const mid = {
+      x: (cp1.x + cp2.x) / 2,
+      y: (cp1.y + cp2.y) / 2,
+    };
+
+    const path = `M ${p1.x} ${p1.y} C ${cp1.x} ${cp1.y}, ${cp2.x} ${cp2.y}, ${p2.x} ${p2.y}`;
+    return { path, midpoint: mid, fromPoint: p1, toPoint: p2 };
+  }
+
+  // Between two nodes: sweeping cyclical arc / loop
+  const dx = p2.x - p1.x;
+  const dy = p2.y - p1.y;
+  const dist = Math.hypot(dx, dy) || 1;
+
+  const perpX = -dy / dist;
+  const perpY = dx / dist;
+
+  const bow = Math.max(50, Math.min(dist * 0.45, 180));
+  const cp1 = {
+    x: p1.x + dx * 0.25 + perpX * bow,
+    y: p1.y + dy * 0.25 + perpY * bow,
+  };
+  const cp2 = {
+    x: p1.x + dx * 0.75 + perpX * bow,
+    y: p1.y + dy * 0.75 + perpY * bow,
+  };
+
+  const mid = {
+    x: 0.125 * p1.x + 0.375 * cp1.x + 0.375 * cp2.x + 0.125 * p2.x,
+    y: 0.125 * p1.y + 0.375 * cp1.y + 0.375 * cp2.y + 0.125 * p2.y,
+  };
+
+  const path = `M ${p1.x} ${p1.y} C ${cp1.x} ${cp1.y}, ${cp2.x} ${cp2.y}, ${p2.x} ${p2.y}`;
+  return { path, midpoint: mid, fromPoint: p1, toPoint: p2 };
 }
 
 function routeBezier(

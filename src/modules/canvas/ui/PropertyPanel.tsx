@@ -90,7 +90,7 @@ export const PropertyPanel: React.FC = () => {
     });
   };
 
-  const handleRoutingChange = (routing: 'orthogonal' | 'bezier' | 'straight') => {
+  const handleRoutingChange = (routing: 'straight' | 'orthogonal' | 'curved' | 'cyclic') => {
     selectedEdges.forEach((edge) => {
       const prev = edge.orbitron?.routing || 'orthogonal';
       canvasStore.dispatch(
@@ -305,27 +305,33 @@ export const PropertyPanel: React.FC = () => {
         <>
           <div className="canvas-divider" />
           <div className="flex items-center gap-1 text-xs text-slate-300">
-            <button
-              onClick={() => handleRoutingChange('orthogonal')}
-              className="px-2 py-0.5 rounded-lg hover:bg-white/10 hover:text-white transition-colors"
-              title="Conector Ortogonal (90°)"
-            >
-              Ortogonal
-            </button>
-            <button
-              onClick={() => handleRoutingChange('bezier')}
-              className="px-2 py-0.5 rounded-lg hover:bg-white/10 hover:text-white transition-colors"
-              title="Conector Curvo"
-            >
-              Curva
-            </button>
-            <button
-              onClick={() => handleRoutingChange('straight')}
-              className="px-2 py-0.5 rounded-lg hover:bg-white/10 hover:text-white transition-colors"
-              title="Linha Reta"
-            >
-              Reta
-            </button>
+            <span className="text-[10px] text-slate-500 font-semibold uppercase px-1">Linha:</span>
+            {[
+              { id: 'straight' as const, label: 'Reta', title: 'Linha Reta Direta' },
+              { id: 'orthogonal' as const, label: 'De Dobra', title: 'Conector com Dobra em Ângulo (90°)' },
+              { id: 'curved' as const, label: 'Curva', title: 'Linha Suave Curva (Bézier)' },
+              { id: 'cyclic' as const, label: 'Cíclica', title: 'Conector em Arco / Loop Cíclico' },
+            ].map((r) => {
+              const currentRouting = selectedEdges[0]?.orbitron?.routing || 'orthogonal';
+              const isCurvedMatch = r.id === 'curved' && (currentRouting === 'curved' || (currentRouting as string) === 'bezier');
+              const isCyclicMatch = r.id === 'cyclic' && (currentRouting === 'cyclic' || (currentRouting as string) === 'cycle');
+              const isActive = currentRouting === r.id || isCurvedMatch || isCyclicMatch;
+
+              return (
+                <button
+                  key={r.id}
+                  onClick={() => handleRoutingChange(r.id)}
+                  className={`px-2 py-1 rounded-lg text-xs font-semibold transition-all ${
+                    isActive
+                      ? 'bg-purple-600 text-white shadow-sm'
+                      : 'hover:bg-white/10 text-slate-300 hover:text-white'
+                  }`}
+                  title={r.title}
+                >
+                  {r.label}
+                </button>
+              );
+            })}
           </div>
 
           <div className="canvas-divider" />

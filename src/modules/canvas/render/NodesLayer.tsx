@@ -71,6 +71,7 @@ export const NodesLayer: React.FC<NodesLayerProps> = ({
         <PenNode
           key={node.id}
           node={node}
+          effectiveRect={effRect}
           isSelected={isSelected}
           onPointerDown={(e) => onNodePointerDown?.(e, node)}
         />
@@ -81,7 +82,16 @@ export const NodesLayer: React.FC<NodesLayerProps> = ({
       return <StickyNode {...commonProps} />;
     }
 
-    if (['rectangle', 'ellipse', 'diamond', 'triangle'].includes(node.orbitron?.shape || '')) {
+    if (
+      [
+        'rectangle',
+        'ellipse',
+        'diamond',
+        'triangle',
+        'divider_horizontal',
+        'divider_vertical',
+      ].includes(node.orbitron?.shape || '')
+    ) {
       return <ShapeNode {...commonProps} />;
     }
 

@@ -31,6 +31,8 @@ import {
   Keyboard,
   Map,
   FileCode,
+  Minus,
+  SeparatorVertical,
 } from 'lucide-react';
 import { useCanvasStore, canvasStore } from '../store/canvasStore';
 import { CanvasTool, CanvasShapeType, CanvasGridPattern, CanvasTheme } from '../store/canvasStore.types';
@@ -61,6 +63,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
 }) => {
   const activeTool = useCanvasStore((s) => s.activeTool);
   const toolShape = useCanvasStore((s) => s.toolShape);
+  const defaultEdgeRouting = useCanvasStore((s) => s.defaultEdgeRouting) || 'orthogonal';
   const canUndo = useCanvasStore((s) => s.canUndo);
   const canRedo = useCanvasStore((s) => s.canRedo);
   const theme = useCanvasStore((s) => s.theme);
@@ -69,6 +72,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
   const edges = useCanvasStore((s) => s.edges);
 
   const [shapeMenuOpen, setShapeMenuOpen] = useState(false);
+  const [connectorMenuOpen, setConnectorMenuOpen] = useState(false);
   const [optionsMenuOpen, setOptionsMenuOpen] = useState(false);
   const [showShortcutsModal, setShowShortcutsModal] = useState(false);
   const [copiedCitation, setCopiedCitation] = useState(false);
@@ -92,12 +96,14 @@ export const Toolbar: React.FC<ToolbarProps> = ({
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
         setOptionsMenuOpen(false);
       }
+      setShapeMenuOpen(false);
+      setConnectorMenuOpen(false);
     };
-    if (optionsMenuOpen) {
+    if (optionsMenuOpen || shapeMenuOpen || connectorMenuOpen) {
       document.addEventListener('mousedown', handleClickOutside);
     }
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [optionsMenuOpen]);
+  }, [optionsMenuOpen, shapeMenuOpen, connectorMenuOpen]);
 
   const handleToolSelect = (tool: CanvasTool) => {
     canvasStore.setActiveTool(tool);
@@ -126,6 +132,8 @@ export const Toolbar: React.FC<ToolbarProps> = ({
       case 'ellipse': return <Circle className="w-4 h-4" />;
       case 'diamond': return <Diamond className="w-4 h-4" />;
       case 'triangle': return <Triangle className="w-4 h-4" />;
+      case 'divider_horizontal': return <Minus className="w-4 h-4 text-cyan-400" />;
+      case 'divider_vertical': return <SeparatorVertical className="w-4 h-4 text-cyan-400" />;
       case 'rectangle':
       default:
         return <Square className="w-4 h-4" />;
@@ -253,7 +261,10 @@ export const Toolbar: React.FC<ToolbarProps> = ({
           </div>
 
           {shapeMenuOpen && (
-            <div className="absolute top-11 left-0 flex flex-col gap-1 p-1.5 rounded-xl canvas-glass-panel shadow-2xl z-30 min-w-[130px]">
+            <div className="absolute top-11 left-0 flex flex-col gap-1 p-1.5 rounded-xl canvas-glass-panel shadow-2xl z-30 min-w-[160px]">
+              <span className="text-[10px] text-slate-400 font-bold px-2 py-0.5 uppercase tracking-wider">
+                Formas
+              </span>
               <button
                 onClick={() => handleShapeSelect('rectangle')}
                 className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs hover:bg-purple-600/20 hover:text-purple-300 transition-colors"
@@ -277,6 +288,23 @@ export const Toolbar: React.FC<ToolbarProps> = ({
                 className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs hover:bg-purple-600/20 hover:text-purple-300 transition-colors"
               >
                 <Triangle className="w-3.5 h-3.5" /> Triângulo
+              </button>
+
+              <div className="h-px bg-white/10 my-1" />
+              <span className="text-[10px] text-slate-400 font-bold px-2 py-0.5 uppercase tracking-wider">
+                Divisores
+              </span>
+              <button
+                onClick={() => handleShapeSelect('divider_horizontal')}
+                className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs hover:bg-cyan-500/20 text-cyan-300 hover:text-cyan-200 transition-colors font-medium"
+              >
+                <Minus className="w-3.5 h-3.5" /> Divisor Horizontal
+              </button>
+              <button
+                onClick={() => handleShapeSelect('divider_vertical')}
+                className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs hover:bg-cyan-500/20 text-cyan-300 hover:text-cyan-200 transition-colors font-medium"
+              >
+                <SeparatorVertical className="w-3.5 h-3.5" /> Divisor Vertical
               </button>
             </div>
           )}
@@ -311,20 +339,78 @@ export const Toolbar: React.FC<ToolbarProps> = ({
           <Link2 className="w-4 h-4" />
         </button>
 
-        {/* Connector */}
-        <button
-          onClick={() => handleToolSelect('connector')}
-          className={`canvas-tool-btn ${activeTool === 'connector' ? 'active' : ''}`}
-          title="Conector / Seta [C]"
-        >
-          <ArrowUpRight className="w-4 h-4" />
-        </button>
+        {/* Connector Dropdown & Split Button */}
+        <div className="relative">
+          <div className="flex items-center">
+            <button
+              onClick={() => handleToolSelect('connector')}
+              className={`canvas-tool-btn rounded-r-none ${activeTool === 'connector' ? 'active' : ''}`}
+              title={`Conector / Seta [C] • Tipo ativo: ${
+                defaultEdgeRouting === 'straight'
+                  ? 'Reta'
+                  : defaultEdgeRouting === 'curved'
+                  ? 'Curva'
+                  : defaultEdgeRouting === 'cyclic'
+                  ? 'Cíclica'
+                  : 'De Dobra'
+              }`}
+            >
+              <ArrowUpRight className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => {
+                setConnectorMenuOpen(!connectorMenuOpen);
+                setShapeMenuOpen(false);
+              }}
+              className={`h-9 px-1 rounded-r-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors ${
+                activeTool === 'connector' ? 'bg-purple-600/30 text-white' : ''
+              }`}
+              title="Escolher Tipo de Linha do Conector"
+            >
+              <ChevronDown className="w-3 h-3" />
+            </button>
+          </div>
+
+          {connectorMenuOpen && (
+            <div className="absolute top-11 left-0 flex flex-col gap-1 p-1.5 rounded-xl canvas-glass-panel shadow-2xl z-30 min-w-[150px] text-xs">
+              <span className="text-[10px] text-slate-400 font-bold px-2 py-0.5 uppercase tracking-wider">
+                Tipo de Linha
+              </span>
+              {[
+                { id: 'straight' as const, label: 'Reta', desc: 'Linha direta' },
+                { id: 'orthogonal' as const, label: 'De Dobra', desc: 'Ângulo de 90°' },
+                { id: 'curved' as const, label: 'Curva', desc: 'Bézier suave' },
+                { id: 'cyclic' as const, label: 'Cíclica', desc: 'Loop / Arco cíclico' },
+              ].map((item) => (
+                <button
+                  key={item.id}
+                  onClick={() => {
+                    canvasStore.setDefaultEdgeRouting(item.id);
+                    canvasStore.setActiveTool('connector');
+                    setConnectorMenuOpen(false);
+                  }}
+                  className={`flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs transition-colors text-left ${
+                    defaultEdgeRouting === item.id
+                      ? 'bg-purple-600/30 text-purple-200 font-bold'
+                      : 'hover:bg-white/10 text-slate-300 hover:text-white'
+                  }`}
+                >
+                  <div className="flex flex-col">
+                    <span>{item.label}</span>
+                    <span className="text-[10px] text-slate-400 font-normal">{item.desc}</span>
+                  </div>
+                  {defaultEdgeRouting === item.id && <Check className="w-3.5 h-3.5 text-purple-400 ml-2" />}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
 
         {/* Freehand Pen */}
         <button
           onClick={() => handleToolSelect('pen')}
           className={`canvas-tool-btn ${activeTool === 'pen' ? 'active' : ''}`}
-          title="Desenho livre (Caneta) [P]"
+          title="Desenho contínuo (Caneta) [P] • Pressione V ou Esc para selecionar"
         >
           <PenTool className="w-4 h-4" />
         </button>

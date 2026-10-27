@@ -138,6 +138,17 @@ export function useCanvasPointer(svgRef: React.RefObject<SVGSVGElement | null>) 
       setIsSpaceDragging(true);
       return;
     }
+    if (store.activeTool === 'pen') {
+      dragRef.current = {
+        mode: 'pen',
+        startScreen: { x: e.clientX, y: e.clientY },
+        startWorld: ptWorld,
+        lastWorld: ptWorld,
+        penPoints: [ptWorld],
+      };
+      setEphemeral({ type: 'pen', points: [ptWorld], color: store.toolColor });
+      return;
+    }
     if (store.activeTool === 'connector') {
       const sides: CanvasSide[] = ['top', 'right', 'bottom', 'left'];
       let bestSide: CanvasSide = 'right';

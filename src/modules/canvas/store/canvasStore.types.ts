@@ -2,7 +2,13 @@ import { CanvasNode, CanvasEdge, CanvasDoc } from '../io/jsonCanvas.types';
 import { Camera, Point, SnapGuide } from '../scene/types';
 
 export type CanvasTool = 'select' | 'hand' | 'sticky' | 'shape' | 'text' | 'frame' | 'connector' | 'pen' | 'image' | 'link';
-export type CanvasShapeType = 'rectangle' | 'ellipse' | 'diamond' | 'triangle';
+export type CanvasShapeType =
+  | 'rectangle'
+  | 'ellipse'
+  | 'diamond'
+  | 'triangle'
+  | 'divider_horizontal'
+  | 'divider_vertical';
 export type CanvasTheme = 'dark' | 'light' | 'blueprint' | 'cyberpunk' | 'golden' | 'cosmic';
 export type CanvasGridPattern = 'dots' | 'lines' | 'cross' | 'none';
 
@@ -14,6 +20,7 @@ export interface CanvasStoreSnapshot {
   activeTool: CanvasTool;
   toolShape: CanvasShapeType;
   toolColor: string;
+  defaultEdgeRouting: 'orthogonal' | 'straight' | 'curved' | 'cyclic';
   theme: CanvasTheme;
   gridPattern: CanvasGridPattern;
   snapGuides: SnapGuide[];

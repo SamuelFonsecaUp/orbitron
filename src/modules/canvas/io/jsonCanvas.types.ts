@@ -2,7 +2,15 @@ export type CanvasNodeType = 'text' | 'file' | 'link' | 'group';
 
 export type CanvasSide = 'top' | 'right' | 'bottom' | 'left';
 
-export type OrbitronShape = 'sticky' | 'rectangle' | 'ellipse' | 'diamond' | 'triangle' | 'pen';
+export type OrbitronShape =
+  | 'sticky'
+  | 'rectangle'
+  | 'ellipse'
+  | 'diamond'
+  | 'triangle'
+  | 'pen'
+  | 'divider_horizontal'
+  | 'divider_vertical';
 
 export interface OrbitronNodeMeta {
   shape?: OrbitronShape;
@@ -18,7 +26,7 @@ export interface OrbitronNodeMeta {
 }
 
 export interface OrbitronEdgeMeta {
-  routing?: 'orthogonal' | 'straight' | 'curved';
+  routing?: 'orthogonal' | 'straight' | 'curved' | 'bezier' | 'cyclic' | 'cycle';
   arrowStart?: boolean;
   arrowEnd?: boolean;
 }

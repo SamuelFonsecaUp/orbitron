@@ -10,6 +10,7 @@ import {
 } from '../../src/modules/canvas/scene/commands';
 import { HistoryManager } from '../../src/modules/canvas/store/history';
 import { CanvasNode } from '../../src/modules/canvas/io/jsonCanvas.types';
+import { createPenNode, createNewPlacedNode } from '../../src/modules/canvas/hooks/pointerNodeCreation';
 
 describe('Canvas Commands and History', () => {
   const initialNodes: CanvasNode[] = [
@@ -96,5 +97,37 @@ describe('Canvas Commands and History', () => {
 
     state = history.redo(state)!;
     expect(state.nodes[0].x).toBe(30);
+  });
+
+  it('creates pen nodes with exact bounding box and relative points', () => {
+    const rawPoints = [
+      { x: 100, y: 150 },
+      { x: 150, y: 200 },
+      { x: 220, y: 180 },
+    ];
+    const penNode = createPenNode(rawPoints, '2');
+    expect(penNode.orbitron?.shape).toBe('pen');
+    expect(penNode.x).toBeLessThanOrEqual(100);
+    expect(penNode.y).toBeLessThanOrEqual(150);
+    expect(penNode.width).toBeGreaterThanOrEqual(120);
+    expect(penNode.height).toBeGreaterThanOrEqual(50);
+
+    const relPoints = penNode.orbitron?.penPoints || [];
+    expect(relPoints.length).toBe(3);
+    // Relative coordinates should start around padding
+    expect(relPoints[0].x).toBe(6);
+    expect(relPoints[0].y).toBe(6);
+  });
+
+  it('creates horizontal and vertical divider nodes with appropriate dimensions', () => {
+    const divH = createNewPlacedNode('shape', 'divider_horizontal', '1', { x: 500, y: 300 });
+    expect(divH.orbitron?.shape).toBe('divider_horizontal');
+    expect(divH.width).toBe(460);
+    expect(divH.height).toBe(28);
+
+    const divV = createNewPlacedNode('shape', 'divider_vertical', '1', { x: 500, y: 300 });
+    expect(divV.orbitron?.shape).toBe('divider_vertical');
+    expect(divV.width).toBe(28);
+    expect(divV.height).toBe(460);
   });
 });

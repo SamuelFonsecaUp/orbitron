@@ -95,6 +95,56 @@ describe('Canvas Connectors & Routing', () => {
     expect(res.toPoint).toEqual({ x: 500, y: 150 });
   });
 
+  it('routes curved edge (alias) between two nodes', () => {
+    const edge: CanvasEdge = {
+      id: 'e2-curved',
+      fromNode: 'nA',
+      fromSide: 'right',
+      toNode: 'nB',
+      toSide: 'left',
+      orbitron: { routing: 'curved' },
+    };
+
+    const res = routeEdge(edge, nodeA, nodeB);
+    expect(res.path).toContain('M 300 150 C');
+    expect(res.fromPoint).toEqual({ x: 300, y: 150 });
+    expect(res.toPoint).toEqual({ x: 500, y: 150 });
+  });
+
+  it('routes cyclic arc edge between two different nodes', () => {
+    const edge: CanvasEdge = {
+      id: 'e-cyclic',
+      fromNode: 'nA',
+      fromSide: 'right',
+      toNode: 'nB',
+      toSide: 'left',
+      orbitron: { routing: 'cyclic' },
+    };
+
+    const res = routeEdge(edge, nodeA, nodeB);
+    expect(res.path).toContain('M 300 150 C');
+    expect(res.fromPoint).toEqual({ x: 300, y: 150 });
+    expect(res.toPoint).toEqual({ x: 500, y: 150 });
+    // Midpoint should be bowed out from straight horizontal line y=150
+    expect(res.midpoint.y).not.toEqual(150);
+  });
+
+  it('routes self-connecting cyclic loop on the same node', () => {
+    const edge: CanvasEdge = {
+      id: 'e-self-loop',
+      fromNode: 'nA',
+      fromSide: 'top',
+      toNode: 'nA',
+      toSide: 'right',
+      orbitron: { routing: 'cyclic' },
+    };
+
+    const res = routeEdge(edge, nodeA, nodeA);
+    expect(res.path).toContain('M 200 100 C');
+    expect(res.fromPoint).toEqual({ x: 200, y: 100 });
+    expect(res.toPoint).toEqual({ x: 300, y: 150 });
+  });
+
   it('routes straight edge between two nodes', () => {
     const edge: CanvasEdge = {
       id: 'e3',

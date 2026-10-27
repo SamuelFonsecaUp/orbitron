@@ -14,6 +14,7 @@ export class CanvasStore {
   private activeTool: CanvasTool = 'select';
   private toolShape: CanvasShapeType = 'rectangle';
   private toolColor: string = '1';
+  private defaultEdgeRouting: 'orthogonal' | 'straight' | 'curved' | 'cyclic' = 'orthogonal';
   private theme: CanvasTheme = (() => {
     try {
       return (localStorage.getItem('orbitron_canvas_theme') as CanvasTheme) || 'dark';
@@ -57,6 +58,7 @@ export class CanvasStore {
         activeTool: this.activeTool,
         toolShape: this.toolShape,
         toolColor: this.toolColor,
+        defaultEdgeRouting: this.defaultEdgeRouting,
         theme: this.theme,
         gridPattern: this.gridPattern,
         snapGuides: this.snapGuides,
@@ -170,6 +172,11 @@ export class CanvasStore {
 
   public setToolColor(color: string) {
     this.toolColor = color;
+    this.emit();
+  }
+
+  public setDefaultEdgeRouting(routing: 'orthogonal' | 'straight' | 'curved' | 'cyclic') {
+    this.defaultEdgeRouting = routing;
     this.emit();
   }
 

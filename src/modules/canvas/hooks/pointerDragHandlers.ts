@@ -118,22 +118,24 @@ export function processPointerUp(ctx: PointerHandlerContext): void {
     canvasStore.setSelection(ids);
     setSelectionBox(null);
   } else if (drag.mode === 'connector' && drag.connectorSourceNode) {
-    const candidate = findConnectorTarget(store.nodes, drag.connectorSourceNode.id, ptWorld, 35);
-    if (candidate && candidate.target.id !== drag.connectorSourceNode.id) {
+    const candidate = findConnectorTarget(store.nodes, drag.connectorSourceNode.id, ptWorld, 35, true);
+    if (candidate) {
+      const isSelf = candidate.target.id === drag.connectorSourceNode.id;
+      const routing = isSelf ? 'cyclic' : (store.defaultEdgeRouting || 'orthogonal');
       const edge = createNewEdge(
         drag.connectorSourceNode.id,
         candidate.target.id,
         store.toolColor,
         drag.connectorSourceSide,
         candidate.bestSide,
-        'orthogonal'
+        routing
       );
       canvasStore.dispatch(createAddEdgeCommand(edge));
     }
     canvasStore.setActiveTool('select');
   } else if (drag.mode === 'pen' && drag.penPoints && drag.penPoints.length > 1) {
     canvasStore.dispatch(createAddNodeCommand(createPenNode(drag.penPoints, store.toolColor)));
-    canvasStore.setActiveTool('select');
+    // Retém ferramenta de caneta ativa para permitir múltiplos traços consecutivos e escrita livre
   }
 
   setEphemeral(null);
