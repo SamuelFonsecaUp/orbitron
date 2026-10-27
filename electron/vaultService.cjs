@@ -18,7 +18,17 @@ class VaultService {
     } catch (e) {
       baseDocs = path.join(process.cwd(), 'Documents');
     }
-    this.vaultPath = path.join(baseDocs, 'PigoVault');
+    const orbitronPath = path.join(baseDocs, 'OrbitronVault');
+    const legacyPath = path.join(baseDocs, 'PigoVault');
+    if (fs.existsSync(legacyPath) && !fs.existsSync(orbitronPath)) {
+      try {
+        fs.renameSync(legacyPath, orbitronPath);
+      } catch (e) {
+        this.vaultPath = legacyPath;
+        return this.vaultPath;
+      }
+    }
+    this.vaultPath = orbitronPath;
     return this.vaultPath;
   }
 
@@ -48,7 +58,7 @@ class VaultService {
     if (!fs.existsSync(this.workspacePath)) {
       const initialWorkspace = {
         activeEnvironment: 'Pessoal',
-        lastOpenedPath: 'Pessoal/Bem-vindo ao Pigo.md',
+        lastOpenedPath: 'Pessoal/Bem-vindo ao Orbitron.md',
         expandedFolders: [],
         favorites: [],
         pinned: [],
@@ -63,7 +73,7 @@ class VaultService {
     }
 
     // Seed welcoming note inside Pessoal if not existing
-    const welcomeFile = path.join(defaultEnvDir, 'Bem-vindo ao Pigo.md');
+    const welcomeFile = path.join(defaultEnvDir, 'Bem-vindo ao Orbitron.md');
     const legacyWelcomeFile = path.join(this.vaultPath, 'Bem-vindo ao Pigo.md');
     if (fs.existsSync(legacyWelcomeFile) && !fs.existsSync(welcomeFile)) {
       try {
@@ -74,7 +84,7 @@ class VaultService {
     if (!fs.existsSync(welcomeFile)) {
       const welcomeContent = [
         '---',
-        'title: Bem-vindo ao Pigo',
+        'title: Bem-vindo ao Orbitron',
         'icon: BookOpen',
         'sort_rank: a0',
         `created_at: "${new Date().toISOString()}"`,
@@ -83,7 +93,7 @@ class VaultService {
         '  - boas-vindas',
         '  - notas',
         '---',
-        '# Bem-vindo ao Pigo',
+        '# Bem-vindo ao Orbitron',
         '',
         'Este é o seu **segundo cérebro local-first**. Todas as anotações ficam salvas no seu computador em formato Markdown puro, 100% legíveis no Obsidian, VS Code ou qualquer editor de texto.',
         '',
@@ -102,7 +112,7 @@ class VaultService {
     // Initialize index if not indexed yet
     try {
       this.indexer.getDb(this.vaultPath);
-      const res = this.indexer.search(this.vaultPath, 'Pigo', 1);
+      const res = this.indexer.search(this.vaultPath, 'Orbitron', 1);
       if (res.length === 0) {
         this.indexer.rebuildIndex(this.vaultPath);
       }

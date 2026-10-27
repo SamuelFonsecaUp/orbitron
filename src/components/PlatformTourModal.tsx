@@ -13,9 +13,9 @@ import {
   X,
 } from 'lucide-react';
 import { useFinancial, AppModule, AppView } from '../context/FinancialContext';
-import pigoIcon from '../assets/pigo-icon.png';
+import orbitronIcon from '../assets/orbitron-icon.png';
 
-const TOUR_STORAGE_KEY = 'pigo_platform_tour_v1_3_seen';
+const TOUR_STORAGE_KEY = 'orbitron_platform_tour_v1_seen';
 
 interface TourSlide {
   badge: string;
@@ -36,33 +36,33 @@ interface TourSlide {
 
 const SLIDES: TourSlide[] = [
   {
-    badge: 'Bem-vindo ao Novo Pigo 1.3',
-    title: '3 Ambientes Integrados em um Só Lugar',
+    badge: 'Bem-vindo ao Orbitron',
+    title: '4 Pilares Integrados em um Só Lugar',
     subtitle:
-      'Use o seletor Liquid Glass no topo da barra lateral para alternar instantaneamente entre sua vida financeira, sua rotina diária e seu progresso.',
+      'Use o seletor Liquid Glass no topo da barra lateral para alternar instantaneamente entre sua vida financeira, hábitos, segundo cérebro e evolução pessoal.',
     accentColor: '#10b981',
     glowClass: 'from-emerald-500/20 via-cyan-500/10 to-amber-500/10',
     Icon: Sparkles,
     highlights: [
       {
         icon: WalletCards,
-        title: '1. Pigo Finanças (Esmeralda)',
+        title: '1. Finanças Estelares (Esmeralda)',
         desc: 'Dashboard, lançamentos, cartões, reserva de emergência, metas e inteligência financeira.',
       },
       {
         icon: CheckSquare,
-        title: '2. Pigo Hábitos (Ciano)',
+        title: '2. Hábitos & Foco (Ciano)',
         desc: 'Check-ins diários por período (Manhã, Tarde, Noite), grade de 7 dias e mapas de calor anuais.',
       },
       {
         icon: Trophy,
-        title: '3. Pigo Jornada (Âmbar)',
-        desc: 'Seu nível, missões semanais automáticas e sala com 82 troféus desbloqueáveis.',
+        title: '3. Jornada Cósmica (Âmbar)',
+        desc: 'Seu nível, missões semanais automáticas e conquistas estelares desbloqueáveis.',
       },
     ],
   },
   {
-    badge: 'Ambiente 1 • Pigo Finanças',
+    badge: 'Ambiente 1 • Finanças',
     title: 'Controle Financeiro Sem Esforço Manual',
     subtitle:
       'Organizado em 4 grupos claros (Visão Geral, Movimentações, Carteira e Planejamento) para você encontrar tudo em segundos.',
@@ -73,7 +73,7 @@ const SLIDES: TourSlide[] = [
       {
         icon: FileSpreadsheet,
         title: 'Importação Inteligente (OFX / CSV)',
-        desc: 'Arraste o extrato do seu banco: o Pigo agrupa estabelecimentos e aprende suas categorias.',
+        desc: 'Arraste o extrato do seu banco: o Orbitron agrupa estabelecimentos e aprende suas categorias.',
       },
       {
         icon: Sparkles,
@@ -91,7 +91,7 @@ const SLIDES: TourSlide[] = [
     targetView: 'dashboard',
   },
   {
-    badge: 'Ambiente 2 • Pigo Hábitos',
+    badge: 'Ambiente 2 • Hábitos',
     title: 'Construa Disciplina Diária em 1 Clique',
     subtitle:
       'Inspirado nos melhores rastreadores do mundo, dividido em 4 sub-páginas dedicadas para não poluir sua visão.',
@@ -120,10 +120,10 @@ const SLIDES: TourSlide[] = [
     targetView: 'habits',
   },
   {
-    badge: 'Ambiente 3 • Pigo Jornada',
+    badge: 'Ambiente 3 • Jornada Cósmica',
     title: 'Suba de Nível na Vida Real',
     subtitle:
-      'Seu esforço financeiro e sua disciplina diária se transformam em XP, níveis, títulos e 82 conquistas.',
+      'Seu esforço financeiro e sua disciplina diária se transformam em XP, níveis, títulos e conquistas.',
     accentColor: '#f59e0b',
     glowClass: 'from-amber-500/25 via-orange-500/5 to-transparent',
     Icon: Trophy,
@@ -131,12 +131,12 @@ const SLIDES: TourSlide[] = [
       {
         icon: Zap,
         title: 'Missões Semanais Personalizadas',
-        desc: 'Toda segunda-feira o Pigo gera 3 desafios baseados nos seus próprios padrões financeiros.',
+        desc: 'Toda segunda-feira o Orbitron gera 3 desafios baseados nos seus próprios padrões financeiros.',
       },
       {
         icon: Trophy,
-        title: '82 Conquistas em 10 Categorias',
-        desc: 'De "Primeiro Extrato" e "Caixa Zero" até "Regra dos 21 Dias" e "Ano de Ouro".',
+        title: 'Conquistas em 10 Categorias',
+        desc: 'De "Primeiro Extrato" e "Caixa Zero" até "Regra dos 21 Dias" e "Mestre do Hiperfoco".',
       },
       {
         icon: CheckCircle2,
@@ -207,7 +207,7 @@ export const PlatformTourModal: React.FC<PlatformTourModalProps> = ({ isOpen, on
               }}
             >
               {step === 0 ? (
-                <img src={pigoIcon} alt="Pigo" className="w-10 h-10 object-contain rounded-xl" />
+                <img src={orbitronIcon} alt="Orbitron" className="w-10 h-10 object-contain rounded-xl" />
               ) : (
                 <slide.Icon className="w-7 h-7" />
               )}
@@ -278,7 +278,7 @@ export const PlatformTourModal: React.FC<PlatformTourModalProps> = ({ isOpen, on
                 type="button"
                 onClick={() => {
                   handleFinish();
-                  window.dispatchEvent(new CustomEvent('pigo:open-setup-wizard'));
+                  window.dispatchEvent(new CustomEvent('orbitron:open-setup-wizard'));
                 }}
                 className="text-[11px] font-bold text-emerald-400 hover:text-emerald-300 underline underline-offset-2"
               >

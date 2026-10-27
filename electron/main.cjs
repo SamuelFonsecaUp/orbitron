@@ -83,11 +83,17 @@ function startHabitNotificationScheduler(serviceInstance) {
 function setupSystemTray(iconPath) {
   if (appTray) return;
   try {
+    const iconCandidates = [
+      path.join(__dirname, '../public/assets/orbitron-icon.png'),
+      path.join(__dirname, '../public/favicon.png'),
+      iconPath,
+    ];
+    const resolvedPath = iconCandidates.find((p) => p && fs.existsSync(p));
     let trayImage = null;
-    if (fs.existsSync(iconPath)) {
-      trayImage = nativeImage.createFromPath(iconPath).resize({ width: 16, height: 16 });
+    if (resolvedPath) {
+      trayImage = nativeImage.createFromPath(resolvedPath).resize({ width: 16, height: 16 });
     }
-    appTray = new Tray(trayImage || iconPath);
+    appTray = new Tray(trayImage || resolvedPath);
     appTray.setToolTip('Orbitron - Sistema Operacional Pessoal');
 
     const contextMenu = Menu.buildFromTemplate([
@@ -158,9 +164,17 @@ function setupSystemTray(iconPath) {
 }
 
 function createWindow() {
-  const iconPath = fs.existsSync(path.join(__dirname, '../public/assets/pigo-icon.png'))
-    ? path.join(__dirname, '../public/assets/pigo-icon.png')
-    : path.join(__dirname, '../dist/assets/pigo-icon.png');
+  const iconCandidates = [
+    path.join(__dirname, '../public/assets/orbitron-icon.ico'),
+    path.join(__dirname, '../public/favicon.ico'),
+    path.join(__dirname, '../public/assets/orbitron-icon.png'),
+    path.join(__dirname, '../public/favicon.png'),
+    path.join(__dirname, '../dist/assets/orbitron-icon.png'),
+    path.join(__dirname, '../dist/favicon.ico'),
+    path.join(__dirname, '../public/assets/pigo-icon.png'),
+  ];
+  const iconPath = iconCandidates.find((p) => fs.existsSync(p));
+  const appIcon = iconPath ? nativeImage.createFromPath(iconPath) : undefined;
 
   mainWindow = new BrowserWindow({
     width: 1300,
@@ -171,7 +185,7 @@ function createWindow() {
     autoHideMenuBar: true,
     backgroundColor: '#0c0c0e',
     title: 'Orbitron - Sistema Operacional Pessoal',
-    icon: fs.existsSync(iconPath) ? iconPath : undefined,
+    icon: appIcon || iconPath,
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
       contextIsolation: true,
@@ -181,6 +195,12 @@ function createWindow() {
     },
     show: false, // Wait until ready-to-show to avoid white flicker
   });
+
+  if (appIcon && !appIcon.isEmpty()) {
+    try {
+      mainWindow.setIcon(appIcon);
+    } catch (_) {}
+  }
 
   Menu.setApplicationMenu(null);
   mainWindow.setMenuBarVisibility(false);

@@ -231,7 +231,7 @@ export const Navbar: React.FC = () => {
           <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin text-brand-400' : ''}`} />
         </button>
 
-        {/* Window controls if running inside Electron */}
+        {/* Window controls */}
         <div className="flex items-center ml-2 border-l border-slate-800 pl-2">
           <button
             onClick={() => window.dispatchEvent(new CustomEvent('orbitron:toggle-mini-mode'))}

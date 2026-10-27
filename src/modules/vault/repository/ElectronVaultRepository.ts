@@ -68,7 +68,7 @@ export class ElectronVaultRepository implements IVaultRepository {
 
   async readPage(relativePath: string) {
     if (this.api) return this.api.vaultReadPage(relativePath);
-    throw new Error('Electron API não disponível');
+    throw new Error('API local do Orbitron não disponível');
   }
 
   async writePage(relativePath: string, content: string) {
@@ -175,7 +175,7 @@ export class ElectronVaultRepository implements IVaultRepository {
     if (this.api && (this.api as any).vaultGetVaultRoot) {
       return (this.api as any).vaultGetVaultRoot();
     }
-    return '~/Documents/PigoVault';
+    return '~/Documents/OrbitronVault';
   }
 
   async exportPage(relativePath: string, defaultName?: string): Promise<{ canceled?: boolean; success?: boolean }> {

@@ -28,7 +28,7 @@ import {
 import { useFinancial } from '../context/FinancialContext';
 import { useHabits } from '../context/HabitsContext';
 import { AccountType, Category } from '../types';
-import pigoIcon from '../assets/pigo-icon.png';
+import orbitronIcon from '../assets/orbitron-icon.png';
 
 export const MANDATORY_ONBOARDING_KEY = 'pigo_mandatory_onboarding_v2';
 
@@ -602,7 +602,7 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({ onComplete }) =>
             },
             {
               name: 'Revisar Lançamentos do Dia (2 min)',
-              description: 'Conferir e categorizar os gastos do dia no Pigo',
+              description: 'Conferir e categorizar os gastos do dia no Orbitron',
               category: 'financas',
               period_of_day: 'evening',
               color: '#34d399',
@@ -713,8 +713,8 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({ onComplete }) =>
       {/* Frameless Window Drag Bar */}
       <div className="h-9 w-full flex items-center justify-between px-4 shrink-0 app-drag border-b border-white/[0.04] bg-[#0c0c0e]/90 backdrop-blur-md sticky top-0 z-50">
         <div className="flex items-center gap-2 text-[11px] font-bold text-slate-400">
-          <img src={pigoIcon} alt="Pigo" className="w-4 h-4 rounded" />
-          <span>Pigo • Configuração Inicial Obrigatória</span>
+          <img src={orbitronIcon} alt="Orbitron" className="w-4 h-4 rounded" />
+          <span>Orbitron • Configuração Inicial Obrigatória</span>
         </div>
         <div className="flex items-center gap-1 app-no-drag">
           <button
@@ -754,8 +754,8 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({ onComplete }) =>
         <div className="flex items-center justify-between gap-3 mb-5 relative z-10">
           <div className="flex items-center gap-3.5">
             <img
-              src={pigoIcon}
-              alt="Pigo Logo"
+              src={orbitronIcon}
+              alt="Orbitron Logo"
               className="w-11 h-11 rounded-2xl shadow-lg object-contain shrink-0 border border-white/15"
             />
             <div>
@@ -768,7 +768,7 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({ onComplete }) =>
                 </span>
               </div>
               <p className="text-xs text-slate-400">
-                Complete as 5 etapas abaixo para destravar todos os ambientes do Pigo
+                Complete as 5 etapas abaixo para destravar todos os ambientes do Orbitron
               </p>
             </div>
           </div>
@@ -971,7 +971,7 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({ onComplete }) =>
                 <div className="p-4 rounded-2xl bg-slate-950/70 border border-white/[0.07] space-y-3">
                   <div className="flex items-center gap-2 text-xs font-extrabold uppercase tracking-wider text-emerald-400">
                     <GraduationCap className="w-4 h-4" />
-                    <span>Como funciona o Pigo (3 Ambientes Integrados)</span>
+                    <span>Como funciona o Orbitron (4 Pilares Integrados)</span>
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
@@ -1009,7 +1009,7 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({ onComplete }) =>
 
                 <div className="p-4 rounded-2xl bg-slate-950/80 border border-slate-800">
                   <label className="block text-xs font-bold text-white mb-1.5">
-                    Para começar, como você quer ser chamado no Pigo? <span className="text-rose-400">*</span>
+                    Para começar, como você quer ser chamado no Orbitron? <span className="text-rose-400">*</span>
                   </label>
                   <input
                     type="text"
@@ -1172,7 +1172,7 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({ onComplete }) =>
                   <Tag className="w-5 h-5 text-purple-400 shrink-0 mt-0.5" />
                   <div className="text-xs text-slate-300 leading-relaxed">
                     <strong className="text-white block">Categorização Inteligente</strong>
-                    Quando você categoriza um estabelecimento (ex: iFood ou Supermercado), o Pigo aprende a regra e categoriza sozinho nos próximos extratos! Revise suas categorias ou crie novas abaixo:
+                    Quando você categoriza um estabelecimento (ex: iFood ou Supermercado), o Orbitron aprende a regra e categoriza sozinho nos próximos extratos! Revise suas categorias ou crie novas abaixo:
                   </div>
                 </div>
 
@@ -1287,7 +1287,7 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({ onComplete }) =>
                   <ShieldCheck className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
                   <div className="text-xs text-slate-300 leading-relaxed">
                     <strong className="text-white block">Sua Fortaleza Financeira</strong>
-                    O Pigo monitora seus aportes e calcula quantos meses do seu custo de vida já estão protegidos. Defina abaixo sua meta e onde sua reserva fica guardada:
+                    O Orbitron monitora seus aportes e calcula quantos meses do seu custo de vida já estão protegidos. Defina abaixo sua meta e onde sua reserva fica guardada:
                   </div>
                 </div>
 
@@ -1580,7 +1580,7 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({ onComplete }) =>
                 {/* Final Summary Card */}
                 <div className="p-3.5 rounded-2xl bg-slate-950/80 border border-white/[0.08] space-y-2">
                   <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
-                    Resumo pronto para liberar seu Pigo:
+                    Resumo pronto para liberar seu Orbitron:
                   </span>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
                     <div className="p-2 rounded-xl bg-slate-900 border border-slate-800">
@@ -1658,7 +1658,7 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({ onComplete }) =>
                   <span>
                     {isSubmitting
                       ? 'Liberando Plataforma...'
-                      : 'Concluir Tutorial e Liberar o Pigo!'}
+                      : 'Concluir Tutorial e Liberar o Orbitron!'}
                   </span>
                 </button>
               )}

@@ -758,7 +758,7 @@ export const IntelligenceView: React.FC = () => {
               <div className="p-8 rounded-2xl bg-slate-900/40 border border-slate-850 text-center text-slate-400">
                 <CheckCircle2 className="w-8 h-8 text-emerald-400 mx-auto mb-2" />
                 <p className="text-sm font-medium text-slate-200">Nenhuma despesa periódica identificada ainda.</p>
-                <p className="text-xs text-slate-400 mt-1">Importe extratos de pelo menos 2 ou 3 meses para o Pigo reconhecer assinaturas e contas fixas.</p>
+                <p className="text-xs text-slate-400 mt-1">Importe extratos de pelo menos 2 ou 3 meses para o Orbitron reconhecer assinaturas e contas fixas.</p>
               </div>
             ) : (
               <div className="space-y-3">

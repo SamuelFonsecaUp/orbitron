@@ -25,7 +25,7 @@
       "package.json"
     ],
     "win": {
-      "icon": "public/assets/pigo-icon.png",
+      "icon": "public/assets/orbitron-icon.ico",
       "target": [
         "nsis",
         "portable"

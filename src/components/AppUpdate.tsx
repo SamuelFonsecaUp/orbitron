@@ -27,7 +27,7 @@ export const UpdateBanner: React.FC = () => {
     <div className="flex items-center justify-between gap-3 px-4 py-2 bg-brand-600/20 border-b border-brand-500/30 text-xs text-brand-100">
       <span className="flex items-center gap-2">
         <Rocket className="w-4 h-4 text-brand-300" />
-        A versão {status.version} do Pigo está pronta. Reinicie para atualizar (suas alterações são enviadas à nuvem antes).
+        A versão {status.version} do Orbitron está pronta. Reinicie para atualizar (suas alterações são enviadas à nuvem antes).
       </span>
       <div className="flex items-center gap-2">
         <button onClick={() => setDismissed(true)} className="px-2 py-1 rounded-md text-brand-200 hover:bg-brand-500/20">
@@ -70,12 +70,12 @@ export const AppVersionCard: React.FC = () => {
       <div>
         <h2 className="text-base font-semibold text-white flex items-center gap-2">
           <ArrowUpCircle className="w-5 h-5 text-brand-400" />
-          Versão do Pigo {info ? info.version : ''}
+          Versão do Orbitron {info ? info.version : ''}
         </h2>
         <p className="text-xs text-slate-400 mt-1 max-w-2xl">
           {info?.canAutoUpdate
-            ? 'O Pigo se atualiza sozinho: baixa novas versões em segundo plano e avisa quando estiver pronto. Mantenha os dois computadores atualizados para a sincronização funcionar sem surpresas.'
-            : 'Atualização automática disponível apenas na versão instalada (instalador "Pigo Setup"). Esta cópia é de desenvolvimento ou portátil.'}
+            ? 'O Orbitron se atualiza sozinho: baixa novas versões em segundo plano e avisa quando estiver pronto. Mantenha os dois computadores atualizados para a sincronização funcionar sem surpresas.'
+            : 'Atualização automática disponível apenas na versão instalada (instalador "Orbitron Setup"). Esta cópia é de desenvolvimento ou portátil.'}
         </p>
       </div>
       {info?.canAutoUpdate ? (

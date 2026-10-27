@@ -200,7 +200,7 @@ class FinancialIntelligenceEngine {
 
     if (recurringExpenses === 0) {
       recurringScore = 22;
-      recurringDiagnostic = 'Nenhum custo fixo identificado no histórico ainda. Importe mais extratos para o Pigo aprender seus padrões.';
+      recurringDiagnostic = 'Nenhum custo fixo identificado no histórico ainda. Importe mais extratos para o Orbitron aprender seus padrões.';
     } else if (recurringRatio <= 0.35) {
       recurringScore = 25;
       recurringDiagnostic = `Custos fixos sob controle (${(recurringRatio * 100).toFixed(0)}% da renda). Excelente flexibilidade orçamentária.`;
@@ -1409,10 +1409,10 @@ class FinancialIntelligenceEngine {
     let message = `Reserva completa: ${coverageMonths.toFixed(1)} meses de custo de vida protegidos. Direcione o excedente para metas e investimentos.`;
     if (reserveAccounts.length === 0 && reserveCategories.length === 0 && initialAmount === 0 && movements.length === 0) {
       status = 'not_configured';
-      message = 'Diga ao Pigo onde fica sua reserva: contas (poupança, CDB, caixinha), a categoria dos aportes (ex.: Investimentos) ou o saldo que você já tem guardado.';
+      message = 'Diga ao Orbitron onde fica sua reserva: contas (poupança, CDB, caixinha), a categoria dos aportes (ex.: Investimentos) ou o saldo que você já tem guardado.';
     } else if (monthlyCost === 0) {
       status = 'building';
-      message = 'Importe extratos de mais meses para o Pigo calcular seu custo de vida e a meta ideal de reserva.';
+      message = 'Importe extratos de mais meses para o Orbitron calcular seu custo de vida e a meta ideal de reserva.';
     } else if (coverageMonths < 1) {
       status = 'critical';
       message = `Reserva cobre apenas ${Math.round(coverageMonths * 30)} dias de despesas. Priorize aportes antes de novos gastos.`;
@@ -1678,7 +1678,7 @@ class FinancialIntelligenceEngine {
     if (uncategorizedCount > 0) {
       recommendations.push({
         type: 'info',
-        text: `${uncategorizedCount} ${uncategorizedCount === 1 ? 'despesa está' : 'despesas estão'} sem categoria. Categorize para o Pigo aprender e acertar nas próximas importações.`,
+        text: `${uncategorizedCount} ${uncategorizedCount === 1 ? 'despesa está' : 'despesas estão'} sem categoria. Categorize para o Orbitron aprender e acertar nas próximas importações.`,
       });
     }
 

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Lock, Delete, KeyRound } from 'lucide-react';
 import { useFinancial } from '../context/FinancialContext';
-import pigoIcon from '../assets/pigo-icon.png';
+import orbitronIcon from '../assets/orbitron-icon.png';
 
 export const PinLockModal: React.FC = () => {
   const { isLocked, unlockApp } = useFinancial();
@@ -79,10 +79,10 @@ export const PinLockModal: React.FC = () => {
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0c0c0e] p-4">
       <div className="w-full max-w-sm flex flex-col items-center">
         <div className="w-16 h-16 rounded-2xl mb-4 shadow-xl overflow-hidden shrink-0 border border-emerald-500/20">
-          <img src={pigoIcon} alt="Pigo Logo" className="w-full h-full object-cover" />
+          <img src={orbitronIcon} alt="Orbitron Logo" className="w-full h-full object-cover" />
         </div>
 
-        <h2 className="text-xl font-black text-white mb-1 tracking-tight">PIGO Finanças</h2>
+        <h2 className="text-xl font-black text-white mb-1 tracking-tight">Orbitron</h2>
         <p className="text-sm text-slate-400 mb-8">Digite seu PIN para desbloquear</p>
 
         {/* PIN Dots Indicator */}

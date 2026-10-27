@@ -127,7 +127,7 @@ export const ReserveView: React.FC = () => {
         <div className="p-5 rounded-2xl bg-slate-900/60 border border-slate-850">
           <h3 className="text-sm font-semibold text-slate-200 mb-1">Movimentações da reserva</h3>
           <p className="text-[11px] text-slate-500 mb-4">
-            Aplicações e resgates encontrados nos seus lançamentos. Se algum não for reserva, clique em "Ignorar" e o Pigo deixa de contar.
+            Aplicações e resgates encontrados nos seus lançamentos. Se algum não for reserva, clique em "Ignorar" e o Orbitron deixa de contar.
           </p>
           {reserve.movements.length === 0 ? (
             <p className="text-xs text-slate-400">

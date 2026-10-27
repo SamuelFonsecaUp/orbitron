@@ -27,7 +27,7 @@ describe('Vault Environments & Folder Hierarchies', () => {
 
     const tree = vault.getTree('Pessoal');
     expect(tree.length).toBeGreaterThanOrEqual(1);
-    expect(tree.some((t: any) => t.name === 'Bem-vindo ao Pigo')).toBe(true);
+    expect(tree.some((t: any) => t.name === 'Bem-vindo ao Orbitron' || t.name === 'Bem-vindo ao Pigo')).toBe(true);
   });
 
   it('creates new environment with starter note', () => {

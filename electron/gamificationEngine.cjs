@@ -1,5 +1,5 @@
 /**
- * Gamification Engine (Pigo RPG Financeiro) — 100% local
+ * Gamification Engine (Orbitron RPG Cósmico) — 100% local
  *
  * O XP é DERIVADO dos dados financeiros (extratos, lançamentos, reserva, faturas),
  * que já sincronizam entre computadores. Assim todos os PCs chegam ao mesmo nível,
@@ -498,7 +498,7 @@ class GamificationEngine {
       missions.push({
         id: 'categorize_all',
         title: 'Zere os lançamentos sem categoria',
-        description: `${facts.uncategorizedCount} aguardando categoria. Cada um ensina a inteligência do Pigo.`,
+        description: `${facts.uncategorizedCount} aguardando categoria. Cada um ensina a inteligência do Orbitron.`,
         xp: 100,
         target: 0,
       });
@@ -820,7 +820,7 @@ class GamificationEngine {
   }
 
   // ==========================================
-  // Reino do Pigo: os dados financeiros traduzidos em elementos da vila
+  // Reino do Orbitron: os dados financeiros traduzidos em elementos da vila
   // ==========================================
   getWorldState() {
     const facts = this.collectFacts();

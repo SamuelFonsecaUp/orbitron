@@ -66,7 +66,7 @@ const HABIT_TEMPLATE_PACKS: {
       },
       {
         name: 'Revisar Lançamentos do Dia (2 min)',
-        description: 'Conferir e categorizar os gastos do dia no Pigo',
+        description: 'Conferir e categorizar os gastos do dia no Orbitron',
         category: 'financas',
         period_of_day: 'evening',
         color: '#34d399',

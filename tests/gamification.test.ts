@@ -9,7 +9,7 @@ function monthKeyOffset(delta: number): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 }
 
-describe('Gamification (Pigo RPG Financeiro)', () => {
+describe('Gamification (Orbitron RPG Cósmico)', () => {
   let db: any;
   let service: any;
 
