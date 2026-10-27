@@ -56,3 +56,38 @@ export interface IdleDetectionNotice {
   idleSeconds: number;
   taskTitle: string;
 }
+
+export interface FreelaProject {
+  id: string;
+  name: string;
+  clientName: string;
+  contractAmountCents: number;
+  targetHourlyRateCents: number;
+  estimatedHours: number;
+  status: 'active' | 'completed' | 'archived';
+  notes?: string;
+  trackedSeconds: number;
+  trackedHours: number;
+  sessionCount: number;
+  receivedCents: number;
+  effectiveHourlyRateCents: number;
+  marginPercent: number | null;
+  hoursProgress: number;
+  matchingTransactionsCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TimeBudgetSettings {
+  contratadoWeeklyTarget: number; // in hours, default 40
+  freelaWeeklyLimit: number; // in hours, default 15
+  pessoalWeeklyTarget: number; // in hours, default 5
+  maxDailyHours: number; // in hours, default 10
+}
+
+export const DEFAULT_TIME_BUDGETS: TimeBudgetSettings = {
+  contratadoWeeklyTarget: 40,
+  freelaWeeklyLimit: 15,
+  pessoalWeeklyTarget: 5,
+  maxDailyHours: 10,
+};

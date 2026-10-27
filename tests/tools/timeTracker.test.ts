@@ -214,4 +214,87 @@ describe('ToolsEngine SQLite Time Tracker Backend', () => {
     engine.deleteTimeEntry(entry.id);
     expect(engine.getTimeEntries().length).toBe(0);
   });
+
+  it('manages freela projects and computes effective hourly rate and profitability', () => {
+    const db = new Database(':memory:');
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS time_entries (
+        id TEXT PRIMARY KEY,
+        task_id TEXT,
+        task_title TEXT NOT NULL,
+        category TEXT DEFAULT 'Geral',
+        work_type TEXT DEFAULT 'Profissional - Contratado',
+        project_name TEXT,
+        started_at INTEGER NOT NULL,
+        ended_at INTEGER NOT NULL,
+        duration_seconds INTEGER NOT NULL,
+        is_pomodoro INTEGER DEFAULT 0,
+        is_manual INTEGER DEFAULT 0,
+        notes TEXT DEFAULT '',
+        created_at TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS freela_projects (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL UNIQUE,
+        client_name TEXT DEFAULT '',
+        contract_amount INTEGER DEFAULT 0,
+        target_hourly_rate INTEGER DEFAULT 0,
+        estimated_hours REAL DEFAULT 0,
+        status TEXT DEFAULT 'active',
+        notes TEXT DEFAULT '',
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS transactions (
+        id TEXT PRIMARY KEY,
+        type TEXT NOT NULL,
+        description TEXT NOT NULL,
+        amount INTEGER NOT NULL,
+        transaction_date TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'completed',
+        tags TEXT,
+        notes TEXT
+      );
+    `);
+
+    const engine = new ToolsEngine(db);
+
+    // Create a freela project
+    const project = engine.saveFreelaProject({
+      name: 'App Fintech Mobile',
+      clientName: 'Cliente Nexus',
+      contractAmountCents: 500000, // R$ 5.000,00
+      targetHourlyRateCents: 10000, // R$ 100,00/h
+      estimatedHours: 40,
+    });
+    expect(project.id).toBeDefined();
+    expect(project.name).toBe('App Fintech Mobile');
+    expect(project.targetHourlyRateCents).toBe(10000);
+
+    // Log 20 hours of work on this project
+    engine.createTimeEntry({
+      taskTitle: 'Desenvolver Telas de Autenticação',
+      projectName: 'App Fintech Mobile',
+      workType: 'Profissional - Freela',
+      startedAt: Date.now() - 72000000,
+      endedAt: Date.now(),
+      durationSeconds: 20 * 3600, // 20 hours
+    });
+
+    // Add income transaction received for this project
+    db.prepare(`
+      INSERT INTO transactions (id, type, description, amount, transaction_date, status, tags, notes)
+      VALUES ('tx_1', 'income', 'Pagamento 1a Parcela App Fintech Mobile', 300000, '2026-10-20', 'completed', '#freela', '')
+    `).run();
+
+    const projects = engine.getFreelaProjects();
+    const evaluated = projects.find((p) => p.name === 'App Fintech Mobile');
+    expect(evaluated).toBeDefined();
+    expect(evaluated.trackedHours).toBe(20);
+    expect(evaluated.receivedCents).toBe(300000); // R$ 3.000,00 received
+    // Effective hourly rate: R$ 3.000 / 20h = R$ 150/h (15000 cents)
+    expect(evaluated.effectiveHourlyRateCents).toBe(15000);
+    // Margin vs target (R$ 150 vs R$ 100 = +50%)
+    expect(evaluated.marginPercent).toBe(50);
+  });
 });

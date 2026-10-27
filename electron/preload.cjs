@@ -192,6 +192,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   updateTimeEntry: (id, data) => ipcRenderer.invoke('tools:updateTimeEntry', id, data),
   deleteTimeEntry: (id) => ipcRenderer.invoke('tools:deleteTimeEntry', id),
   getTimeTrackerStats: (period) => ipcRenderer.invoke('tools:getTimeTrackerStats', period),
+  getFreelaProjects: () => ipcRenderer.invoke('tools:getFreelaProjects'),
+  saveFreelaProject: (data) => ipcRenderer.invoke('tools:saveFreelaProject', data),
+  deleteFreelaProject: (id) => ipcRenderer.invoke('tools:deleteFreelaProject', id),
   getSystemIdleTime: () => ipcRenderer.invoke('tools:getSystemIdleTime'),
   updateTrayTimer: (text) => ipcRenderer.invoke('tools:updateTrayTimer', text),
 

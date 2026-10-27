@@ -30,6 +30,10 @@ import {
   Orbit,
   Satellite,
   Download,
+  Clock,
+  Timer,
+  Briefcase,
+  Zap,
 } from 'lucide-react';
 import { useFinancial } from '../context/FinancialContext';
 import { AchievementBadgeSvg, downloadAchievementSvgFile } from './AchievementBadgeSvg';
@@ -38,6 +42,7 @@ import { GameRarity } from '../types';
 const ICONS: Record<string, React.FC<{ className?: string; style?: React.CSSProperties }>> = {
   CalendarCheck, Castle, CreditCard, FileUp, Flame, FolderArchive, GraduationCap, Inbox, Library,
   Crown, PiggyBank, Search, Shield, ShieldCheck, Sparkles, Swords, Tags, Target, TrendingUp, Trophy,
+  Clock, Timer, Briefcase, Zap, Rocket,
 };
 
 export const RARITY_STYLE: Record<GameRarity, { label: string; color: string }> = {

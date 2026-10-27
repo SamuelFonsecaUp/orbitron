@@ -31,6 +31,9 @@ const ICON_PATHS: Record<string, string> = {
   Zap: 'M13 2L3 14h9l-1 8 10-12h-9l1-8z',
   Search: 'M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16zm10 2l-4.35-4.35',
   Rocket: 'M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09zM12 15l-3-3m5.5-3.5L12 6c-3-3-7-3-7-3s0 4 3 7l2.5 2.5m4-4L21 3s-4 0-7 3l-2.5 2.5',
+  Clock: 'M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm1 10.5V7a1 1 0 0 0-2 0v5a1 1 0 0 0 .5.86l3.5 2a1 1 0 0 0 1-1.72z',
+  Timer: 'M10 2h4M12 14l3-3M21 13a9 9 0 1 1-18 0 9 9 0 0 1 18 0z',
+  Briefcase: 'M16 4h-8a2 2 0 0 0-2 2v2H4a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2h-2V6a2 2 0 0 0-2-2zm-6 2h4v2h-4V6z',
 };
 
 // Generates the raw XML SVG markup for standalone download or direct rendering

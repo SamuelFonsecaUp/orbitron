@@ -970,6 +970,9 @@ export interface ElectronAPI {
   updateTimeEntry: (id: string, data: Partial<TimeEntry>) => Promise<TimeEntry>;
   deleteTimeEntry: (id: string) => Promise<boolean>;
   getTimeTrackerStats: (period?: string) => Promise<TimeTrackerStats>;
+  getFreelaProjects?: () => Promise<any[]>;
+  saveFreelaProject?: (data: any) => Promise<any>;
+  deleteFreelaProject?: (id: string) => Promise<boolean>;
   getSystemIdleTime?: () => Promise<number>;
   updateTrayTimer?: (text: string) => Promise<void>;
 

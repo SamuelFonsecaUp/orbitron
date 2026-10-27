@@ -315,6 +315,23 @@ function initDatabase(customPath = null) {
 
     CREATE INDEX IF NOT EXISTS idx_time_entries_task ON time_entries(task_id);
     CREATE INDEX IF NOT EXISTS idx_time_entries_started ON time_entries(started_at);
+    CREATE INDEX IF NOT EXISTS idx_time_entries_work_type ON time_entries(work_type);
+    CREATE INDEX IF NOT EXISTS idx_time_entries_project ON time_entries(project_name);
+
+    CREATE TABLE IF NOT EXISTS freela_projects (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL UNIQUE,
+      client_name TEXT DEFAULT '',
+      contract_amount INTEGER DEFAULT 0,
+      target_hourly_rate INTEGER DEFAULT 0,
+      estimated_hours REAL DEFAULT 0,
+      status TEXT DEFAULT 'active',
+      notes TEXT DEFAULT '',
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_freela_projects_name ON freela_projects(name);
 
     CREATE TABLE IF NOT EXISTS cloud_session (
       id TEXT PRIMARY KEY DEFAULT 'current_session',
@@ -411,6 +428,19 @@ function initDatabase(customPath = null) {
     `ALTER TABLE habits ADD COLUMN frequency_times INTEGER DEFAULT 7`,
     `ALTER TABLE habits ADD COLUMN target_time TEXT`,
     `ALTER TABLE time_entries ADD COLUMN work_type TEXT DEFAULT 'Profissional - Contratado'`,
+    `ALTER TABLE time_entries ADD COLUMN project_name TEXT`,
+    `CREATE TABLE IF NOT EXISTS freela_projects (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL UNIQUE,
+      client_name TEXT DEFAULT '',
+      contract_amount INTEGER DEFAULT 0,
+      target_hourly_rate INTEGER DEFAULT 0,
+      estimated_hours REAL DEFAULT 0,
+      status TEXT DEFAULT 'active',
+      notes TEXT DEFAULT '',
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    )`,
   ];
   for (const m of migrations) {
     try { db.exec(m); } catch (e) {}

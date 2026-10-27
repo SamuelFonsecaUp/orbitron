@@ -3651,6 +3651,15 @@ class FinancialService {
   getTimeTrackerStats(period) {
     return this.tools.getTimeTrackerStats(period);
   }
+  getFreelaProjects() {
+    return this.tools.getFreelaProjects();
+  }
+  saveFreelaProject(data) {
+    return this.tools.saveFreelaProject(data);
+  }
+  deleteFreelaProject(id) {
+    return this.tools.deleteFreelaProject(id);
+  }
 }
 
 let serviceInstance = null;

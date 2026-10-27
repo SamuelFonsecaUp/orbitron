@@ -527,6 +527,178 @@ class ToolsEngine {
       topTasks,
     };
   }
+
+  // --- FREELA PROJECTS & PROFITABILITY ---
+  getFreelaProjects() {
+    let projects = [];
+    try {
+      projects = this.db.prepare(`SELECT * FROM freela_projects ORDER BY created_at DESC`).all();
+    } catch (e) {
+      projects = [];
+    }
+
+    // Auto-detect project names from time_entries
+    try {
+      const distinctNames = this.db
+        .prepare(
+          `SELECT DISTINCT project_name 
+           FROM time_entries 
+           WHERE project_name IS NOT NULL AND trim(project_name) != ''`
+        )
+        .all()
+        .map((r) => r.project_name.trim());
+
+      const existingNames = new Set(projects.map((p) => p.name.toLowerCase()));
+      for (const pName of distinctNames) {
+        if (!existingNames.has(pName.toLowerCase())) {
+          const id = `prj_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+          const now = new Date().toISOString();
+          try {
+            this.db
+              .prepare(
+                `INSERT OR IGNORE INTO freela_projects (id, name, created_at, updated_at)
+                 VALUES (?, ?, ?, ?)`
+              )
+              .run(id, pName, now, now);
+            projects.push({
+              id,
+              name: pName,
+              client_name: '',
+              contract_amount: 0,
+              target_hourly_rate: 0,
+              estimated_hours: 0,
+              status: 'active',
+              notes: '',
+              created_at: now,
+              updated_at: now,
+            });
+          } catch (_) {}
+        }
+      }
+    } catch (e) {}
+
+    return projects.map((prj) => {
+      let trackedSeconds = 0;
+      let sessionCount = 0;
+      try {
+        const timeRow = this.db
+          .prepare(
+            `SELECT SUM(duration_seconds) as total_sec, COUNT(*) as cnt
+             FROM time_entries
+             WHERE (project_name = ? OR task_title LIKE '%' || ? || '%')`
+          )
+          .get(prj.name, prj.name);
+        trackedSeconds = timeRow?.total_sec || 0;
+        sessionCount = timeRow?.cnt || 0;
+      } catch (_) {}
+
+      let receivedCents = 0;
+      let matchingTransactions = [];
+      try {
+        const searchTerms = [prj.name];
+        if (prj.client_name && prj.client_name.trim()) {
+          searchTerms.push(prj.client_name.trim());
+        }
+
+        const conditions = searchTerms
+          .map(() => `(description LIKE ? OR tags LIKE ? OR notes LIKE ?)`)
+          .join(' OR ');
+        const params = [];
+        for (const term of searchTerms) {
+          const pattern = `%${term}%`;
+          params.push(pattern, pattern, pattern);
+        }
+
+        matchingTransactions = this.db
+          .prepare(
+            `SELECT id, description, amount, transaction_date, type, status
+             FROM transactions
+             WHERE type = 'income' AND status != 'cancelled' AND (${conditions})
+             ORDER BY transaction_date DESC`
+          )
+          .all(...params);
+
+        receivedCents = matchingTransactions.reduce((acc, t) => acc + (t.amount || 0), 0);
+      } catch (_) {}
+
+      const trackedHours = trackedSeconds / 3600;
+      const basisCents = receivedCents > 0 ? receivedCents : prj.contract_amount || 0;
+      const effectiveHourlyRateCents = trackedHours > 0 ? Math.round(basisCents / trackedHours) : 0;
+      const targetHourlyRate = prj.target_hourly_rate || 0;
+
+      let marginPercent = null;
+      if (targetHourlyRate > 0 && effectiveHourlyRateCents > 0) {
+        marginPercent = Math.round(((effectiveHourlyRateCents - targetHourlyRate) / targetHourlyRate) * 100);
+      }
+
+      const hoursProgress =
+        prj.estimated_hours > 0 ? Math.min(250, Math.round((trackedHours / prj.estimated_hours) * 100)) : 0;
+
+      return {
+        id: prj.id,
+        name: prj.name,
+        clientName: prj.client_name || '',
+        contractAmountCents: prj.contract_amount || 0,
+        targetHourlyRateCents: prj.target_hourly_rate || 0,
+        estimatedHours: prj.estimated_hours || 0,
+        status: prj.status || 'active',
+        notes: prj.notes || '',
+        trackedSeconds,
+        trackedHours: Number(trackedHours.toFixed(2)),
+        sessionCount,
+        receivedCents,
+        effectiveHourlyRateCents,
+        marginPercent,
+        hoursProgress,
+        matchingTransactionsCount: matchingTransactions.length,
+        createdAt: prj.created_at,
+        updatedAt: prj.updated_at,
+      };
+    });
+  }
+
+  saveFreelaProject(data) {
+    if (!data.name || !data.name.trim()) {
+      throw new Error('O nome do projeto é obrigatório.');
+    }
+    const name = data.name.trim();
+    const now = new Date().toISOString();
+    const id = data.id || `prj_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+    const clientName = data.clientName !== undefined ? data.clientName.trim() : '';
+    const contractAmount = Number(data.contractAmountCents) >= 0 ? Number(data.contractAmountCents) : 0;
+    const targetHourlyRate = Number(data.targetHourlyRateCents) >= 0 ? Number(data.targetHourlyRateCents) : 0;
+    const estimatedHours = Number(data.estimatedHours) >= 0 ? Number(data.estimatedHours) : 0;
+    const status = data.status || 'active';
+    const notes = data.notes || '';
+
+    const existing = this.db
+      .prepare(`SELECT * FROM freela_projects WHERE id = ? OR LOWER(name) = LOWER(?)`)
+      .get(id, name);
+
+    if (existing) {
+      this.db
+        .prepare(
+          `UPDATE freela_projects
+           SET name = ?, client_name = ?, contract_amount = ?, target_hourly_rate = ?, estimated_hours = ?, status = ?, notes = ?, updated_at = ?
+           WHERE id = ?`
+        )
+        .run(name, clientName, contractAmount, targetHourlyRate, estimatedHours, status, notes, now, existing.id);
+      return this.getFreelaProjects().find((p) => p.id === existing.id);
+    } else {
+      this.db
+        .prepare(
+          `INSERT INTO freela_projects (id, name, client_name, contract_amount, target_hourly_rate, estimated_hours, status, notes, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        )
+        .run(id, name, clientName, contractAmount, targetHourlyRate, estimatedHours, status, notes, now, now);
+      return this.getFreelaProjects().find((p) => p.id === id);
+    }
+  }
+
+  deleteFreelaProject(id) {
+    this.db.prepare(`DELETE FROM freela_projects WHERE id = ?`).run(id);
+    return true;
+  }
 }
 
 module.exports = { ToolsEngine };

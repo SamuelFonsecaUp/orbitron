@@ -128,6 +128,66 @@ const LEVEL_TITLES = [
 
 const ACHIEVEMENTS = [
   {
+    "id": "foco_primeiro",
+    "name": "Ignição do Foco",
+    "description": "Conclua sua primeira sessão de trabalho no Rastreador de Tempo.",
+    "rarity": "comum",
+    "icon": "Clock",
+    "category": "focus",
+    "metric": "focusSessions",
+    "target": 1
+  },
+  {
+    "id": "foco_10h",
+    "name": "Mente em Órbita",
+    "description": "Acumule 10 horas de foco e trabalho direcionado.",
+    "rarity": "comum",
+    "icon": "Timer",
+    "category": "focus",
+    "metric": "focusHours",
+    "target": 10
+  },
+  {
+    "id": "foco_50h",
+    "name": "Propulsão Contínua",
+    "description": "Acumule 50 horas de foco imersivo no Rastreador de Tempo.",
+    "rarity": "raro",
+    "icon": "Zap",
+    "category": "focus",
+    "metric": "focusHours",
+    "target": 50
+  },
+  {
+    "id": "foco_100h",
+    "name": "Mestre do Hiperfoco",
+    "description": "Alcance 100 horas de foco profundo rastreadas.",
+    "rarity": "epico",
+    "icon": "Sparkles",
+    "category": "focus",
+    "metric": "focusHours",
+    "target": 100
+  },
+  {
+    "id": "freela_pro_20h",
+    "name": "Estrategista Autônomo",
+    "description": "Dedique 20 horas a projetos Profissional - Freela.",
+    "rarity": "raro",
+    "icon": "Briefcase",
+    "category": "focus",
+    "metric": "focusFreelaHours",
+    "target": 20
+  },
+  {
+    "id": "pessoal_dev_10h",
+    "name": "Arquiteto Pessoal",
+    "description": "Dedique 10 horas ao avanço de Projetos Pessoais.",
+    "rarity": "comum",
+    "icon": "Rocket",
+    "category": "focus",
+    "metric": "focusPersonalHours",
+    "target": 10
+  },
+  {
     "id": "primeiro_extrato",
     "name": "Primeiro Sinal Detectado",
     "description": "Alcance 1 extratos importados no Orbitron.",

@@ -59,7 +59,7 @@ describe('Sistema de Insígnias Cósmicas SVG e Calibração de Conquistas', () 
   });
 
   it('valida que todas as 308 conquistas foram calibradas para a escala real humana', () => {
-    expect(ACHIEVEMENTS.length).toBe(308);
+    expect(ACHIEVEMENTS.length).toBe(314);
 
     // Nenhuma fatura deve exceder 60 meses (5 anos)
     const invoices = ACHIEVEMENTS.filter((a: any) => a.metric === 'invoicesOnTime');

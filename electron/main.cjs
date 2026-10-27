@@ -720,6 +720,9 @@ app.whenReady().then(() => {
   handleIpc('tools:updateTimeEntry', (id, data) => service.updateTimeEntry(id, data));
   handleIpc('tools:deleteTimeEntry', (id) => service.deleteTimeEntry(id));
   handleIpc('tools:getTimeTrackerStats', (period) => service.getTimeTrackerStats(period));
+  handleIpc('tools:getFreelaProjects', () => service.getFreelaProjects());
+  handleIpc('tools:saveFreelaProject', (data) => service.saveFreelaProject(data));
+  handleIpc('tools:deleteFreelaProject', (id) => service.deleteFreelaProject(id));
   handleIpc('tools:getSystemIdleTime', () => {
     try {
       const { powerMonitor } = require('electron');

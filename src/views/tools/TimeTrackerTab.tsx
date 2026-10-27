@@ -49,6 +49,9 @@ import { TimeEntry, TimeTrackerStats, TimeCategory, TimeWorkType, TIME_WORK_TYPE
 import { useKanban } from '../../modules/kanban/kanbanStore';
 import { useFinancial } from '../../context/FinancialContext';
 import { useAlwaysOnTop } from '../../hooks/useAlwaysOnTop';
+import { FreelaProfitabilitySection } from './timeTracker/FreelaProfitabilitySection';
+import { TimeBlockingGrid } from './timeTracker/TimeBlockingGrid';
+import { BurnoutShieldCard } from './timeTracker/BurnoutShieldCard';
 
 type PeriodOption = 'today' | 'yesterday' | 'week' | 'month' | 'last30' | 'custom';
 
@@ -70,6 +73,7 @@ export const TimeTrackerTab: React.FC = () => {
     activeTaskId,
     category,
     workType,
+    startedAt,
     formattedTime,
     elapsedSeconds,
     categories,
@@ -136,6 +140,11 @@ export const TimeTrackerTab: React.FC = () => {
   // Filters
   const [selectedFilterCategory, setSelectedFilterCategory] = useState<string>('all');
   const [selectedFilterWorkType, setSelectedFilterWorkType] = useState<string>('all');
+
+  // Sub-tab: 'tracker' (Rastreador & Grade) vs 'freela' (Rentabilidade de Freelas)
+  const [subTab, setSubTab] = useState<'tracker' | 'freela'>('tracker');
+  // Timeline View: 'list' (Tabela detalhada) vs 'grid' (Time Blocking)
+  const [timelineView, setTimelineView] = useState<'list' | 'grid'>('list');
 
   const loadData = useCallback(async () => {
     if (!window.electronAPI) return;
@@ -620,9 +629,50 @@ export const TimeTrackerTab: React.FC = () => {
         </div>
       </div>
 
-      {/* Main Active Tracker Controller Card */}
-      <div className="bg-gradient-to-r from-slate-900 via-slate-900 to-slate-950 border border-cyan-500/20 rounded-2xl p-6 shadow-xl relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-80 h-80 bg-cyan-500/5 rounded-full blur-3xl pointer-events-none" />
+      {/* Sub-tab Navigation */}
+      <div className="flex items-center justify-between border-b border-white/[0.08] pb-3">
+        <div className="flex items-center gap-2 bg-slate-950 border border-white/10 rounded-xl p-1">
+          <button
+            type="button"
+            onClick={() => setSubTab('tracker')}
+            className={`px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 transition ${
+              subTab === 'tracker'
+                ? 'bg-gradient-to-r from-cyan-500 to-teal-400 text-slate-950 shadow-md'
+                : 'text-slate-400 hover:text-white hover:bg-slate-800'
+            }`}
+          >
+            <Clock className="w-3.5 h-3.5" />
+            <span>Rastreador & Grade Diária</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setSubTab('freela')}
+            className={`px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 transition ${
+              subTab === 'freela'
+                ? 'bg-gradient-to-r from-emerald-500 to-teal-400 text-slate-950 shadow-md'
+                : 'text-slate-400 hover:text-white hover:bg-slate-800'
+            }`}
+          >
+            <Briefcase className="w-3.5 h-3.5" />
+            <span>Rentabilidade Real de Freelas</span>
+          </button>
+        </div>
+      </div>
+
+      {subTab === 'freela' ? (
+        <FreelaProfitabilitySection
+          onStartTrackingProject={(pName) => {
+            startTracking(`Freela: ${pName}`, null, 'Desenvolvimento', pName, 'Profissional - Freela');
+            setSubTab('tracker');
+            showToast(`Rastreador iniciado para o projeto "${pName}"`, 'info');
+          }}
+          showToast={showToast}
+        />
+      ) : (
+        <>
+          {/* Main Active Tracker Controller Card */}
+          <div className="bg-gradient-to-r from-slate-900 via-slate-900 to-slate-950 border border-cyan-500/20 rounded-2xl p-6 shadow-xl relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-80 h-80 bg-cyan-500/5 rounded-full blur-3xl pointer-events-none" />
 
         {activeTaskTitle ? (
           // Active / Paused Controller
@@ -768,6 +818,9 @@ export const TimeTrackerTab: React.FC = () => {
           </form>
         )}
       </div>
+
+      {/* Burnout Shield & Weekly Hour Budgets */}
+      <BurnoutShieldCard entries={entries} />
 
       {/* Period Selector & Report Filter Bar */}
       <div className="bg-slate-900/60 border border-white/10 rounded-2xl p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
@@ -1079,18 +1132,73 @@ export const TimeTrackerTab: React.FC = () => {
         </div>
       )}
 
-      {/* Detailed History Table */}
-      <div className="flex-1 flex flex-col">
-        <div className="flex items-center justify-between pb-3 border-b border-white/[0.08] mb-4">
+      {/* Detailed History & Time Blocking Section */}
+      <div className="flex-1 flex flex-col space-y-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between pb-3 border-b border-white/[0.08] gap-3">
           <div className="flex items-center gap-2">
             <Calendar className="w-4 h-4 text-slate-400" />
-            <h3 className="text-sm font-bold text-white">Linha do Tempo Detalhada</h3>
+            <h3 className="text-sm font-bold text-white">Linha do Tempo</h3>
             <span className="text-xs text-slate-500">({periodFilteredEntries.length} registros)</span>
+          </div>
+
+          {/* Toggle between List and Time Blocking Grid */}
+          <div className="flex items-center bg-slate-950 border border-white/10 rounded-xl p-1">
+            <button
+              type="button"
+              onClick={() => setTimelineView('list')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition ${
+                timelineView === 'list'
+                  ? 'bg-cyan-500 text-slate-950 font-bold shadow'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-800'
+              }`}
+            >
+              <FileSpreadsheet className="w-3.5 h-3.5" />
+              <span>Lista Cronológica</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setTimelineView('grid')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition ${
+                timelineView === 'grid'
+                  ? 'bg-cyan-500 text-slate-950 font-bold shadow'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-800'
+              }`}
+            >
+              <Clock className="w-3.5 h-3.5" />
+              <span>Grade Diária (Time Blocking)</span>
+            </button>
           </div>
         </div>
 
-        {/* Entries List grouped by Day */}
-        <div className="space-y-6">
+        {timelineView === 'grid' ? (
+          <TimeBlockingGrid
+            entries={entries}
+            categories={categories}
+            activeRunning={
+              isRunning && startedAt
+                ? {
+                    taskTitle: activeTaskTitle,
+                    startedAt,
+                    category,
+                    workType,
+                    elapsedSeconds,
+                  }
+                : null
+            }
+            onEditEntry={openEditModal}
+            onAddManual={(date, hour) => {
+              setManualDate(date);
+              setManualStart(hour);
+              const [h, m] = hour.split(':').map(Number);
+              const endH = (h + 1) % 24;
+              const pad = (n: number) => String(n).padStart(2, '0');
+              setManualEnd(`${pad(endH)}:${pad(m || 0)}`);
+              setManualModalOpen(true);
+            }}
+          />
+        ) : (
+          /* Entries List grouped by Day */
+          <div className="space-y-6">
           {Object.entries(groupedEntries).map(([dateKey, dayEntries]) => {
             const dayTotalSeconds = dayEntries.reduce((acc, e) => acc + e.durationSeconds, 0);
 
@@ -1219,7 +1327,10 @@ export const TimeTrackerTab: React.FC = () => {
             </div>
           )}
         </div>
+        )}
       </div>
+      </>
+      )}
 
       {/* Category Manager Modal */}
       {categoryModalOpen && (

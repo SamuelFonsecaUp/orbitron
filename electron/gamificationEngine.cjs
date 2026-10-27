@@ -18,6 +18,8 @@ const XP = {
   invoiceOnTime: 80,
   habitCheckin: 5,
   perfectHabitDay: 25,
+  focusHour: 20,
+  focusSession: 5,
 };
 
 const RARITY_XP = { comum: 15, raro: 35, epico: 75, lendario: 150 };
@@ -335,6 +337,49 @@ class GamificationEngine {
       (notesCount > 0 || mindmapsCount > 0 ? 1 : 0) +
       (vaultItemsCount > 0 ? 1 : 0);
 
+    // Rastreamento de Tempo & Foco Cósmico
+    let focusSecondsTotal = 0;
+    let focusFreelaSeconds = 0;
+    let focusPersonalSeconds = 0;
+    let focusSessionsTotal = 0;
+    let focusByDay = [];
+    try {
+      const timeRow = this.db
+        .prepare(
+          `SELECT 
+            COALESCE(SUM(duration_seconds), 0) as total_seconds,
+            COALESCE(SUM(CASE WHEN work_type = 'Profissional - Freela' THEN duration_seconds ELSE 0 END), 0) as freela_seconds,
+            COALESCE(SUM(CASE WHEN work_type = 'Projeto Pessoal' THEN duration_seconds ELSE 0 END), 0) as personal_seconds,
+            COUNT(*) as session_count
+          FROM time_entries`
+        )
+        .get();
+      if (timeRow) {
+        focusSecondsTotal = timeRow.total_seconds || 0;
+        focusFreelaSeconds = timeRow.freela_seconds || 0;
+        focusPersonalSeconds = timeRow.personal_seconds || 0;
+        focusSessionsTotal = timeRow.session_count || 0;
+      }
+
+      focusByDay = this.db
+        .prepare(
+          `SELECT 
+            strftime('%Y-%m-%d', started_at / 1000, 'unixepoch', 'localtime') as day_date,
+            SUM(duration_seconds) as day_seconds,
+            COUNT(*) as session_count
+          FROM time_entries
+          GROUP BY day_date
+          ORDER BY day_date ASC`
+        )
+        .all()
+        .filter((r) => r.day_date);
+    } catch (e) {
+      focusSecondsTotal = 0;
+      focusFreelaSeconds = 0;
+      focusPersonalSeconds = 0;
+      focusSessionsTotal = 0;
+      focusByDay = [];
+    }
 
     return {
       today,
@@ -366,6 +411,11 @@ class GamificationEngine {
       accountsCount,
       perfectHabitDaysCount,
       pillarsActiveCount,
+      focusSecondsTotal,
+      focusFreelaSeconds,
+      focusPersonalSeconds,
+      focusSessionsTotal,
+      focusByDay,
     };
   }
 
@@ -473,6 +523,14 @@ class GamificationEngine {
         xp: 150,
         target: 1,
       });
+    } else if (facts.focusSessionsTotal > 0) {
+      missions.push({
+        id: 'focus_weekly_goal',
+        title: 'Hiperfoco Semanal: 8h no Rastreador',
+        description: 'Acumule 8 horas de trabalho focado e imersivo nesta semana.',
+        xp: 120,
+        target: 8 * 3600,
+      });
     } else {
       missions.push({
         id: 'zero_spend_days',
@@ -483,7 +541,7 @@ class GamificationEngine {
       });
     }
 
-    return missions;
+    return missions.slice(0, 3);
   }
 
   getWeeklyMissions(weekKey, facts, { create = true } = {}) {
@@ -557,6 +615,28 @@ class GamificationEngine {
       progressLabel = `${Math.min(zeroDays, mission.target)} de ${mission.target} dias`;
       if (weekOver && dataCoversWeek) status = zeroDays >= mission.target ? 'completed' : 'failed';
       else if (weekOver) status = 'awaiting_data';
+    } else if (mission.id === 'focus_weekly_goal') {
+      let secondsInWeek = 0;
+      try {
+        const startMs = parseDate(weekKey).getTime();
+        const endMs = parseDate(weekEnd).getTime() + 86400000 - 1;
+        const res = this.db
+          .prepare(
+            `SELECT COALESCE(SUM(duration_seconds), 0) as sec
+             FROM time_entries
+             WHERE started_at >= ? AND started_at <= ?`
+          )
+          .get(startMs, endMs);
+        secondsInWeek = res?.sec || 0;
+      } catch (e) {
+        secondsInWeek = 0;
+      }
+      progress = Math.min(100, Math.round((secondsInWeek / mission.target) * 100));
+      const hoursInWeek = (secondsInWeek / 3600).toFixed(1);
+      const targetHours = (mission.target / 3600).toFixed(0);
+      progressLabel = `${hoursInWeek}h de ${targetHours}h`;
+      if (secondsInWeek >= mission.target) status = 'completed';
+      else if (weekOver) status = 'failed';
     }
 
     if (status === 'completed') {
@@ -623,6 +703,10 @@ class GamificationEngine {
       vaultItemsCount: facts.vaultItemsCount || 0,
       accountsCount: facts.accountsCount || 0,
       pillarsActiveCount: facts.pillarsActiveCount || 0,
+      focusSessions: facts.focusSessionsTotal || 0,
+      focusHours: Math.floor((facts.focusSecondsTotal || 0) / 3600),
+      focusFreelaHours: Math.floor((facts.focusFreelaSeconds || 0) / 3600),
+      focusPersonalHours: Math.floor((facts.focusPersonalSeconds || 0) / 3600),
     };
     const seen = new Map(this.db.prepare(`SELECT key, seen_at FROM game_seen WHERE key LIKE 'ach:%'`).all().map(r => [r.key, r.seen_at]));
 
@@ -690,6 +774,20 @@ class GamificationEngine {
           xp: XP.perfectHabitDay,
           kind: 'habit',
           title: 'Dia Perfeito: 100% dos hábitos concluídos!',
+        });
+      }
+    }
+    for (const fDay of facts.focusByDay || []) {
+      const hours = Math.floor(fDay.day_seconds / 3600);
+      const sessions = fDay.session_count || 1;
+      const dayXp = hours * XP.focusHour + sessions * XP.focusSession;
+      if (dayXp > 0) {
+        events.push({
+          id: `focus:${fDay.day_date}`,
+          date: fDay.day_date,
+          xp: dayXp,
+          kind: 'focus',
+          title: `${hours > 0 ? `${hours}h de foco` : `${sessions} sessões`} no Rastreador de Tempo`,
         });
       }
     }

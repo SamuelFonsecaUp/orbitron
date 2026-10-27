@@ -152,4 +152,22 @@ describe('Gamification (Pigo RPG Financeiro)', () => {
     expect(world.walls.targetMonths).toBe(6);
     expect(savings.id).toBeTruthy();
   });
+
+  it('awards focus XP and unlocks focus achievements from time entries', () => {
+    // Record a 1-hour focus session
+    const now = Date.now();
+    service.createTimeEntry({
+      taskTitle: 'Construir Feature Orbitron',
+      category: 'Desenvolvimento',
+      workType: 'Profissional - Freela',
+      startedAt: now - 3600000,
+      endedAt: now,
+      durationSeconds: 3600,
+    });
+
+    const o = service.getGameOverview();
+    expect(o.xpByKind.focus).toBe(20 + 5); // 1 hour (20 XP) + 1 session (5 XP) = 25 XP
+    const unlockedIds = o.achievements.filter((a: any) => a.unlocked).map((a: any) => a.id);
+    expect(unlockedIds).toContain('foco_primeiro');
+  });
 });
