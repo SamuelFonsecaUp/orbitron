@@ -20,6 +20,7 @@ import { useFinancial, AppModule } from '../context/FinancialContext';
 import { useHabits } from '../context/HabitsContext';
 import { XpPill } from './GameWidgets';
 import { NavbarPomodoroWidget } from './NavbarPomodoroWidget';
+import { NavbarTimeTrackerWidget } from './NavbarTimeTrackerWidget';
 
 const MODULE_BADGE: Record<AppModule, { label: string; className: string }> = {
   finance: {
@@ -109,6 +110,7 @@ export const Navbar: React.FC = () => {
     tools_mindmap: 'Quadro Branco Interativo',
     tools_kanban: 'Quadro Kanban de Tarefas',
     tools_pomodoro: 'Relógio Pomodoro',
+    tools_timetracker: 'Rastreador de Tempo Local',
     tools_vault: 'Cofre de Senhas Criptografado',
     settings: 'Configurações do Sistema',
   };
@@ -159,6 +161,9 @@ export const Navbar: React.FC = () => {
 
         {/* Pinned Pomodoro Timer Widget */}
         <NavbarPomodoroWidget />
+
+        {/* Pinned Time Tracker Widget */}
+        <NavbarTimeTrackerWidget />
 
         <div data-tour="xp-pill" className="inline-flex"><XpPill /></div>
 

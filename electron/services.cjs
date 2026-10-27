@@ -3634,6 +3634,23 @@ class FinancialService {
   deleteVaultItem(id) {
     return this.tools.deleteVaultItem(id);
   }
+
+  // Time Tracker
+  getTimeEntries(filter) {
+    return this.tools.getTimeEntries(filter);
+  }
+  createTimeEntry(data) {
+    return this.tools.createTimeEntry(data);
+  }
+  updateTimeEntry(id, data) {
+    return this.tools.updateTimeEntry(id, data);
+  }
+  deleteTimeEntry(id) {
+    return this.tools.deleteTimeEntry(id);
+  }
+  getTimeTrackerStats(period) {
+    return this.tools.getTimeTrackerStats(period);
+  }
 }
 
 let serviceInstance = null;

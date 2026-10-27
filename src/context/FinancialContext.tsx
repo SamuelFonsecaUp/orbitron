@@ -47,6 +47,7 @@ export type AppView =
   | 'tools_mindmap'
   | 'tools_kanban'
   | 'tools_pomodoro'
+  | 'tools_timetracker'
   | 'tools_vault';
 
 export type AppModule = 'finance' | 'habits' | 'tools' | 'journey';

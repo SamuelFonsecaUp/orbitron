@@ -26,6 +26,7 @@ import {
   Palette,
   Columns,
   Timer,
+  Clock,
 } from 'lucide-react';
 import { useFinancial, AppView, AppModule } from '../context/FinancialContext';
 import { formatCurrency } from '../utils/formatters';
@@ -256,6 +257,19 @@ export const CommandPalette: React.FC = () => {
       },
     });
 
+    list.push({
+      id: 'action-open-timetracker',
+      category: 'Ações Rápidas',
+      title: 'Rastreador de Tempo em Tarefas',
+      subtitle: 'Cronometrar atividades local-first e ver histórico de horas',
+      icon: <Clock className="w-4 h-4 text-cyan-400" />,
+      badge: 'Tempo',
+      badgeColor: 'bg-cyan-500/15 text-cyan-400 border-cyan-500/30',
+      perform: () => {
+        navigateTo('tools_timetracker', 'tools');
+      },
+    });
+
     // 2. Navigation items
     list.push({
       id: 'nav-dashboard',
@@ -376,6 +390,17 @@ export const CommandPalette: React.FC = () => {
       badge: 'Jornada',
       badgeColor: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
       perform: () => navigateTo('journey', 'journey'),
+    });
+
+    list.push({
+      id: 'nav-timetracker',
+      category: 'Navegação',
+      title: 'Rastreador de Tempo',
+      subtitle: 'Histórico de horas trabalhadas e foco diário',
+      icon: <Clock className="w-4 h-4 text-cyan-400" />,
+      badge: 'Ferramentas',
+      badgeColor: 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20',
+      perform: () => navigateTo('tools_timetracker', 'tools'),
     });
 
     list.push({

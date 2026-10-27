@@ -5,6 +5,7 @@ import { PasswordVaultTab } from './tools/PasswordVaultTab';
 import { CanvasHubTab } from './tools/CanvasHubTab';
 import { KanbanTab } from './tools/KanbanTab';
 import { PomodoroTab } from './tools/PomodoroTab';
+import { TimeTrackerTab } from './tools/TimeTrackerTab';
 import {
   FolderKanban,
   StickyNote,
@@ -12,19 +13,22 @@ import {
   KeyRound,
   Columns,
   Timer,
+  Clock,
   X,
 } from 'lucide-react';
 
 const ToolsViewInner: React.FC = () => {
   const { currentView, setCurrentView } = useFinancial();
 
-  const activeTool: 'notes' | 'mindmap' | 'kanban' | 'pomodoro' | 'vault' =
+  const activeTool: 'notes' | 'mindmap' | 'kanban' | 'pomodoro' | 'timetracker' | 'vault' =
     currentView === 'tools_mindmap'
       ? 'mindmap'
       : currentView === 'tools_kanban'
       ? 'kanban'
       : currentView === 'tools_pomodoro'
       ? 'pomodoro'
+      : currentView === 'tools_timetracker'
+      ? 'timetracker'
       : currentView === 'tools_vault'
       ? 'vault'
       : 'notes';
@@ -56,6 +60,7 @@ const ToolsViewInner: React.FC = () => {
             { id: 'tools_mindmap', key: 'mindmap', label: 'Quadro Branco', icon: Layers },
             { id: 'tools_kanban', key: 'kanban', label: 'Quadro Kanban', icon: Columns },
             { id: 'tools_pomodoro', key: 'pomodoro', label: 'Relógio Pomodoro', icon: Timer },
+            { id: 'tools_timetracker', key: 'timetracker', label: 'Rastreador de Tempo', icon: Clock },
             { id: 'tools_vault', key: 'vault', label: 'Cofre de Senhas', icon: KeyRound },
           ].map((tab) => {
             const Icon = tab.icon;
@@ -97,7 +102,10 @@ const ToolsViewInner: React.FC = () => {
       {/* 4. RELÓGIO POMODORO DE ALTA PERFORMANCE */}
       {activeTool === 'pomodoro' && <PomodoroTab />}
 
-      {/* 5. COFRE DE SENHAS BLINDADO */}
+      {/* 5. RASTREADOR DE TEMPO LOCAL-FIRST */}
+      {activeTool === 'timetracker' && <TimeTrackerTab />}
+
+      {/* 6. COFRE DE SENHAS BLINDADO */}
       {activeTool === 'vault' && <PasswordVaultTab />}
     </div>
   );

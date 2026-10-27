@@ -177,6 +177,7 @@ function createWindow() {
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: false,
+      backgroundThrottling: false,
     },
     show: false, // Wait until ready-to-show to avoid white flicker
   });
@@ -633,6 +634,31 @@ app.whenReady().then(() => {
   handleIpc('tools:createVaultItem', (data) => service.createVaultItem(data));
   handleIpc('tools:updateVaultItem', (id, data) => service.updateVaultItem(id, data));
   handleIpc('tools:deleteVaultItem', (id) => service.deleteVaultItem(id));
+
+  // Time Tracker Module
+  handleIpc('tools:getTimeEntries', (filter) => service.getTimeEntries(filter));
+  handleIpc('tools:createTimeEntry', (data) => service.createTimeEntry(data));
+  handleIpc('tools:updateTimeEntry', (id, data) => service.updateTimeEntry(id, data));
+  handleIpc('tools:deleteTimeEntry', (id) => service.deleteTimeEntry(id));
+  handleIpc('tools:getTimeTrackerStats', (period) => service.getTimeTrackerStats(period));
+  handleIpc('tools:getSystemIdleTime', () => {
+    try {
+      const { powerMonitor } = require('electron');
+      return powerMonitor ? powerMonitor.getSystemIdleTime() : 0;
+    } catch (_) {
+      return 0;
+    }
+  });
+  handleIpc('tools:updateTrayTimer', (text) => {
+    try {
+      if (tray && !tray.isDestroyed()) {
+        tray.setToolTip(text ? `Orbitron - ${text}` : 'Orbitron');
+      }
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.setTitle(text ? `⏳ ${text} • Orbitron` : 'Orbitron');
+      }
+    } catch (_) {}
+  });
 
   // Local-first Markdown Vault
   const vaultService = getVaultService();

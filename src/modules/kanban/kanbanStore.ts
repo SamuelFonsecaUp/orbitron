@@ -297,3 +297,5 @@ export function useKanbanStore<T>(selector?: (state: KanbanBoardState) => T): T 
     }
   );
 }
+
+export const useKanban = useKanbanStore;

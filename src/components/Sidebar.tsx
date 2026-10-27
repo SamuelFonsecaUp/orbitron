@@ -34,6 +34,7 @@ import {
   KeyRound,
   Columns,
   Timer,
+  Clock,
 } from 'lucide-react';
 import { useFinancial, AppView, AppModule } from '../context/FinancialContext';
 import { useHabits } from '../context/HabitsContext';
@@ -286,6 +287,11 @@ export const Sidebar: React.FC = () => {
           id: 'tools_pomodoro',
           label: 'Relógio Pomodoro',
           icon: Timer,
+        },
+        {
+          id: 'tools_timetracker',
+          label: 'Rastreador de Tempo',
+          icon: Clock,
         },
       ],
     },

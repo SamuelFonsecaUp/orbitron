@@ -13,6 +13,7 @@ import {
 import { KanbanTask, KanbanColumn, KanbanPriority } from '../../../modules/kanban/types';
 import { kanbanStore } from '../../../modules/kanban/kanbanStore';
 import { pomodoroStore } from '../../../modules/pomodoro/pomodoroStore';
+import { useTimeTracker } from '../../../modules/timeTracker/timeTrackerStore';
 import { useFinancial } from '../../../context/FinancialContext';
 
 interface KanbanCardProps {
@@ -31,6 +32,28 @@ const PRIORITY_THEME: Record<KanbanPriority, { label: string; bg: string; text: 
 export const KanbanCard: React.FC<KanbanCardProps> = ({ task, columns, onEdit }) => {
   const { showToast } = useFinancial();
   const [menuOpen, setMenuOpen] = useState(false);
+
+  const {
+    isRunning: isTrackerRunning,
+    activeTaskId,
+    formattedTime,
+    startTracking,
+    pauseTracking,
+  } = useTimeTracker();
+
+  const isCurrentTracking = activeTaskId === task.id;
+  const isCurrentTrackingRunning = isCurrentTracking && isTrackerRunning;
+
+  const handleToggleTimeTracker = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (isCurrentTrackingRunning) {
+      pauseTracking();
+      showToast(`Pausado rastreamento de "${task.title}".`, 'info');
+    } else {
+      startTracking(task.title, task.id, task.tags?.[0] || 'Geral');
+      showToast(`⏱️ Rastreador iniciado para "${task.title}"!`, 'success');
+    }
+  };
 
   const priorityMeta = PRIORITY_THEME[task.priority] || PRIORITY_THEME.medium;
 
@@ -69,7 +92,11 @@ export const KanbanCard: React.FC<KanbanCardProps> = ({ task, columns, onEdit })
         e.dataTransfer.effectAllowed = 'move';
       }}
       onClick={() => onEdit(task)}
-      className="p-3.5 rounded-2xl bg-slate-900/80 hover:bg-slate-900 border border-slate-800 hover:border-slate-700/80 shadow-md hover:shadow-xl transition-all cursor-grab active:cursor-grabbing group relative select-none space-y-2.5"
+      className={`p-3.5 rounded-2xl bg-slate-900/80 hover:bg-slate-900 border shadow-md hover:shadow-xl transition-all cursor-grab active:cursor-grabbing group relative select-none space-y-2.5 ${
+        isCurrentTrackingRunning
+          ? 'border-cyan-500/60 shadow-[0_0_20px_rgba(6,182,212,0.18)] bg-slate-900/95'
+          : 'border-slate-800 hover:border-slate-700/80'
+      }`}
     >
       {/* Top Header: Priority Badge & Options */}
       <div className="flex items-center justify-between gap-2">
@@ -80,6 +107,24 @@ export const KanbanCard: React.FC<KanbanCardProps> = ({ task, columns, onEdit })
         </span>
 
         <div className="flex items-center gap-1">
+          {/* Quick Toggle Time Tracker */}
+          <button
+            type="button"
+            onClick={handleToggleTimeTracker}
+            className={`p-1 rounded-lg transition ${
+              isCurrentTrackingRunning
+                ? 'bg-cyan-500/25 text-cyan-300 hover:bg-cyan-500/35'
+                : 'hover:bg-cyan-500/10 text-slate-400 hover:text-cyan-400'
+            }`}
+            title={
+              isCurrentTrackingRunning
+                ? 'Pausar rastreador de tempo'
+                : 'Iniciar rastreador de tempo nesta tarefa'
+            }
+          >
+            <Clock className={`w-3 h-3 ${isCurrentTrackingRunning ? 'animate-pulse' : ''}`} />
+          </button>
+
           {/* Quick Start Pomodoro on Card */}
           <button
             type="button"
@@ -196,6 +241,21 @@ export const KanbanCard: React.FC<KanbanCardProps> = ({ task, columns, onEdit })
               style={{ width: `${(completedSubtasks / totalSubtasks) * 100}%` }}
             />
           </div>
+        </div>
+      )}
+
+      {/* Live Time Tracker banner on card */}
+      {isCurrentTracking && (
+        <div className="flex items-center justify-between px-2.5 py-1.5 rounded-xl bg-cyan-500/15 border border-cyan-500/35 text-cyan-300 text-[11px] font-mono font-bold">
+          <span className="flex items-center gap-1.5">
+            <span
+              className={`w-2 h-2 rounded-full ${
+                isTrackerRunning ? 'bg-cyan-400 animate-ping' : 'bg-amber-400'
+              }`}
+            />
+            <span>{isTrackerRunning ? 'Rastreando:' : 'Pausado:'}</span>
+          </span>
+          <span className="font-bold">{formattedTime}</span>
         </div>
       )}
 

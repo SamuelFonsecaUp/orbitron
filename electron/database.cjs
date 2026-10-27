@@ -297,6 +297,24 @@ function initDatabase(customPath = null) {
       updated_at TEXT
     );
 
+    CREATE TABLE IF NOT EXISTS time_entries (
+      id TEXT PRIMARY KEY,
+      task_id TEXT,
+      task_title TEXT NOT NULL,
+      category TEXT DEFAULT 'Geral',
+      project_name TEXT,
+      started_at INTEGER NOT NULL,
+      ended_at INTEGER NOT NULL,
+      duration_seconds INTEGER NOT NULL,
+      is_pomodoro INTEGER DEFAULT 0,
+      is_manual INTEGER DEFAULT 0,
+      notes TEXT DEFAULT '',
+      created_at TEXT NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_time_entries_task ON time_entries(task_id);
+    CREATE INDEX IF NOT EXISTS idx_time_entries_started ON time_entries(started_at);
+
     CREATE TABLE IF NOT EXISTS cloud_session (
       id TEXT PRIMARY KEY DEFAULT 'current_session',
       user_id TEXT,

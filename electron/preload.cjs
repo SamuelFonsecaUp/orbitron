@@ -175,6 +175,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
   updateVaultItem: (id, data) => ipcRenderer.invoke('tools:updateVaultItem', id, data),
   deleteVaultItem: (id) => ipcRenderer.invoke('tools:deleteVaultItem', id),
 
+  // Time Tracker Module
+  getTimeEntries: (filter) => ipcRenderer.invoke('tools:getTimeEntries', filter),
+  createTimeEntry: (data) => ipcRenderer.invoke('tools:createTimeEntry', data),
+  updateTimeEntry: (id, data) => ipcRenderer.invoke('tools:updateTimeEntry', id, data),
+  deleteTimeEntry: (id) => ipcRenderer.invoke('tools:deleteTimeEntry', id),
+  getTimeTrackerStats: (period) => ipcRenderer.invoke('tools:getTimeTrackerStats', period),
+  getSystemIdleTime: () => ipcRenderer.invoke('tools:getSystemIdleTime'),
+  updateTrayTimer: (text) => ipcRenderer.invoke('tools:updateTrayTimer', text),
+
   // Local-first Markdown Vault
   vaultInit: (customPath) => ipcRenderer.invoke('vault:init', customPath),
   vaultGetEnvironments: () => ipcRenderer.invoke('vault:getEnvironments'),

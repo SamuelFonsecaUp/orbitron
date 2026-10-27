@@ -957,6 +957,15 @@ export interface ElectronAPI {
   updateVaultItem: (id: string, data: any) => Promise<any>;
   deleteVaultItem: (id: string) => Promise<boolean>;
 
+  // Time Tracker Module
+  getTimeEntries: (filter?: any) => Promise<TimeEntry[]>;
+  createTimeEntry: (data: Partial<TimeEntry>) => Promise<TimeEntry>;
+  updateTimeEntry: (id: string, data: Partial<TimeEntry>) => Promise<TimeEntry>;
+  deleteTimeEntry: (id: string) => Promise<boolean>;
+  getTimeTrackerStats: (period?: string) => Promise<TimeTrackerStats>;
+  getSystemIdleTime?: () => Promise<number>;
+  updateTrayTimer?: (text: string) => Promise<void>;
+
   // Local-first Markdown Vault
   vaultInit: (customPath?: string) => Promise<{ vaultPath: string }>;
   vaultGetEnvironments: () => Promise<any[]>;
@@ -1111,6 +1120,39 @@ export interface SyncResult {
   code?: string;
   lastSyncAt?: string | null;
   timestamp?: string;
+}
+
+export interface TimeEntry {
+  id: string;
+  taskId?: string | null;
+  taskTitle: string;
+  category?: string;
+  projectName?: string | null;
+  startedAt: number;
+  endedAt: number;
+  durationSeconds: number;
+  isPomodoro: boolean;
+  isManual: boolean;
+  notes?: string;
+  createdAt: string;
+}
+
+export interface TimeTrackerState {
+  isRunning: boolean;
+  activeTaskId?: string | null;
+  activeTaskTitle?: string;
+  category?: string;
+  startedAt?: number | null;
+  accumulatedSeconds: number;
+}
+
+export interface TimeTrackerStats {
+  totalSeconds: number;
+  totalEntries: number;
+  todaySeconds: number;
+  weekSeconds: number;
+  byCategory: Array<{ category: string; seconds: number; count: number }>;
+  topTasks: Array<{ task_title: string; task_id?: string | null; seconds: number; count: number }>;
 }
 
 export interface CanvasFileMeta {

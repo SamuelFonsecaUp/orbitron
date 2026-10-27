@@ -15,6 +15,7 @@ import { OrbitBootActivation } from './components/OrbitBootActivation';
 import { TourProvider } from './modules/tour/TourContext';
 import { ProductTourManager } from './modules/tour/components/ProductTourManager';
 import { CommandPalette } from './components/CommandPalette';
+import { IdleTimeDialog } from './components/IdleTimeDialog';
 
 // Code-Splitting: Lazy load all main views on-demand to optimize bundle size and startup time
 const DashboardView = lazy(() => import('./views/DashboardView').then((m) => ({ default: m.DashboardView })));
@@ -147,6 +148,9 @@ export const App: React.FC = () => {
 
         {/* Smart Notifications Drawer */}
         <NotificationDrawer />
+
+        {/* Local-First Time Tracker Idle Dialog */}
+        <IdleTimeDialog />
 
         {/* Global Command Palette (Ctrl+K) */}
         <CommandPalette />
