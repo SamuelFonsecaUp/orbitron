@@ -226,9 +226,13 @@ export const TimeTrackerTab: React.FC = () => {
 
   // Category Color Map Lookup
   const getCategoryColor = useCallback(
-    (catName: string): string => {
-      const match = categories.find((c) => c.name.toLowerCase() === catName.toLowerCase());
-      return match ? match.color : '#64748b';
+    (catName?: string | null): string => {
+      if (!catName || typeof catName !== 'string') return '#06b6d4';
+      if (!categories || !Array.isArray(categories)) return '#06b6d4';
+      const match = categories.find(
+        (c) => c && c.name && c.name.toLowerCase() === catName.toLowerCase()
+      );
+      return match ? match.color : '#06b6d4';
     },
     [categories]
   );
@@ -261,6 +265,7 @@ export const TimeTrackerTab: React.FC = () => {
     }
 
     return entries.filter((e) => {
+      if (!e) return false;
       const matchesPeriod = e.startedAt >= startMs && e.startedAt <= endMs;
       const matchesCategory =
         selectedFilterCategory === 'all' ? true : e.category === selectedFilterCategory;
@@ -270,15 +275,16 @@ export const TimeTrackerTab: React.FC = () => {
 
   // Aggregate Stats for Selected Period
   const periodTotalSeconds = useMemo(() => {
-    return periodFilteredEntries.reduce((acc, e) => acc + e.durationSeconds, 0);
+    return periodFilteredEntries.reduce((acc, e) => acc + (Number(e?.durationSeconds) || 0), 0);
   }, [periodFilteredEntries]);
 
   // Chart 1: Category Distribution (Pie/Donut Chart)
   const categoryChartData = useMemo(() => {
     const map: Record<string, number> = {};
     for (const e of periodFilteredEntries) {
+      if (!e) continue;
       const c = e.category || 'Geral';
-      map[c] = (map[c] || 0) + e.durationSeconds;
+      map[c] = (map[c] || 0) + (Number(e.durationSeconds) || 0);
     }
 
     return Object.entries(map).map(([name, seconds]) => {
@@ -297,8 +303,13 @@ export const TimeTrackerTab: React.FC = () => {
   const dailyChartData = useMemo(() => {
     const map: Record<string, number> = {};
     for (const e of periodFilteredEntries) {
-      const dateKey = new Date(e.startedAt).toISOString().split('T')[0];
-      map[dateKey] = (map[dateKey] || 0) + e.durationSeconds;
+      if (!e || !e.startedAt) continue;
+      try {
+        const d = new Date(e.startedAt);
+        if (isNaN(d.getTime())) continue;
+        const dateKey = d.toISOString().split('T')[0];
+        map[dateKey] = (map[dateKey] || 0) + (Number(e.durationSeconds) || 0);
+      } catch {}
     }
 
     // Sort ascending by date
@@ -754,7 +765,7 @@ export const TimeTrackerTab: React.FC = () => {
           {categoryChartData.length > 0 ? (
             <div className="flex flex-col sm:flex-row items-center gap-4 flex-1">
               <div className="w-48 h-48 shrink-0">
-                <ResponsiveContainer width="100%" height="100%">
+                <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
                   <PieChart>
                     <Pie
                       data={categoryChartData}
@@ -826,7 +837,7 @@ export const TimeTrackerTab: React.FC = () => {
 
           {dailyChartData.length > 0 ? (
             <div className="h-52 w-full flex-1">
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
                 <BarChart data={dailyChartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.3} />
                   <XAxis dataKey="date" stroke="#94a3b8" fontSize={11} tickLine={false} />

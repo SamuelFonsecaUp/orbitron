@@ -124,6 +124,13 @@ describe('Time Tracker Store (Drift-Free Delta & Idle Time)', () => {
 
     vi.restoreAllMocks();
   });
+
+  it('guarantees referential stability for useSyncExternalStore when running', () => {
+    timeTrackerStore.startTracking('Teste Estabilidade');
+    const snapA = timeTrackerStore.getSnapshot();
+    const snapB = timeTrackerStore.getSnapshot();
+    expect(snapA).toBe(snapB); // Must be strictly identical (Object.is) to avoid infinite re-render loop
+  });
 });
 
 describe('ToolsEngine SQLite Time Tracker Backend', () => {

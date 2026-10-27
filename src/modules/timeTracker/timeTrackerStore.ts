@@ -125,33 +125,52 @@ class TimeTrackerStore {
 
   private notify() {
     this.version++;
+    this.lastSnapshot = null;
     this.persistState();
     this.updateDesktopTitleAndTray();
-    this.listeners.forEach((l) => l());
+    this.listeners.forEach((l) => {
+      try {
+        l();
+      } catch (err) {
+        console.error('Error in time tracker store listener:', err);
+      }
+    });
   }
 
   private updateDesktopTitleAndTray() {
     if (typeof window === 'undefined' || !window.electronAPI?.updateTrayTimer) return;
-    if (this.state.isRunning && this.state.activeTaskTitle) {
-      const elapsed = this.getElapsedSeconds();
-      const timeStr = formatTimeHoursMinutesSeconds(elapsed);
-      window.electronAPI.updateTrayTimer(`[${timeStr}] ${this.state.activeTaskTitle}`);
-    } else {
-      window.electronAPI.updateTrayTimer('');
-    }
+    try {
+      if (this.state.isRunning && this.state.activeTaskTitle) {
+        const elapsed = this.getElapsedSeconds();
+        const timeStr = formatTimeHoursMinutesSeconds(elapsed);
+        window.electronAPI.updateTrayTimer(`[${timeStr}] ${this.state.activeTaskTitle}`);
+      } else {
+        window.electronAPI.updateTrayTimer('');
+      }
+    } catch {}
   }
 
   public tick() {
-    if (this.state.isRunning) {
+    if (!this.state.isRunning) return;
+    const elapsed = this.getElapsedSeconds();
+    // Only notify when elapsed whole second actually changes
+    if (!this.lastSnapshot || this.lastSnapshot.elapsedSeconds !== elapsed) {
       this.version++;
+      this.lastSnapshot = null;
       this.updateDesktopTitleAndTray();
-      this.listeners.forEach((l) => l());
+      this.listeners.forEach((l) => {
+        try {
+          l();
+        } catch (err) {
+          console.error('Error in time tracker tick listener:', err);
+        }
+      });
     }
   }
 
   private initTicker() {
     if (this.tickerInterval) clearInterval(this.tickerInterval);
-    // 500ms ticker for ultra-smooth real-time responsiveness
+    // 500ms ticker for responsive second transitions without drift
     this.tickerInterval = setInterval(() => {
       this.tick();
     }, 500);
@@ -184,18 +203,18 @@ class TimeTrackerStore {
   // --- Core Public API ---
 
   public getSnapshot = (): TimeTrackerSnapshot => {
-    const elapsedSeconds = this.getElapsedSeconds();
-    // Cache snapshot if not running and version unchanged
-    if (!this.state.isRunning && this.lastSnapshot && this.lastSnapshot.version === this.version) {
+    // If snapshot for current version is already cached, return it directly for React referential stability
+    if (this.lastSnapshot && this.lastSnapshot.version === this.version) {
       return this.lastSnapshot;
     }
+    const elapsedSeconds = this.getElapsedSeconds();
     const snap: TimeTrackerSnapshot = {
       ...this.state,
       elapsedSeconds,
       formattedTime: formatTimeHoursMinutesSeconds(elapsedSeconds),
       humanDuration: formatHumanDuration(elapsedSeconds),
       idleNotice: this.idleNotice,
-      categories: [...this.categories],
+      categories: this.categories,
       version: this.version,
     };
     this.lastSnapshot = snap;
