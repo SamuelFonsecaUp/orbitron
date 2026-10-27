@@ -28,6 +28,7 @@ import {
   Timer,
   Clock,
   Pin,
+  Minimize2,
 } from 'lucide-react';
 import { useFinancial, AppView, AppModule } from '../context/FinancialContext';
 import { formatCurrency } from '../utils/formatters';
@@ -291,6 +292,20 @@ export const CommandPalette: React.FC = () => {
       perform: async () => {
         await toggleAlwaysOnTop();
         setIsOpen(false);
+      },
+    });
+
+    list.push({
+      id: 'action-toggle-mini-mode',
+      category: 'Ações Rápidas',
+      title: 'Modo Mini Player (Widget Compacto Always-on-Top)',
+      subtitle: 'Reduz a janela a um mini reprodutor de foco (Ctrl + Shift + M)',
+      icon: <Minimize2 className="w-4 h-4 text-purple-400" />,
+      badge: 'Mini',
+      badgeColor: 'bg-purple-500/15 text-purple-400 border-purple-500/30',
+      perform: () => {
+        setIsOpen(false);
+        window.dispatchEvent(new CustomEvent('orbitron:toggle-mini-mode'));
       },
     });
 

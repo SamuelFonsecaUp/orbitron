@@ -206,6 +206,18 @@ export function useVaultState() {
     return () => { mounted = false; flushSave(); };
   }, [repo, refreshTree, openPage, flushSave]);
 
+  // Listen to open-vault-page events from Whiteboard, search, or other modules
+  useEffect(() => {
+    const handleOpenExternal = (e: any) => {
+      const targetPath = e.detail?.path;
+      if (targetPath) {
+        openPage(targetPath);
+      }
+    };
+    window.addEventListener('orbitron:open-vault-page', handleOpenExternal);
+    return () => window.removeEventListener('orbitron:open-vault-page', handleOpenExternal);
+  }, [openPage]);
+
   return {
     environments, activeEnvironment, tree, activePage, editorContent, editorTitle, editorIcon,
     workspace, isLoading, saveStatus, openPage, selectEnvironment, createEnvironment,

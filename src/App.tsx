@@ -16,6 +16,8 @@ import { TourProvider } from './modules/tour/TourContext';
 import { ProductTourManager } from './modules/tour/components/ProductTourManager';
 import { CommandPalette } from './components/CommandPalette';
 import { IdleTimeDialog } from './components/IdleTimeDialog';
+import { useMiniMode } from './hooks/useMiniMode';
+import { MiniPlayerWidget } from './components/MiniPlayerWidget';
 
 // Code-Splitting: Lazy load all main views on-demand to optimize bundle size and startup time
 const DashboardView = lazy(() => import('./views/DashboardView').then((m) => ({ default: m.DashboardView })));
@@ -67,6 +69,7 @@ export const App: React.FC = () => {
   const [mandatoryDone, setMandatoryDone] = useState(() =>
     hasCompletedMandatoryOnboarding(settings?.onboardingCompleted)
   );
+  const { isMiniMode, setMiniMode } = useMiniMode();
 
   useEffect(() => {
     setMandatoryDone(hasCompletedMandatoryOnboarding(settings?.onboardingCompleted));
@@ -110,6 +113,15 @@ export const App: React.FC = () => {
           }}
         />
       </>
+    );
+  }
+
+  // Floating Mini-Player Mode (Always-on-top compact widget for focus timer)
+  if (isMiniMode && !isLocked) {
+    return (
+      <div className="w-screen h-screen overflow-hidden bg-transparent select-none">
+        <MiniPlayerWidget onExpand={() => setMiniMode(false)} />
+      </div>
     );
   }
 

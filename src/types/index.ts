@@ -778,6 +778,10 @@ export interface ElectronAPI {
   setAlwaysOnTop?: (flag: boolean) => Promise<boolean>;
   isAlwaysOnTop?: () => Promise<boolean>;
   toggleAlwaysOnTop?: () => Promise<boolean>;
+  setMiniMode?: (enable: boolean) => Promise<boolean>;
+  isMiniMode?: () => Promise<boolean>;
+  toggleMiniMode?: () => Promise<boolean>;
+  onMiniModeChanged?: (callback: (isMini: boolean) => void) => () => void;
 
   getSettings: () => Promise<Settings>;
   updateSettings: (data: Partial<Settings>) => Promise<Settings>;

@@ -382,6 +382,71 @@ app.whenReady().then(() => {
     return nextState;
   });
 
+  // Mini Player Mode (Always-on-top compact floating widget)
+  let preMiniBounds = null;
+  let preMiniAlwaysOnTop = false;
+  let isMiniMode = false;
+
+  handleIpc('window:setMiniMode', (enable) => {
+    if (!mainWindow) return false;
+    const shouldEnable = Boolean(enable);
+    if (shouldEnable === isMiniMode) return isMiniMode;
+
+    if (shouldEnable) {
+      preMiniBounds = mainWindow.getBounds();
+      preMiniAlwaysOnTop = mainWindow.isAlwaysOnTop();
+      if (mainWindow.isMaximized()) {
+        mainWindow.unmaximize();
+      }
+      mainWindow.setMinimumSize(340, 72);
+      mainWindow.setSize(380, 76);
+      mainWindow.setAlwaysOnTop(true, 'floating');
+      isMiniMode = true;
+    } else {
+      mainWindow.setMinimumSize(1060, 680);
+      if (preMiniBounds) {
+        mainWindow.setBounds(preMiniBounds);
+      } else {
+        mainWindow.setSize(1300, 820);
+        mainWindow.center();
+      }
+      mainWindow.setAlwaysOnTop(Boolean(preMiniAlwaysOnTop), 'floating');
+      isMiniMode = false;
+    }
+    mainWindow.webContents.send('window:mini-mode-changed', isMiniMode);
+    return isMiniMode;
+  });
+
+  handleIpc('window:isMiniMode', () => isMiniMode);
+
+  handleIpc('window:toggleMiniMode', () => {
+    if (!mainWindow) return false;
+    const nextState = !isMiniMode;
+    if (nextState) {
+      preMiniBounds = mainWindow.getBounds();
+      preMiniAlwaysOnTop = mainWindow.isAlwaysOnTop();
+      if (mainWindow.isMaximized()) {
+        mainWindow.unmaximize();
+      }
+      mainWindow.setMinimumSize(340, 72);
+      mainWindow.setSize(380, 76);
+      mainWindow.setAlwaysOnTop(true, 'floating');
+      isMiniMode = true;
+    } else {
+      mainWindow.setMinimumSize(1060, 680);
+      if (preMiniBounds) {
+        mainWindow.setBounds(preMiniBounds);
+      } else {
+        mainWindow.setSize(1300, 820);
+        mainWindow.center();
+      }
+      mainWindow.setAlwaysOnTop(Boolean(preMiniAlwaysOnTop), 'floating');
+      isMiniMode = false;
+    }
+    mainWindow.webContents.send('window:mini-mode-changed', isMiniMode);
+    return isMiniMode;
+  });
+
   // Settings & Security
   handleIpc('settings:get', () => service.getSettings());
   handleIpc('settings:update', (data) => service.updateSettings(data));

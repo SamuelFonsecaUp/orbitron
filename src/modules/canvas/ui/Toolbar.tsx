@@ -33,6 +33,7 @@ import {
   FileCode,
   Minus,
   SeparatorVertical,
+  FolderPlus,
 } from 'lucide-react';
 import { useCanvasStore, canvasStore } from '../store/canvasStore';
 import { CanvasTool, CanvasShapeType, CanvasGridPattern, CanvasTheme } from '../store/canvasStore.types';
@@ -45,6 +46,7 @@ interface ToolbarProps {
   onExportJson?: () => void;
   onInsertImage?: () => void;
   onInsertLink?: () => void;
+  onOpenInsertLibrary?: () => void;
   onFitToView?: () => void;
   showMiniMap?: boolean;
   onToggleMiniMap?: () => void;
@@ -56,6 +58,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
   onExportJson,
   onInsertImage,
   onInsertLink,
+  onOpenInsertLibrary,
   onFitToView,
   showMiniMap = true,
   onToggleMiniMap,
@@ -337,6 +340,15 @@ export const Toolbar: React.FC<ToolbarProps> = ({
           title="Inserir Link / Favorito Web [L]"
         >
           <Link2 className="w-4 h-4" />
+        </button>
+
+        {/* Library Tool (Insert Kanban Tasks & Vault Notes) */}
+        <button
+          onClick={onOpenInsertLibrary}
+          className="canvas-tool-btn hover:text-emerald-400"
+          title="Inserir Tarefa do Kanban ou Nota do Vault"
+        >
+          <FolderPlus className="w-4 h-4" />
         </button>
 
         {/* Connector Dropdown & Split Button */}

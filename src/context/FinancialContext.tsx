@@ -165,6 +165,17 @@ export const FinancialProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }
   }, []);
 
+  useEffect(() => {
+    const handleNavEvent = (e: any) => {
+      const view = e.detail?.view;
+      if (view) {
+        handleSetCurrentView(view);
+      }
+    };
+    window.addEventListener('orbitron:navigate', handleNavEvent);
+    return () => window.removeEventListener('orbitron:navigate', handleNavEvent);
+  }, [handleSetCurrentView]);
+
   const [isLocked, setIsLocked] = useState<boolean>(false);
   const [settings, setSettings] = useState<Settings | null>(null);
   const [accounts, setAccounts] = useState<Account[]>([]);

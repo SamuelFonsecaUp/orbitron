@@ -18,6 +18,7 @@ import {
   Edit2,
   FolderKanban,
   Pin,
+  Minimize2,
   PieChart as PieChartIcon,
   Timer,
   ChevronDown,
@@ -466,6 +467,17 @@ export const TimeTrackerTab: React.FC = () => {
             <span className="hidden sm:inline">
               {isAlwaysOnTop ? 'Janela Fixada' : 'Fixar no Topo'}
             </span>
+          </button>
+
+          {/* Mini Player Mode button */}
+          <button
+            type="button"
+            onClick={() => window.dispatchEvent(new CustomEvent('orbitron:toggle-mini-mode'))}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-semibold transition bg-purple-500/15 hover:bg-purple-500/25 border-purple-500/30 text-purple-300 hover:text-white"
+            title="Alternar para o Mini Player flutuante (Ctrl+Shift+M)"
+          >
+            <Minimize2 className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Mini Player</span>
           </button>
 
           {/* Manage Categories Button */}

@@ -8,12 +8,14 @@ import { MiniMap } from './ui/MiniMap';
 import { NodeTextEditor } from './ui/NodeTextEditor';
 import { InsertImageModal } from './ui/InsertImageModal';
 import { InsertLinkModal } from './ui/InsertLinkModal';
+import { InsertLibraryModal } from './ui/InsertLibraryModal';
 import { ImageLightboxModal } from './ui/ImageLightboxModal';
 import { useResizeObserver } from './hooks/useResizeObserver';
 import { useWheelZoom } from './hooks/useWheelZoom';
 import { useCanvasKeyboard } from './hooks/useCanvasKeyboard';
 import { useCanvasPointer } from './hooks/useCanvasPointer';
 import { CanvasNode, CanvasEdge } from './io/jsonCanvas.types';
+import { KanbanTask } from '../kanban/types';
 import { screenToWorld, calculateFitCamera } from './scene/camera';
 import { createAddNodeCommand, createUpdateEdgeCommand } from './scene/commands';
 import { createNewPlacedNode } from './hooks/pointerNodeCreation';
@@ -34,6 +36,7 @@ export const CanvasPage: React.FC<CanvasPageProps> = ({ filePath }) => {
   // Modals state
   const [isInsertImageOpen, setIsInsertImageOpen] = useState(false);
   const [isInsertLinkOpen, setIsInsertLinkOpen] = useState(false);
+  const [isInsertLibraryOpen, setIsInsertLibraryOpen] = useState(false);
   const [lightboxImage, setLightboxImage] = useState<{ src: string; caption?: string } | null>(null);
 
   const nodes = useCanvasStore((s) => s.nodes);
@@ -413,6 +416,62 @@ export const CanvasPage: React.FC<CanvasPageProps> = ({ filePath }) => {
     canvasStore.setSelection([linkNode.id]);
   };
 
+  const handleInsertTask = (task: KanbanTask) => {
+    const rect = containerRef.current?.getBoundingClientRect();
+    const centerScreen = rect
+      ? { x: rect.width / 2, y: rect.height / 2 }
+      : { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+    const ptWorld = screenToWorld(centerScreen, camera);
+
+    const taskNode: CanvasNode = {
+      id: `kanban-${task.id}-${Date.now().toString(36)}`,
+      type: 'text',
+      x: Math.round(ptWorld.x - 130),
+      y: Math.round(ptWorld.y - 75),
+      width: 260,
+      height: 150,
+      color: task.priority === 'urgent' ? '1' : task.priority === 'high' ? '2' : '4',
+      text: task.title,
+      orbitron: {
+        shape: 'kanban_task',
+        taskId: task.id,
+        taskTitle: task.title,
+        taskPriority: task.priority,
+        taskColumnId: task.columnId,
+      },
+    };
+    canvasStore.dispatch(createAddNodeCommand(taskNode));
+    canvasStore.setSelection([taskNode.id]);
+  };
+
+  const handleInsertNote = (note: { path: string; title: string; snippet?: string }) => {
+    const rect = containerRef.current?.getBoundingClientRect();
+    const centerScreen = rect
+      ? { x: rect.width / 2, y: rect.height / 2 }
+      : { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+    const ptWorld = screenToWorld(centerScreen, camera);
+
+    const noteNode: CanvasNode = {
+      id: `vault-${Date.now().toString(36)}`,
+      type: 'file',
+      x: Math.round(ptWorld.x - 140),
+      y: Math.round(ptWorld.y - 85),
+      width: 280,
+      height: 170,
+      file: note.path,
+      color: '6',
+      text: note.snippet || note.title,
+      orbitron: {
+        shape: 'vault_note',
+        notePath: note.path,
+        noteTitle: note.title,
+        noteSnippet: note.snippet,
+      },
+    };
+    canvasStore.dispatch(createAddNodeCommand(noteNode));
+    canvasStore.setSelection([noteNode.id]);
+  };
+
   const handleExportImage = async () => {
     const svgEl = svgRef.current;
     if (!svgEl) return;
@@ -472,6 +531,7 @@ export const CanvasPage: React.FC<CanvasPageProps> = ({ filePath }) => {
         onExportImage={handleExportImage}
         onInsertImage={() => setIsInsertImageOpen(true)}
         onInsertLink={() => setIsInsertLinkOpen(true)}
+        onOpenInsertLibrary={() => setIsInsertLibraryOpen(true)}
         onFitToView={handleFitToView}
         showMiniMap={showMiniMap}
         onToggleMiniMap={() => setShowMiniMap(!showMiniMap)}
@@ -545,6 +605,15 @@ export const CanvasPage: React.FC<CanvasPageProps> = ({ filePath }) => {
         theme={theme}
         onClose={() => setIsInsertLinkOpen(false)}
         onSubmit={handleInsertLinkSubmit}
+      />
+
+      {/* Modal Inserir Itens da Biblioteca (Kanban e Vault) */}
+      <InsertLibraryModal
+        isOpen={isInsertLibraryOpen}
+        theme={theme}
+        onClose={() => setIsInsertLibraryOpen(false)}
+        onInsertTask={handleInsertTask}
+        onInsertNote={handleInsertNote}
       />
 
       {/* Lightbox / Visualizador de Imagem em Tela Cheia */}

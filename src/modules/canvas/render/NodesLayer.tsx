@@ -8,6 +8,8 @@ import { FileNode } from './nodes/FileNode';
 import { ImageNode } from './nodes/ImageNode';
 import { LinkNode } from './nodes/LinkNode';
 import { PenNode } from './nodes/PenNode';
+import { KanbanCardNode } from './nodes/KanbanCardNode';
+import { VaultNoteNode } from './nodes/VaultNoteNode';
 import { EphemeralTransform, getEffectiveNodeRect, getEffectiveNodeRotation } from '../scene/ephemeral.types';
 import { Point } from '../scene/types';
 import { CanvasTheme } from '../store/canvasStore.types';
@@ -80,6 +82,14 @@ export const NodesLayer: React.FC<NodesLayerProps> = ({
 
     if (node.orbitron?.shape === 'sticky') {
       return <StickyNode {...commonProps} />;
+    }
+
+    if (node.orbitron?.shape === 'kanban_task') {
+      return <KanbanCardNode {...commonProps} />;
+    }
+
+    if (node.orbitron?.shape === 'vault_note') {
+      return <VaultNoteNode {...commonProps} />;
     }
 
     if (

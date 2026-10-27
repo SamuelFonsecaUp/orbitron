@@ -10,7 +10,9 @@ export type OrbitronShape =
   | 'triangle'
   | 'pen'
   | 'divider_horizontal'
-  | 'divider_vertical';
+  | 'divider_vertical'
+  | 'kanban_task'
+  | 'vault_note';
 
 export interface OrbitronNodeMeta {
   shape?: OrbitronShape;
@@ -23,6 +25,16 @@ export interface OrbitronNodeMeta {
   strokeWidth?: number;
   strokeStyle?: 'solid' | 'dashed';
   penPoints?: Array<{ x: number; y: number }>;
+  // Integrations with Kanban & Vault Notes
+  taskId?: string;
+  taskTitle?: string;
+  taskStatus?: string;
+  taskPriority?: string;
+  taskColumnId?: string;
+  taskColor?: string;
+  notePath?: string;
+  noteTitle?: string;
+  noteSnippet?: string;
 }
 
 export interface OrbitronEdgeMeta {

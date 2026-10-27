@@ -15,6 +15,7 @@ import {
   Eye,
   EyeOff,
   Search,
+  Minimize2,
 } from 'lucide-react';
 import { useFinancial, AppModule } from '../context/FinancialContext';
 import { useHabits } from '../context/HabitsContext';
@@ -232,6 +233,13 @@ export const Navbar: React.FC = () => {
 
         {/* Window controls if running inside Electron */}
         <div className="flex items-center ml-2 border-l border-slate-800 pl-2">
+          <button
+            onClick={() => window.dispatchEvent(new CustomEvent('orbitron:toggle-mini-mode'))}
+            title="Mini Player Compacto (Always on Top) [Ctrl+Shift+M]"
+            className="p-1.5 text-slate-400 hover:text-purple-300 hover:bg-purple-500/15 rounded-lg transition-colors mr-0.5"
+          >
+            <Minimize2 className="w-3.5 h-3.5" />
+          </button>
           <button
             onClick={handleMinimize}
             title="Minimizar"

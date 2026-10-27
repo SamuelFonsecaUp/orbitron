@@ -10,6 +10,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
   setAlwaysOnTop: (flag) => ipcRenderer.invoke('window:setAlwaysOnTop', flag),
   isAlwaysOnTop: () => ipcRenderer.invoke('window:isAlwaysOnTop'),
   toggleAlwaysOnTop: () => ipcRenderer.invoke('window:toggleAlwaysOnTop'),
+  setMiniMode: (enable) => ipcRenderer.invoke('window:setMiniMode', enable),
+  isMiniMode: () => ipcRenderer.invoke('window:isMiniMode'),
+  toggleMiniMode: () => ipcRenderer.invoke('window:toggleMiniMode'),
+  onMiniModeChanged: (callback) => {
+    const handler = (event, isMini) => callback(isMini);
+    ipcRenderer.on('window:mini-mode-changed', handler);
+    return () => ipcRenderer.removeListener('window:mini-mode-changed', handler);
+  },
 
   // Settings & Security
   getSettings: () => ipcRenderer.invoke('settings:get'),
