@@ -36,13 +36,13 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "Orbitron - Sistema Pessoal"
+      "shortcutName": "Orbitron"
     },
     "publish": [
       {
         "provider": "github",
         "owner": "SamuelFonsecaUp",
-        "repo": "pigo-financas"
+        "repo": "orbitron"
       }
     ]
   },
